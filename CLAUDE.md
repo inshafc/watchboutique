@@ -36,16 +36,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon/public key
 
 ## Current Sprint
 
-**Sprint 1 — Watch Inventory Module**
+**Sprint 2 — Client CRM Module**
 
 Goals:
-- [x] `watches` and `watch_investors` tables (see `supabase/schema.sql`)
-- [x] Dashboard at `/dashboard` — inventory table with status filter
-- [x] Add Watch form at `/dashboard/watches/new`
-- [x] Investor section with per-watch percentage split (validates to 100%)
-- [x] Status badges: Available / On Hold / Sold / Consigned
-- [x] Filter inventory by status
-- [ ] Run `supabase/schema.sql` in Supabase SQL editor to create tables
+- [x] `clients`, `wishlists`, `contact_log` tables (see `supabase/sprint2.sql`)
+- [x] `/dashboard/clients` — list with search + VIP / Club TWB filters
+- [x] `/dashboard/clients/new` — add client form
+- [x] `/dashboard/clients/[id]` — detail with inline wishlist + contact log
+- [x] `/dashboard/clients/[id]/edit` — edit client
+- [x] Clients added to sidebar navigation
+- [ ] Run `supabase/sprint2.sql` in Supabase SQL editor
+
+**Sprint 1 — Watch Inventory Module** ✓
 
 **Sprint 0 — Foundation Setup** ✓
 

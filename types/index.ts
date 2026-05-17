@@ -50,3 +50,40 @@ export interface WatchInvestor {
 export interface WatchWithInvestors extends Watch {
   watch_investors: WatchInvestor[]
 }
+
+// ── Client CRM ───────────────────────────────────────────────
+
+export interface Client {
+  id: string
+  name: string
+  whatsapp: string | null
+  email: string | null
+  phone: string | null
+  instagram: string | null
+  is_vip: boolean
+  club_twb: boolean
+  notes: string | null
+  created_at: string
+}
+
+export interface Wishlist {
+  id: string
+  client_id: string
+  brand: string | null
+  reference: string | null
+  max_budget: number | null
+  currency: string
+  notes: string | null
+  created_at: string
+}
+
+export interface ContactLog {
+  id: string
+  client_id: string
+  note: string
+  channel: string | null
+  created_at: string
+}
+
+export type ContactChannel = 'WhatsApp' | 'Instagram' | 'Phone' | 'In Person'
+export const CONTACT_CHANNELS: ContactChannel[] = ['WhatsApp', 'Instagram', 'Phone', 'In Person']
