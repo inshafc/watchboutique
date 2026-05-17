@@ -36,19 +36,30 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon/public key
 
 ## Current Sprint
 
-**Sprint 0 — Foundation Setup**
+**Sprint 1 — Watch Inventory Module**
 
 Goals:
-- [x] Next.js 14 + TypeScript + Tailwind scaffolded
-- [x] Supabase client wired up
-- [x] Folder structure established
-- [ ] Supabase project created and env vars filled in
-- [ ] Authentication (login/logout for staff)
+- [x] `watches` and `watch_investors` tables (see `supabase/schema.sql`)
+- [x] Dashboard at `/dashboard` — inventory table with status filter
+- [x] Add Watch form at `/dashboard/watches/new`
+- [x] Investor section with per-watch percentage split (validates to 100%)
+- [x] Status badges: Available / On Hold / Sold / Consigned
+- [x] Filter inventory by status
+- [ ] Run `supabase/schema.sql` in Supabase SQL editor to create tables
+
+**Sprint 0 — Foundation Setup** ✓
+
+## Key Conventions
+
+- All money is in **LKR** (currency field is fixed, never shown as editable)
+- `date_on_card` is stored as a full `date`; only the year is displayed in the inventory table
+- Investor percentages must total exactly 100% per watch — validated in `AddWatchForm`
+- Photos are stored as `text[]` (max 4 URLs), uploaded externally
 
 ## Business Context
 
 TWB buys and sells watches. The ERP will eventually manage:
-- Inventory (watch listings, conditions, sourcing)
+- Inventory (watch listings, conditions, sourcing) ← Sprint 1
 - Sales and purchase records
 - Customer/consignor contacts
 - Staff activity and reporting
