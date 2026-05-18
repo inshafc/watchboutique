@@ -47,7 +47,7 @@ function CloseIcon() {
 const NAV = [
   { label: 'Inventory', href: '/dashboard',         Icon: GridIcon   },
   { label: 'Clients',   href: '/dashboard/clients', Icon: PeopleIcon },
-  { label: 'Deals',     href: '/dashboard/deals',   Icon: TagIcon    },
+  { label: 'Sales',     href: '/dashboard/deals',   Icon: TagIcon    },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

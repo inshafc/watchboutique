@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { DEAL_TYPES, DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
-import type { DealType, DealStage, PaymentMethod } from '@/types'
+import type { Deal, TradeIn, DealType, DealStage, PaymentMethod } from '@/types'
 
 const inp  = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl  = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
@@ -35,36 +35,27 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null }
-export type ClientOption = { id: string; name: string }
+type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null }
+type ClientOption = { id: string; name: string }
 
-interface TradeInRow {
-  brand:            string
-  reference:        string
-  serial_number:    string
-  year:             string
-  condition:        string
-  set_details:      string
-  value:            string
-  add_to_inventory: boolean
+interface NewTradeInRow {
+  brand: string; reference: string; serial_number: string; year: string
+  condition: string; set_details: string; value: string; add_to_inventory: boolean
 }
 
-interface InstallmentRow {
-  amount:   string
-  due_date: string
-  notes:    string
-}
-
-const DEFAULT_TRADE_IN: TradeInRow = {
+const DEFAULT_TRADE_IN: NewTradeInRow = {
   brand: '', reference: '', serial_number: '', year: '',
-  condition: 'Good', set_details: 'Watch Only', value: '',
-  add_to_inventory: false,
+  condition: 'Good', set_details: 'Watch Only', value: '', add_to_inventory: false,
 }
 
-export default function AddDealForm({
+export default function EditDealForm({
+  deal,
+  initialTradeIns,
   watches,
   clients,
 }: {
+  deal: Deal
+  initialTradeIns: TradeIn[]
   watches: WatchOption[]
   clients: ClientOption[]
 }) {
@@ -72,28 +63,27 @@ export default function AddDealForm({
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
-
   const [form, setForm] = useState({
-    watch_id:       '',
-    client_id:      '',
-    deal_type:      'Sale' as DealType,
-    stage:          'Inquiry' as DealStage,
-    sale_date:      today,
-    offered_price:  '',
-    sale_price:     '',
-    payment_method: '' as PaymentMethod | '',
-    sales_manager:  '',
-    notes:          '',
-    commission_amount: '50000',
+    watch_id:          deal.watch_id      ?? '',
+    client_id:         deal.client_id     ?? '',
+    deal_type:         deal.deal_type,
+    stage:             deal.stage,
+    sale_date:         deal.sale_date     ?? '',
+    offered_price:     deal.offered_price?.toString() ?? '',
+    sale_price:        deal.sale_price?.toString()    ?? '',
+    payment_method:    (deal.payment_method ?? '') as PaymentMethod | '',
+    sales_manager:     deal.sales_manager ?? '',
+    notes:             deal.notes         ?? '',
+    commission_amount: deal.commission_amount?.toString() ?? '50000',
   })
-  const [otherCosts,        setOtherCosts]        = useState(false)
-  const [otherCostsAmount,  setOtherCostsAmount]  = useState('')
-  const [commissionPayable, setCommissionPayable] = useState(false)
-  const [newClient,         setNewClient]         = useState(false)
+  const [otherCosts,        setOtherCosts]        = useState(deal.other_costs ?? false)
+  const [otherCostsAmount,  setOtherCostsAmount]  = useState(deal.other_costs_amount?.toString() ?? '')
+  const [commissionPayable, setCommissionPayable] = useState(deal.commission_payable ?? false)
+  const [newClient,         setNewClient]         = useState(deal.new_client ?? false)
 
-  const [tradeInRows,     setTradeInRows]     = useState<TradeInRow[]>([{ ...DEFAULT_TRADE_IN }])
-  const [installmentRows, setInstallmentRows] = useState<InstallmentRow[]>([{ amount: '', due_date: '', notes: '' }])
+  const [existingTradeIns, setExistingTradeIns] = useState<TradeIn[]>(initialTradeIns)
+  const [newTradeInRows,   setNewTradeInRows]   = useState<NewTradeInRow[]>([])
+  const [deletingTi,       setDeletingTi]       = useState<string | null>(null)
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -112,14 +102,17 @@ export default function AddDealForm({
   const commissionAmt  = commissionPayable ? (num(form.commission_amount) ?? 0) : 0
   const grossProfit    = salePrice != null ? salePrice - watchCost - otherCostsAmt - commissionAmt : null
 
-  const installmentTotal = installmentRows.reduce((s, r) => s + (num(r.amount) ?? 0), 0)
-
-  function updateTradeIn(i: number, key: keyof TradeInRow, value: string | boolean) {
-    setTradeInRows(rows => rows.map((r, idx) => idx === i ? { ...r, [key]: value } : r))
+  function updateNewTradeIn(i: number, key: keyof NewTradeInRow, value: string | boolean) {
+    setNewTradeInRows(rows => rows.map((r, idx) => idx === i ? { ...r, [key]: value } : r))
   }
 
-  function updateInstallment(i: number, key: keyof InstallmentRow, value: string) {
-    setInstallmentRows(rows => rows.map((r, idx) => idx === i ? { ...r, [key]: value } : r))
+  async function deleteTradeIn(id: string) {
+    if (!confirm('Remove this trade-in?')) return
+    setDeletingTi(id)
+    const supabase = createClient()
+    await supabase.from('trade_ins').delete().eq('id', id)
+    setExistingTradeIns(rows => rows.filter(r => r.id !== id))
+    setDeletingTi(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -127,22 +120,14 @@ export default function AddDealForm({
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
 
-    if (form.payment_method === 'Installment') {
-      const invalid = installmentRows.some(r => !r.amount || isNaN(parseFloat(r.amount)))
-      if (invalid || installmentRows.length === 0) {
-        setError('All installments must have a valid amount.')
-        return
-      }
-    }
-
     setLoading(true)
     setError(null)
 
     const supabase = createClient()
 
-    const { data: deal, error: dealErr } = await supabase
+    const { error: updateErr } = await supabase
       .from('deals')
-      .insert({
+      .update({
         watch_id:           form.watch_id,
         client_id:          form.client_id,
         deal_type:          form.deal_type,
@@ -158,69 +143,38 @@ export default function AddDealForm({
         commission_payable: commissionPayable,
         commission_amount:  commissionPayable ? num(form.commission_amount) : null,
         new_client:         newClient,
-        closed_at:          form.stage === 'Closed' || form.stage === 'Delivered' ? new Date().toISOString() : null,
+        closed_at: (form.stage === 'Closed' || form.stage === 'Delivered') && !deal.closed_at
+          ? new Date().toISOString()
+          : deal.closed_at,
       })
-      .select('id')
-      .single()
+      .eq('id', deal.id)
 
-    if (dealErr || !deal) {
-      setError(dealErr?.message ?? 'Failed to create sale.')
-      setLoading(false)
-      return
-    }
+    if (updateErr) { setError(updateErr.message); setLoading(false); return }
 
-    // Installments
-    if (form.payment_method === 'Installment' && installmentRows.length > 0) {
-      await supabase.from('installments').insert(
-        installmentRows.map(r => ({
-          deal_id:  deal.id,
-          amount:   parseFloat(r.amount),
-          due_date: r.due_date || null,
-          notes:    r.notes.trim() || null,
-          status:   'Pending',
-        }))
-      )
-    }
-
-    // Trade-ins
-    if (form.deal_type === 'Trade') {
-      for (const row of tradeInRows) {
+    // Insert new trade-ins
+    if (form.deal_type === 'Trade' && newTradeInRows.length > 0) {
+      for (const row of newTradeInRows) {
         if (!row.brand && !row.value) continue
-
         let watchId: string | null = null
-
         if (row.add_to_inventory) {
           const watchName = [row.brand, row.reference].filter(Boolean).join(' ') || 'Unnamed'
           const { data: newWatch } = await supabase
             .from('watches')
             .insert({
-              watch_name:   watchName,
-              reference:    row.reference || null,
+              watch_name: watchName, reference: row.reference || null,
               serial_number: row.serial_number || null,
               date_on_card: row.year ? `${row.year}-01-01` : null,
-              condition:    row.condition || 'Good',
-              set_details:  row.set_details || 'Watch Only',
-              purchase_cost: num(row.value),
-              currency:     'LKR',
-              status:       'Available',
-              photos:       [],
+              condition: row.condition || 'Good', set_details: row.set_details || 'Watch Only',
+              purchase_cost: num(row.value), currency: 'LKR', status: 'Available', photos: [],
             })
-            .select('id')
-            .single()
+            .select('id').single()
           watchId = newWatch?.id ?? null
         }
-
         await supabase.from('trade_ins').insert({
-          deal_id:          deal.id,
-          brand:            row.brand || null,
-          reference:        row.reference || null,
-          serial_number:    row.serial_number || null,
-          year:             row.year || null,
-          condition:        row.condition || null,
-          set_details:      row.set_details || null,
-          value:            num(row.value),
-          add_to_inventory: row.add_to_inventory,
-          watch_id:         watchId,
+          deal_id: deal.id, brand: row.brand || null, reference: row.reference || null,
+          serial_number: row.serial_number || null, year: row.year || null,
+          condition: row.condition || null, set_details: row.set_details || null,
+          value: num(row.value), add_to_inventory: row.add_to_inventory, watch_id: watchId,
         })
       }
     }
@@ -267,7 +221,7 @@ export default function AddDealForm({
         </div>
       </div>
 
-      {/* ── Deal Info ────────────────────────────────────────── */}
+      {/* ── Sale Info ────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Sale Info</p>
         <div className="space-y-4">
@@ -292,7 +246,7 @@ export default function AddDealForm({
             </div>
             <div>
               <label className={lbl}>Sales Manager</label>
-              <input type="text" value={form.sales_manager} onChange={field('sales_manager')} placeholder="Name" className={inp} />
+              <input type="text" value={form.sales_manager} onChange={field('sales_manager')} className={inp} />
             </div>
           </div>
           <div>
@@ -318,42 +272,24 @@ export default function AddDealForm({
               <input type="number" min="0" step="0.01" value={form.sale_price} onChange={field('sale_price')} placeholder="0" className={inp} />
             </div>
           </div>
-
-          {/* Other Costs toggle */}
           <div>
             <Toggle label="Other Costs" checked={otherCosts} onChange={setOtherCosts} />
             {otherCosts && (
               <div className="mt-2">
                 <label className={lbl}>Other Costs Amount</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={otherCostsAmount}
-                  onChange={e => setOtherCostsAmount(e.target.value)}
-                  placeholder="0"
-                  className={inp}
-                />
+                <input type="number" min="0" step="0.01" value={otherCostsAmount} onChange={e => setOtherCostsAmount(e.target.value)} placeholder="0" className={inp} />
               </div>
             )}
           </div>
-
-          {/* Commission toggle */}
           <div>
             <Toggle label="Commission Payable" checked={commissionPayable} onChange={setCommissionPayable} />
             {commissionPayable && (
               <div className="mt-2">
                 <label className={lbl}>Commission Amount</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={form.commission_amount}
-                  onChange={field('commission_amount')}
-                  placeholder="50000"
-                  className={inp}
-                />
+                <input type="number" min="0" step="0.01" value={form.commission_amount} onChange={field('commission_amount')} placeholder="50000" className={inp} />
               </div>
             )}
           </div>
-
-          {/* Gross profit preview */}
           {grossProfit != null && (
             <div className={`rounded-xl px-4 py-3 ${grossProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
               <div className="flex items-center justify-between mb-1">
@@ -363,24 +299,10 @@ export default function AddDealForm({
                 </span>
               </div>
               <div className="text-xs text-gray-400 space-y-0.5">
-                <div className="flex justify-between">
-                  <span>Sale price</span><span className="tabular-nums">{formatLKR(salePrice!)}</span>
-                </div>
-                {watchCost > 0 && (
-                  <div className="flex justify-between">
-                    <span>Watch cost</span><span className="tabular-nums">− {formatLKR(watchCost)}</span>
-                  </div>
-                )}
-                {otherCostsAmt > 0 && (
-                  <div className="flex justify-between">
-                    <span>Other costs</span><span className="tabular-nums">− {formatLKR(otherCostsAmt)}</span>
-                  </div>
-                )}
-                {commissionAmt > 0 && (
-                  <div className="flex justify-between">
-                    <span>Commission</span><span className="tabular-nums">− {formatLKR(commissionAmt)}</span>
-                  </div>
-                )}
+                <div className="flex justify-between"><span>Sale price</span><span className="tabular-nums">{formatLKR(salePrice!)}</span></div>
+                {watchCost > 0 && <div className="flex justify-between"><span>Watch cost</span><span className="tabular-nums">− {formatLKR(watchCost)}</span></div>}
+                {otherCostsAmt > 0 && <div className="flex justify-between"><span>Other costs</span><span className="tabular-nums">− {formatLKR(otherCostsAmt)}</span></div>}
+                {commissionAmt > 0 && <div className="flex justify-between"><span>Commission</span><span className="tabular-nums">− {formatLKR(commissionAmt)}</span></div>}
               </div>
             </div>
           )}
@@ -390,50 +312,12 @@ export default function AddDealForm({
       {/* ── Payment ──────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Payment</p>
-        <div className="space-y-4">
-          <div>
-            <label className={lbl}>Payment Method</label>
-            <select value={form.payment_method} onChange={field('payment_method')} className={inp}>
-              <option value="">— Select —</option>
-              {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-
-          {form.payment_method === 'Installment' && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Installments</p>
-              {installmentRows.map((row, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <label className={lbl}>Amount {i + 1}</label>
-                      <input type="number" min="0" step="0.01" value={row.amount} onChange={e => updateInstallment(i, 'amount', e.target.value)} placeholder="0" className={inp} required />
-                    </div>
-                    <div>
-                      <label className={lbl}>Due Date</label>
-                      <input type="date" value={row.due_date} onChange={e => updateInstallment(i, 'due_date', e.target.value)} className={inp} />
-                    </div>
-                  </div>
-                  {installmentRows.length > 1 && (
-                    <button type="button" onClick={() => setInstallmentRows(r => r.filter((_, idx) => idx !== i))} className="mt-6 p-2 text-gray-400 hover:text-red-500 transition-colors">
-                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-              <div className="flex items-center justify-between">
-                <button type="button" onClick={() => setInstallmentRows(r => [...r, { amount: '', due_date: '', notes: '' }])} className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition-colors">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
-                  Add installment
-                </button>
-                {salePrice != null && installmentTotal > 0 && (
-                  <span className={`text-xs font-medium ${Math.abs(installmentTotal - salePrice) < 1 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    Total: {formatLKR(installmentTotal)} / {formatLKR(salePrice)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+        <div>
+          <label className={lbl}>Payment Method</label>
+          <select value={form.payment_method} onChange={field('payment_method')} className={inp}>
+            <option value="">— Select —</option>
+            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
       </div>
 
@@ -442,74 +326,77 @@ export default function AddDealForm({
         <div className={card}>
           <p className={cardTitle}>Trade-In Watches</p>
           <div className="space-y-4">
-            {tradeInRows.map((row, i) => (
-              <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3 relative">
-                {tradeInRows.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setTradeInRows(r => r.filter((_, idx) => idx !== i))}
-                    className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors"
-                  >
+            {/* Existing trade-ins */}
+            {existingTradeIns.map(ti => (
+              <div key={ti.id} className="border border-gray-100 rounded-xl p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {[ti.brand, ti.reference].filter(Boolean).join(' · ') || 'Unnamed'}
+                  </p>
+                  <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
+                    {ti.serial_number && <p>SN: {ti.serial_number}</p>}
+                    <p>{[ti.year, ti.condition, ti.set_details].filter(Boolean).join(' · ')}</p>
+                    {ti.value != null && <p className="font-medium text-gray-600">{formatLKR(ti.value)}</p>}
+                    {ti.add_to_inventory && <p className="text-emerald-600">Added to inventory</p>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteTradeIn(ti.id)}
+                  disabled={deletingTi === ti.id}
+                  className="shrink-0 text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deletingTi === ti.id ? '…' : 'Remove'}
+                </button>
+              </div>
+            ))}
+
+            {/* New trade-in rows */}
+            {newTradeInRows.map((row, i) => (
+              <div key={i} className="border border-dashed border-gray-200 rounded-xl p-4 space-y-3 relative">
+                {newTradeInRows.length > 0 && (
+                  <button type="button" onClick={() => setNewTradeInRows(r => r.filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors">
                     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
                   </button>
                 )}
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trade-in #{i + 1}</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">New Trade-in</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={lbl}>Brand</label>
-                    <input type="text" value={row.brand} onChange={e => updateTradeIn(i, 'brand', e.target.value)} placeholder="Rolex" className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Reference</label>
-                    <input type="text" value={row.reference} onChange={e => updateTradeIn(i, 'reference', e.target.value)} placeholder="126610LN" className={inp} />
-                  </div>
+                  <div><label className={lbl}>Brand</label><input type="text" value={row.brand} onChange={e => updateNewTradeIn(i, 'brand', e.target.value)} placeholder="Rolex" className={inp} /></div>
+                  <div><label className={lbl}>Reference</label><input type="text" value={row.reference} onChange={e => updateNewTradeIn(i, 'reference', e.target.value)} placeholder="126610LN" className={inp} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={lbl}>Serial Number</label>
-                    <input type="text" value={row.serial_number} onChange={e => updateTradeIn(i, 'serial_number', e.target.value)} placeholder="12345678" className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Year</label>
-                    <input type="text" value={row.year} onChange={e => updateTradeIn(i, 'year', e.target.value)} placeholder="2022" maxLength={4} className={inp} />
-                  </div>
+                  <div><label className={lbl}>Serial Number</label><input type="text" value={row.serial_number} onChange={e => updateNewTradeIn(i, 'serial_number', e.target.value)} className={inp} /></div>
+                  <div><label className={lbl}>Year</label><input type="text" value={row.year} onChange={e => updateNewTradeIn(i, 'year', e.target.value)} maxLength={4} className={inp} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={lbl}>Condition</label>
-                    <select value={row.condition} onChange={e => updateTradeIn(i, 'condition', e.target.value)} className={inp}>
+                    <select value={row.condition} onChange={e => updateNewTradeIn(i, 'condition', e.target.value)} className={inp}>
                       {WATCH_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className={lbl}>Set Details</label>
-                    <select value={row.set_details} onChange={e => updateTradeIn(i, 'set_details', e.target.value)} className={inp}>
+                    <select value={row.set_details} onChange={e => updateNewTradeIn(i, 'set_details', e.target.value)} className={inp}>
                       {WATCH_SET_DETAILS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 items-end">
-                  <div>
-                    <label className={lbl}>Value (LKR)</label>
-                    <input type="number" min="0" step="0.01" value={row.value} onChange={e => updateTradeIn(i, 'value', e.target.value)} placeholder="0" className={inp} />
-                  </div>
+                  <div><label className={lbl}>Value (LKR)</label><input type="number" min="0" step="0.01" value={row.value} onChange={e => updateNewTradeIn(i, 'value', e.target.value)} placeholder="0" className={inp} /></div>
                   <div className="pb-2.5">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={row.add_to_inventory}
-                        onChange={e => updateTradeIn(i, 'add_to_inventory', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                      />
+                      <input type="checkbox" checked={row.add_to_inventory} onChange={e => updateNewTradeIn(i, 'add_to_inventory', e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900" />
                       <span className="text-sm text-gray-700">Add to Inventory</span>
                     </label>
                   </div>
                 </div>
               </div>
             ))}
+
             <button
               type="button"
-              onClick={() => setTradeInRows(r => [...r, { ...DEFAULT_TRADE_IN }])}
+              onClick={() => setNewTradeInRows(r => [...r, { ...DEFAULT_TRADE_IN }])}
               className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition-colors"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
@@ -522,18 +409,15 @@ export default function AddDealForm({
       {/* ── Notes ────────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Notes</p>
-        <textarea value={form.notes} onChange={field('notes')} rows={3} placeholder="Any notes about this sale…" className={inp} />
+        <textarea value={form.notes} onChange={field('notes')} rows={3} className={inp} />
       </div>
 
       {/* ── Actions ──────────────────────────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <button
-          type="submit" disabled={loading}
-          className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Saving…' : 'Create Sale'}
+        <button type="submit" disabled={loading} className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          {loading ? 'Saving…' : 'Save Changes'}
         </button>
-        <Link href="/dashboard/deals" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
+        <Link href={`/dashboard/deals/${deal.id}`} className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
           Cancel
         </Link>
       </div>

@@ -14,7 +14,12 @@ function formatLKR(n: number | null | undefined) {
 
 function grossProfit(d: DealWithRelations): number | null {
   if (d.sale_price == null) return null
-  return d.sale_price - (d.trade_value ?? 0) - (d.adjustment ?? 0) - (d.commission ?? 0)
+  return (
+    d.sale_price
+    - (d.watches?.purchase_cost ?? 0)
+    - (d.other_costs ? (d.other_costs_amount ?? 0) : 0)
+    - (d.commission_payable ? (d.commission_amount ?? 0) : 0)
+  )
 }
 
 const STAGE_COLORS: Record<DealStage, string> = {
@@ -22,6 +27,7 @@ const STAGE_COLORS: Record<DealStage, string> = {
   Offer:       'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200',
   Negotiation: 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
   Closed:      'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+  Delivered:   'bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-200',
   Lost:        'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200',
 }
 
@@ -33,7 +39,7 @@ const TYPE_COLORS: Record<DealType, string> = {
 
 function StageBadge({ stage }: { stage: DealStage }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[stage]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_COLORS[stage] ?? 'bg-gray-100 text-gray-600'}`}>
       {stage}
     </span>
   )
@@ -47,16 +53,17 @@ function TypeBadge({ type }: { type: DealType }) {
   )
 }
 
-const STAGES: DealStage[] = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Lost']
+const STAGES: DealStage[] = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Delivered', 'Lost']
 const TYPES:  DealType[]  = ['Sale', 'Purchase', 'Trade']
 
 export default function DealList({ initialDeals }: { initialDeals: DealWithRelations[] }) {
   const router = useRouter()
-  const [deals, setDeals]       = useState(initialDeals)
-  const [search, setSearch]     = useState('')
-  const [stage, setStage]       = useState<DealStage | 'All'>('All')
-  const [type, setType]         = useState<DealType | 'All'>('All')
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deals,       setDeals]       = useState(initialDeals)
+  const [search,      setSearch]      = useState('')
+  const [stage,       setStage]       = useState<DealStage | 'All'>('All')
+  const [type,        setType]        = useState<DealType | 'All'>('All')
+  const [deleting,    setDeleting]    = useState<string | null>(null)
+  const [duplicating, setDuplicating] = useState<string | null>(null)
 
   const filtered = deals.filter(d => {
     if (stage !== 'All' && d.stage !== stage) return false
@@ -71,7 +78,7 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
   })
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this deal? This cannot be undone.')) return
+    if (!confirm('Delete this sale? This cannot be undone.')) return
     setDeleting(id)
     const supabase = createClient()
     const { error } = await supabase.from('deals').delete().eq('id', id)
@@ -80,11 +87,42 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
     setDeleting(null)
   }
 
+  async function handleDuplicate(deal: DealWithRelations) {
+    setDuplicating(deal.id)
+    const supabase = createClient()
+    const { data: newDeal, error } = await supabase
+      .from('deals')
+      .insert({
+        watch_id:           deal.watch_id,
+        client_id:          deal.client_id,
+        deal_type:          deal.deal_type,
+        stage:              'Inquiry',
+        offered_price:      deal.offered_price,
+        sale_price:         deal.sale_price,
+        payment_method:     deal.payment_method,
+        currency:           deal.currency,
+        notes:              deal.notes,
+        sales_manager:      deal.sales_manager,
+        other_costs:        deal.other_costs ?? false,
+        other_costs_amount: deal.other_costs_amount,
+        commission_payable: deal.commission_payable ?? false,
+        commission_amount:  deal.commission_amount,
+        new_client:         deal.new_client ?? false,
+      })
+      .select('id')
+      .single()
+
+    if (!error && newDeal) {
+      router.push(`/dashboard/deals/${newDeal.id}`)
+    }
+    setDuplicating(null)
+  }
+
   return (
     <div>
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-8 pt-6 pb-4">
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Deals</h1>
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Sales</h1>
         <Link
           href="/dashboard/deals/new"
           className="inline-flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors"
@@ -92,7 +130,7 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
           <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 1v10M1 6h10" strokeLinecap="round"/>
           </svg>
-          New Deal
+          New Sale
         </Link>
       </div>
 
@@ -155,7 +193,7 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
               <path d="M2 1a1 1 0 0 0-1 1v4.586a1 1 0 0 0 .293.707l7 7a1 1 0 0 0 1.414 0l4.586-4.586a1 1 0 0 0 0-1.414l-7-7A1 1 0 0 0 6.586 1H2zm4 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
             </svg>
           </div>
-          <p className="text-sm font-medium text-gray-400">No deals found</p>
+          <p className="text-sm font-medium text-gray-400">No sales found</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -232,20 +270,27 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
                       )}
                     </td>
 
-                    {/* Date + actions */}
+                    {/* Date + hover actions */}
                     <td className="px-3 py-3.5 hidden lg:table-cell pr-4 md:pr-8 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         <span className="text-xs text-gray-400 group-hover:hidden">
                           {new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
                         </span>
                         <div className="hidden group-hover:flex items-center gap-1">
                           <Link
-                            href={`/dashboard/deals/${deal.id}`}
+                            href={`/dashboard/deals/${deal.id}/edit`}
                             onClick={e => e.stopPropagation()}
                             className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                           >
-                            View
+                            Edit
                           </Link>
+                          <button
+                            onClick={e => { e.stopPropagation(); handleDuplicate(deal) }}
+                            disabled={duplicating === deal.id}
+                            className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            {duplicating === deal.id ? '…' : 'Copy'}
+                          </button>
                           <button
                             onClick={e => { e.stopPropagation(); handleDelete(deal.id) }}
                             disabled={deleting === deal.id}
@@ -265,7 +310,7 @@ export default function DealList({ initialDeals }: { initialDeals: DealWithRelat
       )}
 
       <p className="px-4 md:px-8 py-4 text-xs text-gray-300 border-t border-gray-50">
-        {filtered.length} deal{filtered.length !== 1 ? 's' : ''}
+        {filtered.length} sale{filtered.length !== 1 ? 's' : ''}
       </p>
     </div>
   )

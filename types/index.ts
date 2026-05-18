@@ -103,32 +103,39 @@ export const CONTACT_CHANNELS: ContactChannel[] = ['WhatsApp', 'Instagram', 'Pho
 // ── Deals ────────────────────────────────────────────────────
 
 export type DealType          = 'Sale' | 'Purchase' | 'Trade'
-export type DealStage         = 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Lost'
-export type PaymentMethod     = 'Cash' | 'Bank Transfer' | 'Installment'
+export type DealStage         = 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Delivered' | 'Lost'
+export type PaymentMethod     = 'Cash' | 'Cash + Bank' | 'Bank Transfer' | 'Installment'
 export type InstallmentStatus = 'Pending' | 'Paid' | 'Overdue'
 
 export const DEAL_TYPES:           DealType[]          = ['Sale', 'Purchase', 'Trade']
-export const DEAL_STAGES:          DealStage[]         = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Lost']
-export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Bank Transfer', 'Installment']
+export const DEAL_STAGES:          DealStage[]         = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Delivered', 'Lost']
+export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Cash + Bank', 'Bank Transfer', 'Installment']
 export const INSTALLMENT_STATUSES: InstallmentStatus[] = ['Pending', 'Paid', 'Overdue']
 
 export interface Deal {
-  id:             string
-  watch_id:       string | null
-  client_id:      string | null
-  deal_type:      DealType
-  stage:          DealStage
-  offered_price:  number | null
-  sale_price:     number | null
-  trade_value:    number | null
-  adjustment:     number | null
-  commission:     number | null
-  payment_method: PaymentMethod | null
-  currency:       string
-  notes:          string | null
-  sales_manager:  string | null
-  closed_at:      string | null
-  created_at:     string
+  id:                 string
+  watch_id:           string | null
+  client_id:          string | null
+  deal_type:          DealType
+  stage:              DealStage
+  offered_price:      number | null
+  sale_price:         number | null
+  trade_value:        number | null
+  adjustment:         number | null
+  commission:         number | null
+  payment_method:     PaymentMethod | null
+  currency:           string
+  notes:              string | null
+  sales_manager:      string | null
+  closed_at:          string | null
+  created_at:         string
+  other_costs:        boolean
+  other_costs_amount: number | null
+  commission_payable: boolean
+  commission_amount:  number | null
+  new_client:         boolean
+  sale_date:          string | null
+  delivery_status:    string | null
 }
 
 export interface Installment {
@@ -142,8 +149,23 @@ export interface Installment {
   created_at: string
 }
 
+export interface TradeIn {
+  id:               string
+  deal_id:          string
+  brand:            string | null
+  reference:        string | null
+  serial_number:    string | null
+  year:             string | null
+  condition:        string | null
+  set_details:      string | null
+  value:            number | null
+  add_to_inventory: boolean
+  watch_id:         string | null
+  created_at:       string
+}
+
 export interface DealWithRelations extends Deal {
-  watches:      { watch_name: string; reference: string | null; status?: string; photos?: string[] } | null
+  watches:      { watch_name: string; reference: string | null; status?: string; photos?: string[]; purchase_cost?: number | null } | null
   clients:      { name: string; avatar_color: string | null } | null
   installments?: Installment[]
 }
