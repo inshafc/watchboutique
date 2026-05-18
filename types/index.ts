@@ -53,6 +53,12 @@ export interface WatchWithInvestors extends Watch {
 
 // ── Client CRM ───────────────────────────────────────────────
 
+export type LeadReferral = 'Socials' | 'Referral' | 'Website' | 'Hotline'
+export type ClientType   = 'Retail'  | 'Reseller'
+
+export const LEAD_REFERRALS: LeadReferral[] = ['Socials', 'Referral', 'Website', 'Hotline']
+export const CLIENT_TYPES:   ClientType[]   = ['Retail', 'Reseller']
+
 export interface Client {
   id: string
   name: string
@@ -62,7 +68,13 @@ export interface Client {
   instagram: string | null
   is_vip: boolean
   club_twb: boolean
-  notes: string | null
+  notes: string | null          // original field — kept for compat
+  profile_notes: string | null  // new canonical notes field
+  address: string | null
+  lead_referral: LeadReferral | null
+  client_type: ClientType | null
+  sales_manager: string | null
+  avatar_color: string | null
   created_at: string
 }
 
