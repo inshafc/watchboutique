@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { avatarColor, getInitials } from '@/lib/client-utils'
 import type { WatchWithInvestors } from '@/types'
 
 function formatLKR(n: number | null) {
@@ -27,15 +28,25 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default async function WatchDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
-  const { data } = await supabase
-    .from('watches')
-    .select('*, watch_investors(*)')
-    .eq('id', params.id)
-    .single()
 
-  if (!data) notFound()
+  const [watchRes, dealsRes] = await Promise.all([
+    supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
+    supabase.from('deals').select('id, deal_type, stage, sale_price, offered_price, closed_at, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
+  ])
 
-  const watch = data as WatchWithInvestors
+  if (!watchRes.data) notFound()
+
+  const watch = watchRes.data as WatchWithInvestors
+  type WatchDeal = {
+    id: string
+    deal_type: string
+    stage: string
+    sale_price: number | null
+    offered_price: number | null
+    closed_at: string | null
+    clients: { name: string; avatar_color: string | null } | null
+  }
+  const deals = (dealsRes.data ?? []) as unknown as WatchDeal[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -150,6 +161,57 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           <div className="border border-gray-100 rounded-2xl p-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
             <p className="text-sm text-gray-600 leading-relaxed">{watch.comments}</p>
+          </div>
+        )}
+
+        {/* Deals */}
+        {deals.length > 0 && (
+          <div className="border border-gray-100 rounded-2xl p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Deals</p>
+            <div className="space-y-2">
+              {deals.map(deal => {
+                const stageColors: Record<string, string> = {
+                  Inquiry:     'bg-gray-100 text-gray-600',
+                  Offer:       'bg-sky-50 text-sky-700',
+                  Negotiation: 'bg-amber-50 text-amber-700',
+                  Closed:      'bg-emerald-50 text-emerald-700',
+                  Lost:        'bg-red-50 text-red-600',
+                }
+                return (
+                  <Link
+                    key={deal.id}
+                    href={`/dashboard/deals/${deal.id}`}
+                    className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {deal.clients && (
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>
+                          {getInitials(deal.clients.name)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {deal.clients?.name ?? 'Unknown Client'}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${stageColors[deal.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {deal.stage}
+                          </span>
+                          <span className="text-xs text-gray-400">{deal.deal_type}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      {(deal.sale_price ?? deal.offered_price) != null && (
+                        <p className="text-sm font-medium text-gray-900 tabular-nums">
+                          {formatLKR(deal.sale_price ?? deal.offered_price)}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

@@ -99,3 +99,51 @@ export interface ContactLog {
 
 export type ContactChannel = 'WhatsApp' | 'Instagram' | 'Phone' | 'In Person'
 export const CONTACT_CHANNELS: ContactChannel[] = ['WhatsApp', 'Instagram', 'Phone', 'In Person']
+
+// ── Deals ────────────────────────────────────────────────────
+
+export type DealType          = 'Sale' | 'Purchase' | 'Trade'
+export type DealStage         = 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Lost'
+export type PaymentMethod     = 'Cash' | 'Bank Transfer' | 'Installment'
+export type InstallmentStatus = 'Pending' | 'Paid' | 'Overdue'
+
+export const DEAL_TYPES:           DealType[]          = ['Sale', 'Purchase', 'Trade']
+export const DEAL_STAGES:          DealStage[]         = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Lost']
+export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Bank Transfer', 'Installment']
+export const INSTALLMENT_STATUSES: InstallmentStatus[] = ['Pending', 'Paid', 'Overdue']
+
+export interface Deal {
+  id:             string
+  watch_id:       string | null
+  client_id:      string | null
+  deal_type:      DealType
+  stage:          DealStage
+  offered_price:  number | null
+  sale_price:     number | null
+  trade_value:    number | null
+  adjustment:     number | null
+  commission:     number | null
+  payment_method: PaymentMethod | null
+  currency:       string
+  notes:          string | null
+  sales_manager:  string | null
+  closed_at:      string | null
+  created_at:     string
+}
+
+export interface Installment {
+  id:         string
+  deal_id:    string
+  amount:     number
+  due_date:   string | null
+  paid_at:    string | null
+  status:     InstallmentStatus
+  notes:      string | null
+  created_at: string
+}
+
+export interface DealWithRelations extends Deal {
+  watches:      { watch_name: string; reference: string | null; status?: string; photos?: string[] } | null
+  clients:      { name: string; avatar_color: string | null } | null
+  installments?: Installment[]
+}

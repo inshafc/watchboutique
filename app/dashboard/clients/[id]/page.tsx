@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import WishlistSection from '@/components/clients/WishlistSection'
 import ContactLogSection from '@/components/clients/ContactLogSection'
 import { avatarColor, getInitials } from '@/lib/client-utils'
-import type { Client, Wishlist, ContactLog } from '@/types'
+import type { Client, Wishlist, ContactLog, DealWithRelations } from '@/types'
 
 function VIPBadge() {
   return (
@@ -59,10 +59,11 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [clientRes, wishlistRes, logRes] = await Promise.all([
+  const [clientRes, wishlistRes, logRes, dealsRes] = await Promise.all([
     supabase.from('clients').select('*').eq('id', params.id).single(),
     supabase.from('wishlists').select('*').eq('client_id', params.id).order('created_at', { ascending: false }),
     supabase.from('contact_log').select('*').eq('client_id', params.id).order('created_at', { ascending: false }),
+    supabase.from('deals').select('*, watches(watch_name, reference)').eq('client_id', params.id).order('created_at', { ascending: false }),
   ])
 
   if (!clientRes.data) notFound()
@@ -70,6 +71,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const client    = clientRes.data  as Client
   const wishlists = (wishlistRes.data ?? []) as Wishlist[]
   const logs      = (logRes.data     ?? []) as ContactLog[]
+  const deals     = (dealsRes.data   ?? []) as DealWithRelations[]
 
   const notes = client.profile_notes ?? client.notes
 
@@ -199,12 +201,61 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         <ContactLogSection clientId={client.id} initialLogs={logs} />
       </div>
 
-      {/* Sales History placeholder */}
+      {/* Sales History */}
       <div className="border border-gray-100 rounded-2xl p-5 mb-8">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Sales History</p>
-        <p className="text-sm text-gray-400 italic">
-          Sales history will appear here once deals are added (Sprint 3).
-        </p>
+        {deals.length === 0 ? (
+          <p className="text-sm text-gray-400">No deals yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {deals.map(deal => {
+              const stageColors: Record<string, string> = {
+                Inquiry:     'bg-gray-100 text-gray-600',
+                Offer:       'bg-sky-50 text-sky-700',
+                Negotiation: 'bg-amber-50 text-amber-700',
+                Closed:      'bg-emerald-50 text-emerald-700',
+                Lost:        'bg-red-50 text-red-600',
+              }
+              const gp = deal.sale_price != null
+                ? deal.sale_price - (deal.trade_value ?? 0) - (deal.adjustment ?? 0) - (deal.commission ?? 0)
+                : null
+              return (
+                <Link
+                  key={deal.id}
+                  href={`/dashboard/deals/${deal.id}`}
+                  className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded-xl transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {deal.watches?.watch_name ?? 'Unknown Watch'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${stageColors[deal.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {deal.stage}
+                      </span>
+                      <span className="text-xs text-gray-400">{deal.deal_type}</span>
+                      <span className="text-xs text-gray-300">
+                        {new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    {deal.sale_price != null && (
+                      <p className="text-sm font-medium text-gray-900 tabular-nums">
+                        LKR {deal.sale_price.toLocaleString('en-LK')}
+                      </p>
+                    )}
+                    {gp != null && (
+                      <p className={`text-xs tabular-nums ${gp >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {gp >= 0 ? '+' : ''}LKR {gp.toLocaleString('en-LK')}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

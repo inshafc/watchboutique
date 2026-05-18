@@ -20,6 +20,14 @@ function PeopleIcon() {
   )
 }
 
+function TagIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M2 1a1 1 0 0 0-1 1v4.586a1 1 0 0 0 .293.707l7 7a1 1 0 0 0 1.414 0l4.586-4.586a1 1 0 0 0 0-1.414l-7-7A1 1 0 0 0 6.586 1H2zm4 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+    </svg>
+  )
+}
+
 function MenuIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -39,6 +47,7 @@ function CloseIcon() {
 const NAV = [
   { label: 'Inventory', href: '/dashboard',         Icon: GridIcon   },
   { label: 'Clients',   href: '/dashboard/clients', Icon: PeopleIcon },
+  { label: 'Deals',     href: '/dashboard/deals',   Icon: TagIcon    },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -74,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-100">
-        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 1</p>
+        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 3</p>
       </div>
     </>
   )
