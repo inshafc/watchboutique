@@ -9,10 +9,12 @@ import {
   WATCH_CONDITIONS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
+  WATCH_STATUS_NEW,
   INVESTOR_NAMES,
   type WatchCondition,
   type WatchSetDetails,
   type WatchStatus,
+  type Brand,
 } from '@/types'
 
 interface InvestorRow {
@@ -31,19 +33,22 @@ async function uploadPhotos(watchId: string, files: File[]): Promise<string[]> {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${watchId}/photo_${i}.${ext}`
+    const path = `${watchId}/photo_${Date.now()}_${i}.${ext}`
     const { error } = await supabase.storage
       .from('watch-photos')
       .upload(path, file, { upsert: true })
-    if (!error) {
+    if (error) {
+      console.error('[AddWatch] Storage upload failed for', path, error)
+    } else {
       const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+      console.log('[AddWatch] Uploaded photo URL:', data.publicUrl)
       urls.push(data.publicUrl)
     }
   }
   return urls
 }
 
-export default function AddWatchForm() {
+export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -58,12 +63,17 @@ export default function AddWatchForm() {
     purchased_from: '',
     purchase_cost:  '',
     status:         'Available' as WatchStatus,
+    watch_status:   'Available',
     selling_price:  '',
     comments:       '',
   })
 
-  const [photoFiles, setPhotoFiles]         = useState<File[]>([])
-  const [investors, setInvestors]           = useState<InvestorRow[]>([
+  const [brandId,      setBrandId]      = useState<string | null>(null)
+  const [newBrandName, setNewBrandName] = useState('')
+  const [showNewBrand, setShowNewBrand] = useState(false)
+
+  const [photoFiles, setPhotoFiles]   = useState<File[]>([])
+  const [investors, setInvestors]     = useState<InvestorRow[]>([
     { investor_name: 'TWB', percentage: '100' },
   ])
 
@@ -98,7 +108,18 @@ export default function AddWatchForm() {
 
     const supabase = createClient()
 
-    // 1. Insert watch (photos added after upload)
+    // Create new brand if needed
+    let resolvedBrandId = brandId
+    if (showNewBrand && newBrandName.trim()) {
+      const { data: brand } = await supabase
+        .from('brands')
+        .insert({ name: newBrandName.trim() })
+        .select('id')
+        .single()
+      resolvedBrandId = brand?.id ?? null
+    }
+
+    // 1. Insert watch
     const { data: watch, error: watchErr } = await supabase
       .from('watches')
       .insert({
@@ -112,9 +133,11 @@ export default function AddWatchForm() {
         purchase_cost:  form.purchase_cost  ? parseFloat(form.purchase_cost)  : null,
         currency:       'LKR',
         status:         form.status,
+        watch_status:   form.watch_status,
         selling_price:  form.selling_price ? parseFloat(form.selling_price) : null,
         comments:       form.comments.trim()       || null,
         photos:         [],
+        brand_id:       resolvedBrandId,
       })
       .select()
       .single()
@@ -124,8 +147,19 @@ export default function AddWatchForm() {
     // 2. Upload photos
     if (photoFiles.length > 0) {
       const photoUrls = await uploadPhotos(watch.id, photoFiles)
+      console.log('[AddWatch] Photos to save:', photoUrls)
       if (photoUrls.length > 0) {
-        await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
+        const { error: photoErr } = await supabase
+          .from('watches')
+          .update({ photos: photoUrls })
+          .eq('id', watch.id)
+        if (photoErr) {
+          console.error('[AddWatch] Photo DB update failed:', photoErr)
+          setError(`Watch saved but photos failed to save: ${photoErr.message}`)
+          setLoading(false)
+          return
+        }
+        console.log('[AddWatch] Photos saved to DB successfully')
       }
     }
 
@@ -164,6 +198,45 @@ export default function AddWatchForm() {
       <div className={card}>
         <p className={cardTitle}>Watch Details</p>
         <div className="space-y-4">
+          {/* Brand */}
+          <div>
+            <label className={lbl}>Brand</label>
+            {showNewBrand ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newBrandName}
+                  onChange={e => setNewBrandName(e.target.value)}
+                  placeholder="Enter brand name"
+                  className={inp}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowNewBrand(false); setNewBrandName('') }}
+                  className="shrink-0 text-sm text-gray-400 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <select
+                value={brandId ?? ''}
+                onChange={e => {
+                  if (e.target.value === '__new__') { setShowNewBrand(true); setBrandId(null) }
+                  else setBrandId(e.target.value || null)
+                }}
+                className={inp}
+              >
+                <option value="">— Select brand —</option>
+                {brands.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+                <option value="__new__">+ Add new brand</option>
+              </select>
+            )}
+          </div>
+
           <div>
             <label className={lbl}>Watch Name *</label>
             <input type="text" value={form.watch_name} onChange={field('watch_name')} placeholder="e.g. Rolex Submariner" className={inp} required />
@@ -220,12 +293,20 @@ export default function AddWatchForm() {
       {/* ── Sale ─────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Sale</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={lbl}>Status</label>
-            <select value={form.status} onChange={field('status')} className={inp}>
-              {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Status</label>
+              <select value={form.status} onChange={field('status')} className={inp}>
+                {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Watch Status</label>
+              <select value={form.watch_status} onChange={field('watch_status')} className={inp}>
+                {WATCH_STATUS_NEW.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <label className={lbl}>Selling Price</label>

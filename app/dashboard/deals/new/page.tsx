@@ -8,11 +8,11 @@ export default async function NewDealPage() {
   const supabase = createClient()
 
   const [watchesRes, clientsRes] = await Promise.all([
-    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost').order('watch_name'),
+    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').order('watch_name'),
     supabase.from('clients').select('id, name').order('name'),
   ])
 
-  const watches = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null }[]
+  const watches = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
   const clients = (clientsRes.data ?? []) as { id: string; name: string }[]
 
   return (

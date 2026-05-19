@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
+import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import type { WatchWithInvestors } from '@/types'
 
@@ -102,9 +103,10 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Quick stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Year',      value: extractYear(watch.date_on_card) },
+          { label: 'Serial',    value: watch.serial_number },
           { label: 'Condition', value: watch.condition },
           { label: 'Set',       value: watch.set_details },
         ].map(({ label, value }) => (
@@ -113,6 +115,12 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <p className="text-sm font-semibold text-gray-900 mt-0.5 truncate">{value || '—'}</p>
           </div>
         ))}
+      </div>
+
+      {/* Watch Status inline buttons */}
+      <div className="border border-gray-100 rounded-2xl p-5 mb-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Watch Status</p>
+        <WatchStatusButtons watchId={watch.id} initialStatus={(watch as any).watch_status} />
       </div>
 
       {/* Details */}

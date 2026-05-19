@@ -7,9 +7,9 @@ const config: Record<WatchStatus, string> = {
   'Consigned': 'bg-purple-50  text-purple-700 ring-purple-200',
 }
 
-export default function StatusBadge({ status }: { status: WatchStatus }) {
+export default function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${config[status]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${config[status as WatchStatus] ?? 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
       {status}
     </span>
   )

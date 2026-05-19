@@ -8,15 +8,25 @@ export interface Profile {
   created_at: string
 }
 
+// ── Brands ───────────────────────────────────────────────────
+
+export interface Brand {
+  id:    string
+  name:  string
+  color: string | null
+}
+
 // ── Watch enums ──────────────────────────────────────────────
 
 export type WatchCondition  = 'Brand New' | 'Excellent' | 'Good' | 'Fair' | 'Poor'
-export type WatchSetDetails = 'Box and Papers' | 'Box and Watch' | 'Watch Only'
+export type WatchSetDetails = 'Box and Papers' | 'Box and Watch' | 'Watch Only' | 'Full Set'
 export type WatchStatus     = 'Available' | 'On Hold' | 'Sold' | 'Consigned'
+export type WatchStatusNew  = 'Available' | 'On Hold' | 'Offered' | 'Sold'
 
-export const WATCH_CONDITIONS: WatchCondition[]   = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
-export const WATCH_SET_DETAILS: WatchSetDetails[] = ['Box and Papers', 'Box and Watch', 'Watch Only']
-export const WATCH_STATUSES: WatchStatus[]        = ['Available', 'On Hold', 'Sold', 'Consigned']
+export const WATCH_CONDITIONS:    WatchCondition[]   = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
+export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Box and Papers', 'Box and Watch', 'Watch Only', 'Full Set']
+export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold', 'Consigned']
+export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']
 export const INVESTOR_NAMES = ['TWB', 'Investor 1', 'Investor 2', 'Investor 3'] as const
 export type  InvestorName   = typeof INVESTOR_NAMES[number]
 
@@ -38,6 +48,13 @@ export interface Watch {
   comments: string | null
   photos: string[]
   created_at: string
+  brand_id:     string | null
+  watch_status: string | null
+  deleted_at?:  string | null
+}
+
+export interface WatchWithBrand extends Watch {
+  brands: { name: string; color: string | null } | null
 }
 
 export interface WatchInvestor {
@@ -76,6 +93,7 @@ export interface Client {
   sales_manager: string | null
   avatar_color: string | null
   created_at: string
+  deleted_at?: string | null
 }
 
 export interface Wishlist {
@@ -136,6 +154,8 @@ export interface Deal {
   new_client:         boolean
   sale_date:          string | null
   delivery_status:    string | null
+  bank_name:          string | null
+  deleted_at?:        string | null
 }
 
 export interface Installment {

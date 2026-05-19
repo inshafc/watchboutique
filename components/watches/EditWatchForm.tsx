@@ -9,11 +9,13 @@ import {
   WATCH_CONDITIONS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
+  WATCH_STATUS_NEW,
   INVESTOR_NAMES,
   type WatchCondition,
   type WatchSetDetails,
   type WatchStatus,
   type WatchWithInvestors,
+  type Brand,
 } from '@/types'
 
 interface InvestorRow {
@@ -36,15 +38,24 @@ async function uploadPhotos(watchId: string, files: File[]): Promise<string[]> {
     const { error } = await supabase.storage
       .from('watch-photos')
       .upload(path, file, { upsert: true })
-    if (!error) {
+    if (error) {
+      console.error('[EditWatch] Storage upload failed for', path, error)
+    } else {
       const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+      console.log('[EditWatch] Uploaded photo URL:', data.publicUrl)
       urls.push(data.publicUrl)
     }
   }
   return urls
 }
 
-export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) {
+export default function EditWatchForm({
+  watch,
+  brands = [],
+}: {
+  watch: WatchWithInvestors
+  brands?: Brand[]
+}) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -59,9 +70,14 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
     purchased_from: watch.purchased_from ?? '',
     purchase_cost:  watch.purchase_cost  != null ? String(watch.purchase_cost) : '',
     status:         watch.status         as WatchStatus,
+    watch_status:   (watch as any).watch_status ?? 'Available',
     selling_price:  watch.selling_price  != null ? String(watch.selling_price) : '',
     comments:       watch.comments       ?? '',
   })
+
+  const [brandId,      setBrandId]      = useState<string | null>((watch as any).brand_id ?? null)
+  const [newBrandName, setNewBrandName] = useState('')
+  const [showNewBrand, setShowNewBrand] = useState(false)
 
   const [existingUrls, setExistingUrls] = useState<string[]>(watch.photos ?? [])
   const [newFiles, setNewFiles]         = useState<File[]>([])
@@ -106,6 +122,17 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
 
     const supabase = createClient()
 
+    // Create new brand if needed
+    let resolvedBrandId = brandId
+    if (showNewBrand && newBrandName.trim()) {
+      const { data: brand } = await supabase
+        .from('brands')
+        .insert({ name: newBrandName.trim() })
+        .select('id')
+        .single()
+      resolvedBrandId = brand?.id ?? null
+    }
+
     // Upload new photos
     let newUrls: string[] = []
     if (newFiles.length > 0) {
@@ -113,6 +140,7 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
     }
 
     const photos = [...existingUrls, ...newUrls]
+    console.log('[EditWatch] Saving photos array:', photos)
 
     const { error: watchErr } = await supabase
       .from('watches')
@@ -126,9 +154,11 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
         purchased_from: form.purchased_from.trim() || null,
         purchase_cost:  form.purchase_cost  ? parseFloat(form.purchase_cost)  : null,
         status:         form.status,
+        watch_status:   form.watch_status,
         selling_price:  form.selling_price ? parseFloat(form.selling_price) : null,
         comments:       form.comments.trim()       || null,
         photos,
+        brand_id:       resolvedBrandId,
       })
       .eq('id', watch.id)
 
@@ -166,6 +196,45 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
       <div className={card}>
         <p className={cardTitle}>Watch Details</p>
         <div className="space-y-4">
+          {/* Brand */}
+          <div>
+            <label className={lbl}>Brand</label>
+            {showNewBrand ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newBrandName}
+                  onChange={e => setNewBrandName(e.target.value)}
+                  placeholder="Enter brand name"
+                  className={inp}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowNewBrand(false); setNewBrandName('') }}
+                  className="shrink-0 text-sm text-gray-400 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <select
+                value={brandId ?? ''}
+                onChange={e => {
+                  if (e.target.value === '__new__') { setShowNewBrand(true); setBrandId(null) }
+                  else setBrandId(e.target.value || null)
+                }}
+                className={inp}
+              >
+                <option value="">— Select brand —</option>
+                {brands.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+                <option value="__new__">+ Add new brand</option>
+              </select>
+            )}
+          </div>
+
           <div>
             <label className={lbl}>Watch Name *</label>
             <input type="text" value={form.watch_name} onChange={field('watch_name')} className={inp} required />
@@ -222,12 +291,20 @@ export default function EditWatchForm({ watch }: { watch: WatchWithInvestors }) 
       {/* ── Sale ─────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Sale</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={lbl}>Status</label>
-            <select value={form.status} onChange={field('status')} className={inp}>
-              {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Status</label>
+              <select value={form.status} onChange={field('status')} className={inp}>
+                {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Watch Status</label>
+              <select value={form.watch_status} onChange={field('watch_status')} className={inp}>
+                {WATCH_STATUS_NEW.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <label className={lbl}>Selling Price</label>

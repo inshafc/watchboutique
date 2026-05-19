@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { AVATAR_COLOR_OPTIONS, avatarColor, getInitials } from '@/lib/client-utils'
+import { avatarColor, getInitials } from '@/lib/client-utils'
 import { LEAD_REFERRALS, CLIENT_TYPES } from '@/types'
 import type { LeadReferral, ClientType } from '@/types'
 
@@ -51,14 +51,13 @@ export default function AddClientForm({ redirectTo = '/dashboard/clients' }: { r
   const [clubTwb,      setClubTwb]      = useState(false)
   const [leadReferral, setLeadReferral] = useState<LeadReferral | ''>('')
   const [clientType,   setClientType]   = useState<ClientType | ''>('')
-  const [avatarColorVal, setAvatarColorVal] = useState<string | null>(null)
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value }))
   }
 
-  const previewColor = avatarColor(form.name || 'C', avatarColorVal)
+  const previewColor = avatarColor(form.name || 'C', null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,7 +80,7 @@ export default function AddClientForm({ redirectTo = '/dashboard/clients' }: { r
       club_twb:      clubTwb,
       lead_referral: leadReferral || null,
       client_type:   clientType   || null,
-      avatar_color:  avatarColorVal,
+      avatar_color:  null,
     })
 
     if (err) { setError(err.message); setLoading(false); return }
@@ -103,43 +102,12 @@ export default function AddClientForm({ redirectTo = '/dashboard/clients' }: { r
         <p className={cardTitle}>Profile</p>
         <div className="space-y-5">
 
-          {/* Avatar preview + color picker */}
+          {/* Avatar preview (auto-assigned colour) */}
           <div className="flex items-center gap-4">
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${previewColor}`}>
               {getInitials(form.name || 'C')}
             </div>
-            <div>
-              <p className={lbl}>Avatar Colour</p>
-              <div className="flex gap-2 flex-wrap">
-                {AVATAR_COLOR_OPTIONS.map(opt => (
-                  <button
-                    key={opt.hex}
-                    type="button"
-                    onClick={() => setAvatarColorVal(v => v === opt.classes ? null : opt.classes)}
-                    className="w-7 h-7 rounded-full ring-offset-2 transition-all"
-                    style={{ backgroundColor: opt.hex }}
-                    aria-label={opt.classes}
-                  >
-                    {avatarColorVal === opt.classes && (
-                      <span className="flex items-center justify-center w-full h-full">
-                        <svg className="w-3.5 h-3.5 text-gray-700" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-                {avatarColorVal && (
-                  <button
-                    type="button"
-                    onClick={() => setAvatarColorVal(null)}
-                    className="text-xs text-gray-400 hover:text-gray-700 transition-colors ml-1"
-                  >
-                    Auto
-                  </button>
-                )}
-              </div>
-            </div>
+            <p className="text-xs text-gray-400">Avatar colour is assigned automatically from the client's name.</p>
           </div>
 
           <div>

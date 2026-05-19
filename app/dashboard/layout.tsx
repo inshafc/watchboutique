@@ -83,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-100">
-        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 3</p>
+        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 4</p>
       </div>
     </>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -12,31 +12,137 @@ const lbl  = 'block text-xs font-medium text-gray-500 uppercase tracking-wider m
 const card = 'bg-white border border-gray-100 rounded-2xl p-5 md:p-6'
 const cardTitle = 'text-sm font-semibold text-gray-800 mb-4'
 
+const BANKS = ['NTB', 'Amana', 'LUX Amana']
+
 function formatLKR(n: number) {
   return 'LKR ' + n.toLocaleString('en-LK')
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+// ── Subtle toggle ─────────────────────────────────────────────
+
+function SubtleToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
         checked
-          ? 'bg-gray-900 text-white border-gray-900'
-          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+          ? 'bg-gray-100 text-gray-700 border-gray-300'
+          : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-600'
       }`}
     >
-      {label}
-      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${checked ? 'border-white' : 'border-gray-300'}`}>
-        {checked && <span className="w-2 h-2 rounded-full bg-white" />}
+      <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${checked ? 'border-gray-600 bg-gray-600' : 'border-gray-300'}`}>
+        {checked && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
       </span>
+      {label}
     </button>
   )
 }
 
-export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null }
+// ── Watch picker with thumbnail ───────────────────────────────
+
+export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
 export type ClientOption = { id: string; name: string }
+
+function WatchPicker({
+  watches,
+  value,
+  onChange,
+}: {
+  watches: WatchOption[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = watches.find(w => w.id === value)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const filtered = query.trim()
+    ? watches.filter(w =>
+        w.watch_name.toLowerCase().includes(query.toLowerCase()) ||
+        (w.reference ?? '').toLowerCase().includes(query.toLowerCase())
+      )
+    : watches
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setQuery('') }}
+        className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-left hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900"
+      >
+        {selected ? (
+          <>
+            {selected.photos && selected.photos.length > 0 ? (
+              <img src={selected.photos[0]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="text-gray-900 font-medium truncate block">{selected.watch_name}</span>
+              {selected.reference && <span className="text-xs text-gray-400">{selected.reference}</span>}
+            </div>
+            <span className="text-xs text-gray-400 shrink-0">{selected.status}</span>
+          </>
+        ) : (
+          <span className="text-gray-400">— Select a watch —</span>
+        )}
+        <svg className="w-4 h-4 text-gray-400 ml-auto shrink-0" viewBox="0 0 16 16" fill="currentColor"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search watches…"
+              autoFocus
+              className="w-full bg-gray-50 border-0 rounded-lg px-3 py-1.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6">No watches found</p>
+            ) : (
+              filtered.map(w => (
+                <button
+                  key={w.id}
+                  type="button"
+                  onClick={() => { onChange(w.id); setOpen(false) }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 transition-colors text-left ${value === w.id ? 'bg-gray-50' : ''}`}
+                >
+                  {w.photos && w.photos.length > 0 ? (
+                    <img src={w.photos[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{w.watch_name}</p>
+                    {w.reference && <p className="text-xs text-gray-400">Ref: {w.reference}</p>}
+                  </div>
+                  <span className="text-xs text-gray-400 shrink-0">{w.status}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Trade-in rows ─────────────────────────────────────────────
 
 interface TradeInRow {
   brand:            string
@@ -61,6 +167,8 @@ const DEFAULT_TRADE_IN: TradeInRow = {
   add_to_inventory: false,
 }
 
+// ── Main component ────────────────────────────────────────────
+
 export default function AddDealForm({
   watches,
   clients,
@@ -75,16 +183,16 @@ export default function AddDealForm({
   const today = new Date().toISOString().split('T')[0]
 
   const [form, setForm] = useState({
-    watch_id:       '',
-    client_id:      '',
-    deal_type:      'Sale' as DealType,
-    stage:          'Inquiry' as DealStage,
-    sale_date:      today,
-    offered_price:  '',
-    sale_price:     '',
-    payment_method: '' as PaymentMethod | '',
-    sales_manager:  '',
-    notes:          '',
+    watch_id:          '',
+    client_id:         '',
+    deal_type:         'Sale' as DealType,
+    stage:             'Inquiry' as DealStage,
+    sale_date:         today,
+    sale_price:        '',
+    payment_method:    '' as PaymentMethod | '',
+    bank_name:         '',
+    sales_manager:     '',
+    notes:             '',
     commission_amount: '50000',
   })
   const [otherCosts,        setOtherCosts]        = useState(false)
@@ -110,9 +218,11 @@ export default function AddDealForm({
   const salePrice      = num(form.sale_price)
   const otherCostsAmt  = otherCosts ? (num(otherCostsAmount) ?? 0) : 0
   const commissionAmt  = commissionPayable ? (num(form.commission_amount) ?? 0) : 0
-  const grossProfit    = salePrice != null ? salePrice - watchCost - otherCostsAmt - commissionAmt : null
+  const grossProfitVal = salePrice != null ? salePrice - watchCost - otherCostsAmt - commissionAmt : null
 
   const installmentTotal = installmentRows.reduce((s, r) => s + (num(r.amount) ?? 0), 0)
+
+  const showBankDropdown = form.payment_method === 'Bank Transfer' || form.payment_method === 'Cash + Bank'
 
   function updateTradeIn(i: number, key: keyof TradeInRow, value: string | boolean) {
     setTradeInRows(rows => rows.map((r, idx) => idx === i ? { ...r, [key]: value } : r))
@@ -147,9 +257,9 @@ export default function AddDealForm({
         client_id:          form.client_id,
         deal_type:          form.deal_type,
         stage:              form.stage,
-        offered_price:      num(form.offered_price),
         sale_price:         num(form.sale_price),
         payment_method:     form.payment_method || null,
+        bank_name:          showBankDropdown && form.bank_name ? form.bank_name : null,
         sales_manager:      form.sales_manager.trim() || null,
         notes:              form.notes.trim() || null,
         sale_date:          form.sale_date || null,
@@ -194,16 +304,16 @@ export default function AddDealForm({
           const { data: newWatch } = await supabase
             .from('watches')
             .insert({
-              watch_name:   watchName,
-              reference:    row.reference || null,
+              watch_name:    watchName,
+              reference:     row.reference || null,
               serial_number: row.serial_number || null,
-              date_on_card: row.year ? `${row.year}-01-01` : null,
-              condition:    row.condition || 'Good',
-              set_details:  row.set_details || 'Watch Only',
+              date_on_card:  row.year ? `${row.year}-01-01` : null,
+              condition:     row.condition || 'Good',
+              set_details:   row.set_details || 'Watch Only',
               purchase_cost: num(row.value),
-              currency:     'LKR',
-              status:       'Available',
-              photos:       [],
+              currency:      'LKR',
+              status:        'Available',
+              photos:        [],
             })
             .select('id')
             .single()
@@ -243,14 +353,11 @@ export default function AddDealForm({
         <div className="space-y-4">
           <div>
             <label className={lbl}>Watch *</label>
-            <select value={form.watch_id} onChange={field('watch_id')} className={inp} required>
-              <option value="">— Select a watch —</option>
-              {watches.map(w => (
-                <option key={w.id} value={w.id}>
-                  {w.watch_name}{w.reference ? ` · ${w.reference}` : ''} ({w.status})
-                </option>
-              ))}
-            </select>
+            <WatchPicker
+              watches={watches}
+              value={form.watch_id}
+              onChange={id => setForm(f => ({ ...f, watch_id: id }))}
+            />
             {selectedWatch?.purchase_cost != null && (
               <p className="text-xs text-gray-400 mt-1.5">Cost price: {formatLKR(selectedWatch.purchase_cost)}</p>
             )}
@@ -267,7 +374,7 @@ export default function AddDealForm({
         </div>
       </div>
 
-      {/* ── Deal Info ────────────────────────────────────────── */}
+      {/* ── Sale Info ────────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Sale Info</p>
         <div className="space-y-4">
@@ -296,10 +403,15 @@ export default function AddDealForm({
             </div>
           </div>
           <div>
-            <label className={lbl}>Flags</label>
-            <div className="flex gap-2 flex-wrap">
-              <Toggle label="New Client" checked={newClient} onChange={setNewClient} />
-            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={newClient}
+                onChange={e => setNewClient(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+              />
+              <span className="text-sm text-gray-700">New Client</span>
+            </label>
           </div>
         </div>
       </div>
@@ -308,58 +420,37 @@ export default function AddDealForm({
       <div className={card}>
         <p className={cardTitle}>Financials</p>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Offered Price</label>
-              <input type="number" min="0" step="0.01" value={form.offered_price} onChange={field('offered_price')} placeholder="0" className={inp} />
-            </div>
-            <div>
-              <label className={lbl}>Sale Price</label>
-              <input type="number" min="0" step="0.01" value={form.sale_price} onChange={field('sale_price')} placeholder="0" className={inp} />
-            </div>
+          <div>
+            <label className={lbl}>Sale Price</label>
+            <input type="number" min="0" step="0.01" value={form.sale_price} onChange={field('sale_price')} placeholder="0" className={inp} />
           </div>
 
-          {/* Other Costs toggle */}
-          <div>
-            <Toggle label="Other Costs" checked={otherCosts} onChange={setOtherCosts} />
-            {otherCosts && (
-              <div className="mt-2">
-                <label className={lbl}>Other Costs Amount</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={otherCostsAmount}
-                  onChange={e => setOtherCostsAmount(e.target.value)}
-                  placeholder="0"
-                  className={inp}
-                />
-              </div>
-            )}
+          <div className="flex gap-2 flex-wrap">
+            <SubtleToggle label="Other Costs" checked={otherCosts} onChange={setOtherCosts} />
+            <SubtleToggle label="Commission Payable" checked={commissionPayable} onChange={setCommissionPayable} />
           </div>
 
-          {/* Commission toggle */}
-          <div>
-            <Toggle label="Commission Payable" checked={commissionPayable} onChange={setCommissionPayable} />
-            {commissionPayable && (
-              <div className="mt-2">
-                <label className={lbl}>Commission Amount</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={form.commission_amount}
-                  onChange={field('commission_amount')}
-                  placeholder="50000"
-                  className={inp}
-                />
-              </div>
-            )}
-          </div>
+          {otherCosts && (
+            <div>
+              <label className={lbl}>Other Costs Amount</label>
+              <input type="number" min="0" step="0.01" value={otherCostsAmount} onChange={e => setOtherCostsAmount(e.target.value)} placeholder="0" className={inp} />
+            </div>
+          )}
+
+          {commissionPayable && (
+            <div>
+              <label className={lbl}>Commission Amount</label>
+              <input type="number" min="0" step="0.01" value={form.commission_amount} onChange={field('commission_amount')} placeholder="50000" className={inp} />
+            </div>
+          )}
 
           {/* Gross profit preview */}
-          {grossProfit != null && (
-            <div className={`rounded-xl px-4 py-3 ${grossProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+          {grossProfitVal != null && (
+            <div className={`rounded-xl px-4 py-3 ${grossProfitVal >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Gross Profit</span>
-                <span className={`text-base font-bold tabular-nums ${grossProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {grossProfit >= 0 ? '+' : ''}{formatLKR(grossProfit)}
+                <span className={`text-base font-bold tabular-nums ${grossProfitVal >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  {grossProfitVal >= 0 ? '+' : ''}{formatLKR(grossProfitVal)}
                 </span>
               </div>
               <div className="text-xs text-gray-400 space-y-0.5">
@@ -398,6 +489,16 @@ export default function AddDealForm({
               {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
+
+          {showBankDropdown && (
+            <div>
+              <label className={lbl}>Bank</label>
+              <select value={form.bank_name} onChange={field('bank_name')} className={inp}>
+                <option value="">— Select bank —</option>
+                {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          )}
 
           {form.payment_method === 'Installment' && (
             <div className="space-y-3">
@@ -445,34 +546,18 @@ export default function AddDealForm({
             {tradeInRows.map((row, i) => (
               <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3 relative">
                 {tradeInRows.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setTradeInRows(r => r.filter((_, idx) => idx !== i))}
-                    className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors"
-                  >
+                  <button type="button" onClick={() => setTradeInRows(r => r.filter((_, idx) => idx !== i))} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors">
                     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
                   </button>
                 )}
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trade-in #{i + 1}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={lbl}>Brand</label>
-                    <input type="text" value={row.brand} onChange={e => updateTradeIn(i, 'brand', e.target.value)} placeholder="Rolex" className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Reference</label>
-                    <input type="text" value={row.reference} onChange={e => updateTradeIn(i, 'reference', e.target.value)} placeholder="126610LN" className={inp} />
-                  </div>
+                  <div><label className={lbl}>Brand</label><input type="text" value={row.brand} onChange={e => updateTradeIn(i, 'brand', e.target.value)} placeholder="Rolex" className={inp} /></div>
+                  <div><label className={lbl}>Reference</label><input type="text" value={row.reference} onChange={e => updateTradeIn(i, 'reference', e.target.value)} placeholder="126610LN" className={inp} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={lbl}>Serial Number</label>
-                    <input type="text" value={row.serial_number} onChange={e => updateTradeIn(i, 'serial_number', e.target.value)} placeholder="12345678" className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Year</label>
-                    <input type="text" value={row.year} onChange={e => updateTradeIn(i, 'year', e.target.value)} placeholder="2022" maxLength={4} className={inp} />
-                  </div>
+                  <div><label className={lbl}>Serial Number</label><input type="text" value={row.serial_number} onChange={e => updateTradeIn(i, 'serial_number', e.target.value)} className={inp} /></div>
+                  <div><label className={lbl}>Year</label><input type="text" value={row.year} onChange={e => updateTradeIn(i, 'year', e.target.value)} maxLength={4} className={inp} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -489,29 +574,17 @@ export default function AddDealForm({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 items-end">
-                  <div>
-                    <label className={lbl}>Value (LKR)</label>
-                    <input type="number" min="0" step="0.01" value={row.value} onChange={e => updateTradeIn(i, 'value', e.target.value)} placeholder="0" className={inp} />
-                  </div>
+                  <div><label className={lbl}>Value (LKR)</label><input type="number" min="0" step="0.01" value={row.value} onChange={e => updateTradeIn(i, 'value', e.target.value)} placeholder="0" className={inp} /></div>
                   <div className="pb-2.5">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={row.add_to_inventory}
-                        onChange={e => updateTradeIn(i, 'add_to_inventory', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-                      />
+                      <input type="checkbox" checked={row.add_to_inventory} onChange={e => updateTradeIn(i, 'add_to_inventory', e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900" />
                       <span className="text-sm text-gray-700">Add to Inventory</span>
                     </label>
                   </div>
                 </div>
               </div>
             ))}
-            <button
-              type="button"
-              onClick={() => setTradeInRows(r => [...r, { ...DEFAULT_TRADE_IN }])}
-              className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition-colors"
-            >
+            <button type="button" onClick={() => setTradeInRows(r => [...r, { ...DEFAULT_TRADE_IN }])} className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition-colors">
               <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
               Add another trade-in
             </button>
@@ -527,10 +600,7 @@ export default function AddDealForm({
 
       {/* ── Actions ──────────────────────────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <button
-          type="submit" disabled={loading}
-          className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={loading} className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? 'Saving…' : 'Create Sale'}
         </button>
         <Link href="/dashboard/deals" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">

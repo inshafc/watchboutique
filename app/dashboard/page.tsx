@@ -2,15 +2,27 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import WatchInventory from '@/components/watches/WatchInventory'
-import type { Watch } from '@/types'
+import type { WatchWithBrand, Brand } from '@/types'
 
 export default async function DashboardPage() {
   const supabase = createClient()
 
-  const { data: watches } = await supabase
-    .from('watches')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const [watchesRes, brandsRes] = await Promise.all([
+    supabase.from('watches').select('*, brands(name, color)').is('deleted_at', null).order('created_at', { ascending: false }),
+    supabase.from('brands').select('*').order('name'),
+  ])
 
-  return <WatchInventory watches={(watches ?? []) as Watch[]} />
+  const watches = (watchesRes.data ?? []) as unknown as WatchWithBrand[]
+
+  // Deduplicate by name — the brands table can have duplicate rows if the
+  // seed INSERT was run more than once (ON CONFLICT targets the UUID PK, not name)
+  const allBrands = (brandsRes.data ?? []) as Brand[]
+  const seen = new Set<string>()
+  const brands = allBrands.filter(b => {
+    if (seen.has(b.name)) return false
+    seen.add(b.name)
+    return true
+  })
+
+  return <WatchInventory watches={watches} brands={brands} />
 }

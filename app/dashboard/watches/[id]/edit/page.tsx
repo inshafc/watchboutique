@@ -4,17 +4,20 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import EditWatchForm from '@/components/watches/EditWatchForm'
-import type { WatchWithInvestors } from '@/types'
+import type { WatchWithInvestors, Brand } from '@/types'
 
 export default async function EditWatchPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
-  const { data } = await supabase
-    .from('watches')
-    .select('*, watch_investors(*)')
-    .eq('id', params.id)
-    .single()
 
-  if (!data) notFound()
+  const [watchRes, brandsRes] = await Promise.all([
+    supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
+    supabase.from('brands').select('*').order('name'),
+  ])
+
+  if (!watchRes.data) notFound()
+
+  const watch  = watchRes.data as WatchWithInvestors
+  const brands = (brandsRes.data ?? []) as Brand[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -29,9 +32,9 @@ export default async function EditWatchPage({ params }: { params: { id: string }
           Back
         </Link>
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight mt-3">Edit Watch</h2>
-        <p className="text-sm text-gray-400 mt-1">{(data as WatchWithInvestors).watch_name}</p>
+        <p className="text-sm text-gray-400 mt-1">{watch.watch_name}</p>
       </div>
-      <EditWatchForm watch={data as WatchWithInvestors} />
+      <EditWatchForm watch={watch} brands={brands} />
     </div>
   )
 }

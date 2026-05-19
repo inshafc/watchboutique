@@ -12,7 +12,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
   const [dealRes, tradeInsRes, watchesRes, clientsRes] = await Promise.all([
     supabase.from('deals').select('*').eq('id', params.id).single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
-    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost').order('watch_name'),
+    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').order('watch_name'),
     supabase.from('clients').select('id, name').order('name'),
   ])
 
@@ -20,7 +20,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
 
   const deal        = dealRes.data as Deal
   const tradeIns    = (tradeInsRes.data ?? []) as TradeIn[]
-  const watches     = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null }[]
+  const watches     = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
   const clients     = (clientsRes.data ?? []) as { id: string; name: string }[]
 
   return (
