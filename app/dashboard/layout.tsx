@@ -28,6 +28,22 @@ function TagIcon() {
   )
 }
 
+function HomeIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H2.5z"/>
+    </svg>
+  )
+}
+
+function ChartIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07Z"/>
+    </svg>
+  )
+}
+
 function MenuIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -45,9 +61,11 @@ function CloseIcon() {
 }
 
 const NAV = [
-  { label: 'Inventory', href: '/dashboard',         Icon: GridIcon   },
-  { label: 'Clients',   href: '/dashboard/clients', Icon: PeopleIcon },
-  { label: 'Sales',     href: '/dashboard/deals',   Icon: TagIcon    },
+  { label: 'Dashboard', href: '/dashboard',            Icon: HomeIcon,   exact: true  },
+  { label: 'Inventory', href: '/dashboard/inventory',  Icon: GridIcon,   exact: false },
+  { label: 'Clients',   href: '/dashboard/clients',    Icon: PeopleIcon, exact: false },
+  { label: 'Sales',     href: '/dashboard/deals',      Icon: TagIcon,    exact: false },
+  { label: 'Analytics', href: '/dashboard/analytics',  Icon: ChartIcon,  exact: false },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -62,8 +80,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5">
-        {NAV.map(({ label, href, Icon }) => {
-          const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+        {NAV.map(({ label, href, Icon, exact }) => {
+          const active = exact ? pathname === href : pathname.startsWith(href)
           return (
             <Link
               key={href}
@@ -83,7 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-100">
-        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 4</p>
+        <p className="text-[10px] text-gray-300 font-medium">TWB ERP · Sprint 7</p>
       </div>
     </>
   )
@@ -91,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-gray-100 bg-white">
+      <aside className="hidden md:flex print:hidden flex-col w-56 shrink-0 border-r border-gray-100 bg-white">
         <SidebarContent />
       </aside>
 
@@ -113,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100 md:hidden bg-white">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100 md:hidden print:hidden bg-white">
           <button
             onClick={() => setOpen(v => !v)}
             className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"

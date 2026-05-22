@@ -104,12 +104,23 @@ export default async function DealDetailPage({ params }: { params: { id: string 
             <p className="text-sm text-gray-400 mt-0.5">Ref: {deal.watches.reference}</p>
           )}
         </div>
-        <Link
-          href={`/dashboard/deals/${deal.id}/edit`}
-          className="shrink-0 text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Edit
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={`/dashboard/deals/${deal.id}/invoice`}
+            className="text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
+            </svg>
+            Invoice
+          </Link>
+          <Link
+            href={`/dashboard/deals/${deal.id}/edit`}
+            className="text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Edit
+          </Link>
+        </div>
       </div>
 
       {/* Client + Watch cards */}

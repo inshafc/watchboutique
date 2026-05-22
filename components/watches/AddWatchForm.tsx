@@ -468,7 +468,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         >
           {loading ? 'Saving…' : 'Add Watch'}
         </button>
-        <Link href="/dashboard" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
+        <Link href="/dashboard/inventory" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
           Cancel
         </Link>
       </div>

@@ -53,7 +53,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
       {/* Back */}
       <Link
-        href="/dashboard"
+        href="/dashboard/inventory"
         className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
