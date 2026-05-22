@@ -7,7 +7,13 @@ import type { Brand } from '@/types'
 
 export default async function NewWatchPage() {
   const supabase = createClient()
-  const { data: brands } = await supabase.from('brands').select('*').order('name')
+  const { data: rawBrands } = await supabase.from('brands').select('*').order('name')
+  const seen = new Set<string>()
+  const brands = (rawBrands ?? []).filter((b: Brand) => {
+    if (seen.has(b.name)) return false
+    seen.add(b.name)
+    return true
+  })
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">

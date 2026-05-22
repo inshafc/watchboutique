@@ -1,70 +1,100 @@
 'use client'
 
-import { useRef } from 'react'
+import { useState, useRef } from 'react'
+
+export type PhotoItem = { kind: 'url'; url: string } | { kind: 'file'; file: File }
 
 interface PhotoUploadProps {
-  existingUrls: string[]
-  newFiles: File[]
-  onExistingUrlsChange: (urls: string[]) => void
-  onNewFilesChange: (files: File[]) => void
+  items: PhotoItem[]
+  onChange: (items: PhotoItem[]) => void
 }
 
-export default function PhotoUpload({
-  existingUrls,
-  newFiles,
-  onExistingUrlsChange,
-  onNewFilesChange,
-}: PhotoUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const total = existingUrls.length + newFiles.length
-  const remaining = 4 - total
+function getPreview(item: PhotoItem): string {
+  return item.kind === 'url' ? item.url : URL.createObjectURL(item.file)
+}
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? []).slice(0, remaining)
-    onNewFilesChange([...newFiles, ...selected])
-    if (inputRef.current) inputRef.current.value = ''
+export default function PhotoUpload({ items, onChange }: PhotoUploadProps) {
+  const [dragging, setDragging] = useState(false)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const inputRef    = useRef<HTMLInputElement>(null)
+  const dragFromIdx = useRef<number | null>(null)
+  const remaining   = 4 - items.length
+
+  function addFiles(files: FileList | null) {
+    if (!files || remaining <= 0) return
+    const toAdd: PhotoItem[] = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .slice(0, remaining)
+      .map(f => ({ kind: 'file' as const, file: f }))
+    onChange([...items, ...toAdd])
   }
 
-  function removeExisting(idx: number) {
-    onExistingUrlsChange(existingUrls.filter((_, i) => i !== idx))
+  function handleZoneDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragging(false)
+    addFiles(e.dataTransfer.files)
   }
 
-  function removeNew(idx: number) {
-    onNewFilesChange(newFiles.filter((_, i) => i !== idx))
+  function removeItem(idx: number) {
+    onChange(items.filter((_, i) => i !== idx))
+  }
+
+  function onItemDragStart(idx: number) { dragFromIdx.current = idx }
+
+  function onItemDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverIdx(idx)
+  }
+
+  function onItemDrop(e: React.DragEvent, toIdx: number) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverIdx(null)
+    const fromIdx = dragFromIdx.current
+    dragFromIdx.current = null
+    if (fromIdx === null || fromIdx === toIdx) return
+    const next = [...items]
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+    onChange(next)
   }
 
   return (
     <div className="space-y-3">
-      {/* Preview grid */}
-      {total > 0 && (
-        <div className="grid grid-cols-4 gap-3">
-          {existingUrls.map((url, idx) => (
-            <div key={`existing-${idx}`} className="relative aspect-square">
+      {/* Preview row with drag handles */}
+      {items.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {items.map((item, idx) => (
+            <div
+              key={idx}
+              draggable
+              onDragStart={() => onItemDragStart(idx)}
+              onDragOver={e => onItemDragOver(e, idx)}
+              onDrop={e => onItemDrop(e, idx)}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDragEnd={() => setDragOverIdx(null)}
+              className={`relative w-20 h-20 rounded-xl overflow-visible cursor-grab transition-all ${
+                dragOverIdx === idx ? 'ring-2 ring-gray-900 scale-105' : ''
+              }`}
+            >
               <img
-                src={url}
+                src={getPreview(item)}
                 alt={`Photo ${idx + 1}`}
                 className="w-full h-full object-cover rounded-xl border border-gray-100"
+                draggable={false}
               />
+              {/* Drag handle pip */}
+              <div className="absolute top-1 left-1 w-4 h-4 bg-black/30 rounded flex items-center justify-center pointer-events-none">
+                <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="currentColor">
+                  <circle cx="3" cy="3" r="1"/><circle cx="7" cy="3" r="1"/>
+                  <circle cx="3" cy="7" r="1"/><circle cx="7" cy="7" r="1"/>
+                </svg>
+              </div>
               <button
                 type="button"
-                onClick={() => removeExisting(idx)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-900 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-500 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {newFiles.map((file, idx) => (
-            <div key={`new-${idx}`} className="relative aspect-square">
-              <img
-                src={URL.createObjectURL(file)}
-                alt={`New photo ${idx + 1}`}
-                className="w-full h-full object-cover rounded-xl border border-gray-100"
-              />
-              <button
-                type="button"
-                onClick={() => removeNew(idx)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-900 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-500 transition-colors"
+                onClick={() => removeItem(idx)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-900 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-500 transition-colors z-10 leading-none"
               >
                 ×
               </button>
@@ -73,7 +103,7 @@ export default function PhotoUpload({
         </div>
       )}
 
-      {/* Upload button */}
+      {/* Drop zone */}
       {remaining > 0 && (
         <>
           <input
@@ -81,22 +111,32 @@ export default function PhotoUpload({
             type="file"
             accept="image/*"
             multiple
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className="hidden"
+            onChange={e => { addFiles(e.target.files); if (inputRef.current) inputRef.current.value = '' }}
           />
-          <button
-            type="button"
+          <div
             onClick={() => inputRef.current?.click()}
-            className="flex items-center gap-2 border border-dashed border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 rounded-xl px-4 py-3 text-sm transition-colors w-full justify-center"
+            onDrop={handleZoneDrop}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDragEnd={() => setDragging(false)}
+            className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-8 cursor-pointer transition-colors select-none ${
+              dragging
+                ? 'border-gray-900 bg-gray-50'
+                : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+            }`}
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M8 3v10M3 8h10" strokeLinecap="round"/>
+            <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" strokeLinecap="round" strokeLinejoin="round"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15" strokeLinecap="round"/>
             </svg>
-            Add photo{remaining > 1 ? 's' : ''} ({remaining} remaining)
-          </button>
+            <p className="text-sm font-medium text-gray-500">Drag photos here or click to upload</p>
+            <p className="text-xs text-gray-400">{remaining} slot{remaining > 1 ? 's' : ''} remaining</p>
+          </div>
         </>
       )}
-      <p className="text-xs text-gray-400">Up to 4 photos. Stored in Supabase Storage.</p>
+      <p className="text-xs text-gray-400">Up to 4 photos. Stored in cloud.</p>
     </div>
   )
 }

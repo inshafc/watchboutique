@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import PhotoUpload from '@/components/watches/PhotoUpload'
+import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
   WATCH_CONDITIONS,
@@ -27,24 +27,6 @@ const lbl = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb
 const card = 'bg-white border border-gray-100 rounded-2xl p-5 md:p-6'
 const cardTitle = 'text-sm font-semibold text-gray-800 mb-4'
 
-async function uploadPhotos(watchId: string, files: File[]): Promise<string[]> {
-  const supabase = createClient()
-  const urls: string[] = []
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${watchId}/photo_${Date.now()}_${i}.${ext}`
-    const { error } = await supabase.storage
-      .from('watch-photos')
-      .upload(path, file, { upsert: true })
-    if (!error) {
-      const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
-      urls.push(data.publicUrl)
-    }
-  }
-  return urls
-}
-
 function LabelToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
@@ -64,15 +46,16 @@ function LabelToggle({ label, checked, onChange }: { label: string; checked: boo
   )
 }
 
+function num(s: string) { return parseFloat(s.replace(/,/g, '')) }
+
 export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [successToast, setSuccessToast] = useState(false)
 
-  // Auto-generated watch_id
-  const [watchId,     setWatchId]     = useState<string | null>(null)
-  const [loadingId,   setLoadingId]   = useState(true)
+  const [watchId,   setWatchId]   = useState<string | null>(null)
+  const [loadingId, setLoadingId] = useState(true)
 
   useEffect(() => {
     async function genId() {
@@ -110,17 +93,16 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     comments:       '',
   })
 
-  const [brandId,        setBrandId]        = useState<string | null>(null)
-  const [newBrandName,   setNewBrandName]   = useState('')
-  const [showNewBrand,   setShowNewBrand]   = useState(false)
-  const [brandError,     setBrandError]     = useState<string | null>(null)
+  const [brandId,      setBrandId]      = useState<string | null>(null)
+  const [newBrandName, setNewBrandName] = useState('')
+  const [showNewBrand, setShowNewBrand] = useState(false)
+  const [brandError,   setBrandError]   = useState<string | null>(null)
 
-  const [photoFiles, setPhotoFiles] = useState<File[]>([])
-  const [investors, setInvestors] = useState<InvestorRow[]>([
+  const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
+  const [investors,  setInvestors]  = useState<InvestorRow[]>([
     { investor_name: 'TWB', percentage: '100' },
   ])
 
-  // Labels
   const [labelNewArrival, setLabelNewArrival] = useState(true)
   const [labelHotSell,    setLabelHotSell]    = useState(false)
   const [labelExpensive,  setLabelExpensive]  = useState(false)
@@ -132,10 +114,12 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
   const investorsValid = Math.abs(totalPct - 100) < 0.01
+  const usedNames = new Set(investors.map(i => i.investor_name))
 
   function addInvestor() {
     if (investors.length >= 4) return
-    setInvestors(v => [...v, { investor_name: 'TWB', percentage: '' }])
+    const nextName = INVESTOR_NAMES.find(n => !usedNames.has(n)) ?? INVESTOR_NAMES[0]
+    setInvestors(v => [...v, { investor_name: nextName, percentage: '' }])
   }
 
   function removeInvestor(idx: number) {
@@ -149,20 +133,11 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
     const supabase = createClient()
-    const { data } = await supabase
-      .from('brands')
-      .select('id')
-      .ilike('name', name.trim())
-      .limit(1)
-    if (data && data.length > 0) {
-      setBrandError('Brand already exists')
-    } else {
-      setBrandError(null)
-    }
+    const { data } = await supabase.from('brands').select('id').ilike('name', name.trim()).limit(1)
+    setBrandError(data && data.length > 0 ? 'Brand already exists' : null)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function doSave(isDraft: boolean) {
     if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
     if (brandError) { setError('Please fix the brand error before saving.'); return }
@@ -172,7 +147,6 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
     const supabase = createClient()
 
-    // Create new brand if needed
     let resolvedBrandId = brandId
     if (showNewBrand && newBrandName.trim()) {
       const { data: brand } = await supabase
@@ -188,7 +162,6 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     if (labelHotSell)    labels.push('hot_sell')
     if (labelExpensive)  labels.push('expensive')
 
-    // Insert watch
     const { data: watch, error: watchErr } = await supabase
       .from('watches')
       .insert({
@@ -200,30 +173,41 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         condition:      form.condition,
         set_details:    form.set_details,
         purchased_from: form.purchased_from.trim() || null,
-        purchase_cost:  form.purchase_cost  ? parseFloat(form.purchase_cost)  : null,
+        purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
         currency:       'LKR',
         status:         form.status,
         watch_status:   form.status,
-        selling_price:  form.selling_price ? parseFloat(form.selling_price) : null,
+        selling_price:  form.selling_price ? num(form.selling_price) : null,
         comments:       form.comments.trim()       || null,
         photos:         [],
         brand_id:       resolvedBrandId,
         labels,
+        is_draft:       isDraft,
       })
       .select()
       .single()
 
     if (watchErr) { setError(watchErr.message); setLoading(false); return }
 
-    // Upload photos
-    if (photoFiles.length > 0) {
-      const photoUrls = await uploadPhotos(watch.id, photoFiles)
-      if (photoUrls.length > 0) {
-        await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
+    // Upload photos in order
+    const photoUrls: string[] = []
+    for (const item of photoItems) {
+      if (item.kind === 'file') {
+        const ext = item.file.name.split('.').pop() ?? 'jpg'
+        const path = `${watch.id}/photo_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('watch-photos')
+          .upload(path, item.file, { upsert: true })
+        if (!upErr) {
+          const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+          photoUrls.push(data.publicUrl)
+        }
       }
     }
+    if (photoUrls.length > 0) {
+      await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
+    }
 
-    // Insert investors
     const investorRows = investors
       .filter(i => i.investor_name.trim())
       .map(i => ({
@@ -244,25 +228,53 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
     setSuccessToast(true)
     setTimeout(() => {
-      router.push('/dashboard')
+      router.push('/dashboard/inventory')
       router.refresh()
-    }, 1800)
+    }, 1200)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={e => e.preventDefault()} className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
         </div>
       )}
 
+      {/* ── Action buttons ────────────────────────────────────── */}
+      <div className="flex items-center gap-2 pt-1 pb-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => doSave(false)}
+          disabled={loading || !!brandError}
+          className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {loading ? 'Saving…' : 'Publish'}
+        </button>
+        <button
+          type="button"
+          onClick={() => doSave(true)}
+          disabled={loading || !!brandError}
+          className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg>
+          Save Draft
+        </button>
+        <Link
+          href="/dashboard/inventory"
+          className="flex items-center gap-1.5 text-sm font-medium text-red-500 px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors ml-auto"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Delete
+        </Link>
+      </div>
+
       {/* ── Watch Details ─────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Watch Details</p>
         <div className="space-y-4">
 
-          {/* Watch ID (read-only, auto-generated) */}
           <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
             <div>
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Watch ID</p>
@@ -295,9 +307,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
                     Cancel
                   </button>
                 </div>
-                {brandError && (
-                  <p className="text-xs text-red-500">{brandError}</p>
-                )}
+                {brandError && <p className="text-xs text-red-500">{brandError}</p>}
               </div>
             ) : (
               <select
@@ -319,7 +329,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
           <div>
             <label className={lbl}>Watch Name *</label>
-            <input type="text" value={form.watch_name} onChange={field('watch_name')} placeholder="e.g. Rolex Submariner" className={inp} required />
+            <input type="text" value={form.watch_name} onChange={field('watch_name')} placeholder="e.g. Rolex Submariner" className={inp} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -398,56 +408,59 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       <div className={card}>
         <p className={cardTitle}>Investors</p>
         <div className="space-y-2">
-          {investors.map((inv, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <select
-                value={inv.investor_name}
-                onChange={e => updateInvestor(idx, 'investor_name', e.target.value)}
-                className={inp}
-              >
-                {INVESTOR_NAMES.map(n => <option key={n}>{n}</option>)}
-              </select>
-              <div className="flex items-center gap-1 shrink-0">
-                <input
-                  type="number" min="0.01" max="100" step="0.01"
-                  value={inv.percentage}
-                  onChange={e => updateInvestor(idx, 'percentage', e.target.value)}
-                  placeholder="0"
-                  className={`${inp} w-20 text-right`}
-                />
-                <span className="text-gray-400 text-sm w-4">%</span>
+          {investors.map((inv, idx) => {
+            const availableNames = INVESTOR_NAMES.filter(n => n === inv.investor_name || !usedNames.has(n))
+            return (
+              <div key={idx} className="flex items-center gap-2">
+                <select
+                  value={inv.investor_name}
+                  onChange={e => updateInvestor(idx, 'investor_name', e.target.value)}
+                  className={inp}
+                >
+                  {availableNames.map(n => <option key={n}>{n}</option>)}
+                </select>
+                <div className="flex items-center gap-1 shrink-0">
+                  <input
+                    type="number" min="0.01" max="100" step="0.01"
+                    value={inv.percentage}
+                    onChange={e => updateInvestor(idx, 'percentage', e.target.value)}
+                    placeholder="0"
+                    className={`${inp} w-20 text-right`}
+                  />
+                  <span className="text-gray-400 text-sm w-4">%</span>
+                </div>
+                {investors.length > 1 && (
+                  <button type="button" onClick={() => removeInvestor(idx)} className="shrink-0 text-gray-300 hover:text-red-400 transition-colors text-xl w-6 leading-none">
+                    ×
+                  </button>
+                )}
               </div>
-              {investors.length > 1 && (
-                <button type="button" onClick={() => removeInvestor(idx)} className="shrink-0 text-gray-300 hover:text-red-400 transition-colors text-xl w-6 leading-none">
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div className="flex items-center justify-between mt-4">
           <button
-            type="button" onClick={addInvestor} disabled={investors.length >= 4}
+            type="button" onClick={addInvestor}
+            disabled={investors.length >= 4 || investors.length >= INVESTOR_NAMES.length}
             className="text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-0"
           >
             + Add investor
           </button>
-          <span className={`text-sm font-medium tabular-nums ${investorsValid ? 'text-emerald-600' : 'text-red-500'}`}>
-            {totalPct % 1 === 0 ? totalPct : totalPct.toFixed(2)}% {investorsValid ? '✓' : '(must be 100%)'}
-          </span>
+          <div className="text-right">
+            <span className={`text-sm font-medium tabular-nums ${investorsValid ? 'text-emerald-600' : 'text-red-500'}`}>
+              {totalPct % 1 === 0 ? totalPct : totalPct.toFixed(2)}% {investorsValid ? '✓' : '(must be 100%)'}
+            </span>
+            {!investorsValid && totalPct < 100 && (
+              <p className="text-xs text-gray-400 mt-0.5">{(100 - totalPct).toFixed(totalPct % 1 === 0 ? 0 : 2)}% remaining</p>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── Photos ───────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Photos</p>
-        <p className="text-xs text-gray-400 mb-3">Add photos in this order: Watch Front, Watch Back, Card Front, Card Back (max 4 photos)</p>
-        <PhotoUpload
-          existingUrls={[]}
-          newFiles={photoFiles}
-          onExistingUrlsChange={() => {}}
-          onNewFilesChange={setPhotoFiles}
-        />
+        <PhotoUpload items={photoItems} onChange={setPhotoItems} />
       </div>
 
       {/* ── Notes ────────────────────────────────────────── */}
@@ -460,26 +473,13 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         />
       </div>
 
-      {/* ── Actions ──────────────────────────────────────── */}
-      <div className="flex items-center gap-4 pt-2 pb-8">
-        <button
-          type="submit" disabled={loading || !!brandError}
-          className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Saving…' : 'Add Watch'}
-        </button>
-        <Link href="/dashboard/inventory" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
-          Cancel
-        </Link>
-      </div>
-
       {/* ── Success toast ─────────────────────────────────── */}
       {successToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none animate-fade-in">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none">
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="text-sm font-medium">Watch added successfully</span>
+          <span className="text-sm font-medium">Watch saved successfully</span>
         </div>
       )}
     </form>

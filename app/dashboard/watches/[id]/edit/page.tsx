@@ -16,8 +16,13 @@ export default async function EditWatchPage({ params }: { params: { id: string }
 
   if (!watchRes.data) notFound()
 
-  const watch  = watchRes.data as WatchWithInvestors
-  const brands = (brandsRes.data ?? []) as Brand[]
+  const watch = watchRes.data as WatchWithInvestors
+  const seen  = new Set<string>()
+  const brands = (brandsRes.data ?? []).filter((b: Brand) => {
+    if (seen.has(b.name)) return false
+    seen.add(b.name)
+    return true
+  }) as Brand[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">

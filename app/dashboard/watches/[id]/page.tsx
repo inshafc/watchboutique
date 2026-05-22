@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
 import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
+import WatchDetailActions from '@/components/watches/WatchDetailActions'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import type { WatchWithInvestors } from '@/types'
 
@@ -62,6 +63,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         Inventory
       </Link>
 
+      {/* Action buttons */}
+      <WatchDetailActions watchId={watch.id} isDraft={(watch as any).is_draft ?? false} />
+
       {/* Photos */}
       {watch.photos && watch.photos.length > 0 ? (
         <div className="mb-6 space-y-3">
@@ -97,7 +101,12 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           {(watch as any).watch_id && (
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono mb-1">{(watch as any).watch_id}</p>
           )}
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{watch.watch_name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{watch.watch_name}</h1>
+            {(watch as any).is_draft && (
+              <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1.5 py-0.5 leading-none">DRAFT</span>
+            )}
+          </div>
           {watch.reference && (
             <p className="text-sm text-gray-400 mt-0.5">Ref: {watch.reference}</p>
           )}
@@ -237,18 +246,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-3 mt-8 pt-6 border-t border-gray-100">
-        <Link
-          href={`/dashboard/watches/${watch.id}/edit`}
-          className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors"
-        >
-          Edit
-        </Link>
-        <p className="text-xs text-gray-300 ml-auto">
-          Added {new Date(watch.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
-        </p>
-      </div>
+      <p className="text-xs text-gray-300 mt-6 pt-6 border-t border-gray-100">
+        Added {new Date(watch.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
+      </p>
     </div>
   )
 }

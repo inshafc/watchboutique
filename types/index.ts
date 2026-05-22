@@ -54,6 +54,7 @@ export interface Watch {
   watch_id?:    string | null
   sort_order?:  number
   labels?:      string[]
+  is_draft?:    boolean
 }
 
 export interface WatchWithBrand extends Watch {
