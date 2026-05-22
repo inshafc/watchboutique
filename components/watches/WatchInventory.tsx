@@ -66,10 +66,27 @@ function formatLKR(n: number | null) {
   return 'LKR ' + n.toLocaleString('en-LK')
 }
 
-function displayYear(d: string | null) {
+function displayDate(d: string | null) {
   if (!d) return '—'
-  const y = new Date(d).getFullYear()
-  return y === 0 ? '—' : y.toString()
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return '—'
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const yyyy = dt.getUTCFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
+
+function LabelBadges({ labels, createdAt }: { labels?: string[]; createdAt: string }) {
+  if (!labels || labels.length === 0) return null
+  const isNew = labels.includes('new_arrival') &&
+    (Date.now() - new Date(createdAt).getTime()) < 14 * 24 * 60 * 60 * 1000
+  return (
+    <span className="flex items-center gap-1 shrink-0">
+      {isNew      && <span className="text-[10px] font-bold bg-emerald-500 text-white rounded px-1 py-0.5 leading-none">NEW</span>}
+      {labels.includes('hot_sell')   && <span className="text-xs leading-none" title="Hot Sell">🔥</span>}
+      {labels.includes('expensive')  && <span className="text-xs leading-none" title="Expensive">💰</span>}
+    </span>
+  )
 }
 
 // ── Checkbox ─────────────────────────────────────────────────
@@ -137,6 +154,10 @@ export default function WatchInventory({
 
   const searchRef   = useRef<HTMLDivElement>(null)
   const sortMenuRef = useRef<HTMLDivElement>(null)
+
+  // Drag-to-reorder (list view only)
+  const dragFromIdx  = useRef<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
   const exitBulkMode = useCallback(() => {
     setBulkMode(false)
@@ -229,7 +250,12 @@ export default function WatchInventory({
       case 'buy_desc':  return [...list].sort((a, b) => (b.purchase_cost ?? 0) - (a.purchase_cost ?? 0))
       case 'name_asc':  return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
       case 'name_desc': return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
-      default:          return list
+      default: {
+        // sort_order > 0 items first (ordered), then unordered by created_at desc
+        const ordered   = list.filter(w => (w.sort_order ?? 0) > 0).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        const unordered = list.filter(w => (w.sort_order ?? 0) === 0).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        return [...ordered, ...unordered]
+      }
     }
   }, [watches, search, brandId, statusFilter, conditionFilter, sort])
 
@@ -440,6 +466,48 @@ export default function WatchInventory({
           })
         )
       }
+    )
+  }
+
+  // ── Drag-to-reorder ──────────────────────────────────────
+
+  function onDragStart(idx: number) {
+    dragFromIdx.current = idx
+  }
+
+  function onDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverIdx(idx)
+  }
+
+  function onDragLeave() {
+    setDragOverIdx(null)
+  }
+
+  async function onDrop(e: React.DragEvent, toIdx: number) {
+    e.preventDefault()
+    setDragOverIdx(null)
+    const fromIdx = dragFromIdx.current
+    dragFromIdx.current = null
+    if (fromIdx === null || fromIdx === toIdx) return
+
+    const newList = [...processed]
+    const [moved] = newList.splice(fromIdx, 1)
+    newList.splice(toIdx, 0, moved)
+
+    const idOrder = newList.map(w => w.id)
+    setWatches(curr => {
+      const map = new Map(curr.map(w => [w.id, w]))
+      const reordered = idOrder.map(id => map.get(id)).filter(Boolean) as typeof curr
+      const rest = curr.filter(w => !idOrder.includes(w.id))
+      return [...reordered, ...rest]
+    })
+
+    const supabase = createClient()
+    await Promise.all(
+      newList.map((w, i) =>
+        supabase.from('watches').update({ sort_order: i + 1 }).eq('id', w.id)
+      )
     )
   }
 
@@ -884,7 +952,10 @@ export default function WatchInventory({
                           {brandName}
                         </p>
                       )}
-                      <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{w.watch_name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{w.watch_name}</p>
+                        <LabelBadges labels={w.labels} createdAt={w.created_at} />
+                      </div>
                       {w.reference && <p className="text-xs text-gray-400 mt-0.5 truncate">Ref: {w.reference}</p>}
                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${CONDITION_COLORS[w.condition] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -925,7 +996,7 @@ export default function WatchInventory({
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider sticky left-0 bg-white w-14" />
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Watch</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell">Brand</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell">Year</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell">Condition</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden lg:table-cell">Set</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
@@ -940,14 +1011,20 @@ export default function WatchInventory({
                   </tr>
                 </thead>
                 <tbody>
-                  {processed.map(w => {
+                  {processed.map((w, idx) => {
                     const isSelected = selectedIds.has(w.id)
                     const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                     const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                     return (
                       <tr
                         key={w.id}
+                        draggable={!bulkMode && sort === 'last_added'}
+                        onDragStart={() => onDragStart(idx)}
+                        onDragOver={e => onDragOver(e, idx)}
+                        onDragLeave={onDragLeave}
+                        onDrop={e => onDrop(e, idx)}
                         className={`group cursor-pointer transition-colors ${
+                          dragOverIdx === idx ? 'bg-blue-50' :
                           bulkMode && isSelected
                             ? 'bg-gray-50'
                             : 'hover:bg-gray-50/80'
@@ -970,8 +1047,11 @@ export default function WatchInventory({
                           )}
                         </td>
 
-                        <td className="px-4 py-3 max-w-[200px]">
-                          <div className="font-semibold text-gray-900 truncate">{w.watch_name}</div>
+                        <td className="px-4 py-3 max-w-[220px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-gray-900 truncate">{w.watch_name}</span>
+                            <LabelBadges labels={w.labels} createdAt={w.created_at} />
+                          </div>
                           {w.reference && <div className="text-xs text-gray-400 mt-0.5">Ref: {w.reference}</div>}
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell whitespace-nowrap">
@@ -981,7 +1061,7 @@ export default function WatchInventory({
                             <span className="text-gray-300">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 tabular-nums hidden sm:table-cell">{displayYear(w.date_on_card)}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs tabular-nums hidden sm:table-cell">{displayDate(w.date_on_card)}</td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden md:table-cell">{w.condition}</td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden lg:table-cell">{w.set_details}</td>
                         <td className="px-4 py-3"><StatusBadge status={w.watch_status ?? w.status} /></td>

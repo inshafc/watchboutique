@@ -4,24 +4,26 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import EditDealForm from '@/components/deals/EditDealForm'
-import type { Deal, TradeIn } from '@/types'
+import type { Deal, TradeIn, SalesManager } from '@/types'
 
 export default async function EditDealPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, tradeInsRes, watchesRes, clientsRes] = await Promise.all([
+  const [dealRes, tradeInsRes, watchesRes, clientsRes, smRes] = await Promise.all([
     supabase.from('deals').select('*').eq('id', params.id).single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
     supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').order('watch_name'),
     supabase.from('clients').select('id, name').order('name'),
+    supabase.from('sales_managers').select('*').order('name'),
   ])
 
   if (!dealRes.data) notFound()
 
-  const deal        = dealRes.data as Deal
-  const tradeIns    = (tradeInsRes.data ?? []) as TradeIn[]
-  const watches     = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
-  const clients     = (clientsRes.data ?? []) as { id: string; name: string }[]
+  const deal          = dealRes.data as Deal
+  const tradeIns      = (tradeInsRes.data ?? []) as TradeIn[]
+  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
+  const clients       = (clientsRes.data ?? []) as { id: string; name: string }[]
+  const salesManagers = (smRes.data ?? []) as SalesManager[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -37,7 +39,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
         </Link>
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight mt-3">Edit Sale</h2>
       </div>
-      <EditDealForm deal={deal} initialTradeIns={tradeIns} watches={watches} clients={clients} />
+      <EditDealForm deal={deal} initialTradeIns={tradeIns} watches={watches} clients={clients} salesManagers={salesManagers} />
     </div>
   )
 }

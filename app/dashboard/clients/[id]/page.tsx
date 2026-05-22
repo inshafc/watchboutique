@@ -56,6 +56,43 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = (angleDeg * Math.PI) / 180
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+}
+
+function RatingGauge({ value, max = 10 }: { value: number; max: number }) {
+  const pct = Math.min(value / max, 1)
+  const r   = 26
+  const cx  = 34
+  const cy  = 30
+  const trackS = polarToCartesian(cx, cy, r, 180)
+  const trackE = polarToCartesian(cx, cy, r, 0)
+  const valEnd = polarToCartesian(cx, cy, r, 180 - pct * 180)
+  const lg     = pct > 0.5 ? 1 : 0
+  return (
+    <svg width="68" height="36" viewBox="0 0 68 36">
+      <path d={`M ${trackS.x} ${trackS.y} A ${r} ${r} 0 0 1 ${trackE.x} ${trackE.y}`} fill="none" stroke="#e5e7eb" strokeWidth="5" strokeLinecap="round"/>
+      {pct > 0 && (
+        <path d={`M ${trackS.x} ${trackS.y} A ${r} ${r} 0 ${lg} 1 ${valEnd.x} ${valEnd.y}`} fill="none" stroke="#111827" strokeWidth="5" strokeLinecap="round"/>
+      )}
+      <text x={cx} y={cy + 2} textAnchor="middle" fontSize="11" fontWeight="700" fill="#111827">
+        {value}
+        <tspan fontSize="7" fill="#9ca3af">/10</tspan>
+      </text>
+    </svg>
+  )
+}
+
+function clientRating(dealCount: number, isClubTwb: boolean): number {
+  if (dealCount >= 10) return 10
+  if (dealCount >= 5 || isClubTwb) return 9
+  if (dealCount >= 3) return 7
+  if (dealCount >= 2) return 5
+  if (dealCount >= 1) return 3
+  return 0
+}
+
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
@@ -74,6 +111,11 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const deals     = (dealsRes.data   ?? []) as DealWithRelations[]
 
   const notes = client.profile_notes ?? client.notes
+
+  const closedDeals     = deals.filter(d => ['Closed', 'Delivered'].includes(d.stage))
+  const totalSalesValue = closedDeals.reduce((sum, d) => sum + (d.sale_price ?? 0), 0)
+  const watchesSold     = closedDeals.length
+  const rating          = clientRating(watchesSold, client.club_twb)
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -100,6 +142,15 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             {client.club_twb && <ClubBadge />}
             {client.client_type   && <TypeBadge type={client.client_type} />}
             {client.lead_referral && <LeadBadge lead={client.lead_referral} />}
+            {((client as any).labels as string[] | undefined)?.includes('political') && (
+              <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">Political</span>
+            )}
+            {((client as any).labels as string[] | undefined)?.includes('at_risk') && (
+              <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-orange-50 text-orange-600 ring-1 ring-inset ring-orange-200">At Risk</span>
+            )}
+            {((client as any).labels as string[] | undefined)?.includes('high_potential') && (
+              <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200">High Potential</span>
+            )}
           </div>
           {client.sales_manager && (
             <p className="text-xs text-gray-400 mt-1.5">Sales: {client.sales_manager}</p>
@@ -115,22 +166,25 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
+      {/* Stats chips */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-gray-50 rounded-2xl p-3 text-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Total Sales</p>
+          <p className="text-sm font-bold text-gray-900 tabular-nums">LKR {totalSalesValue.toLocaleString('en-LK')}</p>
+        </div>
+        <div className="bg-gray-50 rounded-2xl p-3 text-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Watches Sold</p>
+          <p className="text-sm font-bold text-gray-900 tabular-nums">{watchesSold}</p>
+        </div>
+        <div className="bg-gray-50 rounded-2xl p-3 text-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Rating</p>
+          <div className="flex justify-center"><RatingGauge value={rating} max={10} /></div>
+        </div>
+      </div>
+
       {/* Contact action buttons */}
-      {(client.whatsapp || client.phone || client.email || client.instagram) && (
+      {(client.phone || client.email) && (
         <div className="flex gap-2 flex-wrap mb-6">
-          {client.whatsapp && (
-            <a
-              href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-xl transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592z"/>
-              </svg>
-              WhatsApp
-            </a>
-          )}
           {client.phone && (
             <a
               href={`tel:${client.phone}`}
@@ -153,31 +207,16 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               Email
             </a>
           )}
-          {client.instagram && (
-            <a
-              href={`https://instagram.com/${client.instagram.replace('@', '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-medium rounded-xl transition-all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
-              </svg>
-              Instagram
-            </a>
-          )}
         </div>
       )}
 
       {/* Profile details */}
-      {(client.address || client.email || client.phone || client.whatsapp || client.instagram) && (
+      {(client.address || client.email || client.phone) && (
         <div className="border border-gray-100 rounded-2xl p-5 mb-4 space-y-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Contact Details</p>
           <div className="space-y-2.5">
-            {client.whatsapp  && <InfoRow label="WhatsApp" value={client.whatsapp} />}
             {client.phone     && <InfoRow label="Phone"    value={client.phone} />}
             {client.email     && <InfoRow label="Email"    value={client.email} />}
-            {client.instagram && <InfoRow label="Instagram" value={client.instagram} />}
             {client.address   && <InfoRow label="Address"  value={client.address} />}
           </div>
         </div>

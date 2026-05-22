@@ -4,15 +4,19 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import EditClientForm from '@/components/clients/EditClientForm'
-import type { Client } from '@/types'
+import type { Client, SalesManager } from '@/types'
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
-  const { data } = await supabase.from('clients').select('*').eq('id', params.id).single()
+  const [clientRes, smRes] = await Promise.all([
+    supabase.from('clients').select('*').eq('id', params.id).single(),
+    supabase.from('sales_managers').select('id, name').order('name'),
+  ])
 
-  if (!data) notFound()
+  if (!clientRes.data) notFound()
 
-  const client = data as Client
+  const client = clientRes.data as Client
+  const salesManagers = (smRes.data ?? []) as SalesManager[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -29,7 +33,7 @@ export default async function EditClientPage({ params }: { params: { id: string 
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight mt-3">Edit Client</h2>
         <p className="text-sm text-gray-400 mt-1">{client.name}</p>
       </div>
-      <EditClientForm client={client} />
+      <EditClientForm client={client} salesManagers={salesManagers} />
     </div>
   )
 }

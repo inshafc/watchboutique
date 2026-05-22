@@ -11,8 +11,62 @@ export { avatarColor, getInitials }
 
 // ── Types ────────────────────────────────────────────────────
 
-type Filter  = 'All' | 'Club TWB' | 'Retail' | 'Reseller' | 'Deleted'
-type SortKey = 'name_asc' | 'name_desc' | 'sales_desc' | 'created_desc'
+type Filter   = 'All' | 'Club TWB' | 'Retail' | 'Reseller' | 'Deleted'
+type SortKey  = 'created_desc' | 'name_asc' | 'name_desc' | 'sales_desc' | 'sales_asc' | 'type_asc' | 'type_desc' | 'manager_asc' | 'manager_desc'
+type ViewMode = 'list' | 'grid'
+
+function clientRating(dealCount: number, isClubTwb: boolean): number {
+  if (dealCount >= 10) return 10
+  if (dealCount >= 5 || isClubTwb) return 9
+  if (dealCount >= 3) return 7
+  if (dealCount >= 2) return 5
+  if (dealCount >= 1) return 3
+  return 0
+}
+
+function PoliticalBadge() {
+  return (
+    <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-red-50 text-red-600 ring-1 ring-inset ring-red-200 whitespace-nowrap">
+      Political
+    </span>
+  )
+}
+
+function AtRiskBadge() {
+  return (
+    <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-600 ring-1 ring-inset ring-orange-200 whitespace-nowrap">
+      At Risk
+    </span>
+  )
+}
+
+function HighPotentialBadge() {
+  return (
+    <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200 whitespace-nowrap">
+      High Potential
+    </span>
+  )
+}
+
+function DotsIcon() { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg> }
+
+function SortHeader({ label, currentSort, ascKey, descKey, onSort }: { label: string; currentSort: SortKey; ascKey: SortKey; descKey: SortKey; onSort: (k: SortKey) => void }) {
+  const isAsc  = currentSort === ascKey
+  const isDesc = currentSort === descKey
+  const active = isAsc || isDesc
+  return (
+    <button
+      onClick={() => onSort(isAsc ? descKey : ascKey)}
+      className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${active ? 'text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}
+    >
+      {label}
+      <span className="flex flex-col gap-px leading-none">
+        <svg className={`w-2 h-2 ${isAsc ? 'text-gray-800' : 'text-gray-300'}`} viewBox="0 0 8 5" fill="currentColor"><path d="M4 0 8 5H0z"/></svg>
+        <svg className={`w-2 h-2 ${isDesc ? 'text-gray-800' : 'text-gray-300'}`} viewBox="0 0 8 5" fill="currentColor"><path d="M4 5 0 0h8z"/></svg>
+      </span>
+    </button>
+  )
+}
 
 // ── Badges ───────────────────────────────────────────────────
 
@@ -71,6 +125,8 @@ function CopyIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16"
 function SearchIcon()  { return <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5" strokeLinecap="round"/></svg> }
 function RestoreIcon() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 function XSmallIcon()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg> }
+function ListIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg> }
+function GridIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
 
 function ActionBtn({ children, title, onClick, danger = false }: { children: React.ReactNode; title: string; onClick: (e: React.MouseEvent) => void; danger?: boolean }) {
   return (
@@ -93,15 +149,29 @@ function formatLKR(n: number) {
 export default function ClientList({
   clients: initial,
   clientSales = {},
+  clientDealCounts = {},
 }: {
   clients: Client[]
   clientSales?: Record<string, number>
+  clientDealCounts?: Record<string, number>
 }) {
   const router = useRouter()
   const [clients, setClients] = useState(initial)
   const [search,  setSearch]  = useState('')
   const [filter,  setFilter]  = useState<Filter>('All')
-  const [sort,    setSort]    = useState<SortKey>('name_asc')
+  const [sort,    setSort]    = useState<SortKey>('created_desc')
+  const [view,    setView]    = useState<ViewMode>('list')
+  const [gridCols, setGridCols] = useState<3 | 4 | 5>(4)
+  const [typeFilter,  setTypeFilter]  = useState<'Retail' | 'Reseller' | 'Club TWB' | null>(null)
+  const [openMenuId,  setOpenMenuId]  = useState<string | null>(null)
+
+  // Close grid menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return
+    function close() { setOpenMenuId(null) }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openMenuId])
 
   // Undo
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -134,17 +204,25 @@ export default function ClientList({
       case 'Retail':   list = list.filter(c => c.client_type === 'Retail'); break
       case 'Reseller': list = list.filter(c => c.client_type === 'Reseller'); break
     }
+    if (typeFilter === 'Retail')   list = list.filter(c => c.client_type === 'Retail')
+    if (typeFilter === 'Reseller') list = list.filter(c => c.client_type === 'Reseller')
+    if (typeFilter === 'Club TWB') list = list.filter(c => c.club_twb)
     list = [...list].sort((a, b) => {
       switch (sort) {
         case 'name_asc':     return a.name.localeCompare(b.name)
         case 'name_desc':    return b.name.localeCompare(a.name)
         case 'sales_desc':   return (clientSales[b.id] ?? 0) - (clientSales[a.id] ?? 0)
+        case 'sales_asc':    return (clientSales[a.id] ?? 0) - (clientSales[b.id] ?? 0)
         case 'created_desc': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'type_asc':     return (a.client_type ?? '').localeCompare(b.client_type ?? '')
+        case 'type_desc':    return (b.client_type ?? '').localeCompare(a.client_type ?? '')
+        case 'manager_asc':  return (a.sales_manager ?? '').localeCompare(b.sales_manager ?? '')
+        case 'manager_desc': return (b.sales_manager ?? '').localeCompare(a.sales_manager ?? '')
       }
       return 0
     })
     return list
-  }, [clients, search, filter, sort, clientSales])
+  }, [clients, search, filter, sort, clientSales, typeFilter])
 
   const counts: Record<Filter, number> = {
     'All':      clients.length,
@@ -242,15 +320,32 @@ export default function ClientList({
           <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Clients</h2>
           <p className="text-sm text-gray-400 mt-0.5">{clients.length} {clients.length === 1 ? 'client' : 'clients'}</p>
         </div>
-        {!showingDeleted && (
-          <Link
-            href="/dashboard/clients/new"
-            className="shrink-0 flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-black transition-colors"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
-            Add Client
-          </Link>
-        )}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          {/* List / Grid toggle */}
+          {!showingDeleted && (
+            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
+              <button onClick={() => setView('grid')} className={`p-2 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Grid view"><GridIcon /></button>
+            </div>
+          )}
+          {/* Grid size selector */}
+          {!showingDeleted && view === 'grid' && (
+            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              {([3, 4, 5] as const).map(n => (
+                <button key={n} onClick={() => setGridCols(n)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${gridCols === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}>{n}</button>
+              ))}
+            </div>
+          )}
+          {!showingDeleted && (
+            <Link
+              href="/dashboard/clients/new"
+              className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-black transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
+              Add Client
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Search + sort */}
@@ -271,11 +366,39 @@ export default function ClientList({
             onChange={e => setSort(e.target.value as SortKey)}
             className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
           >
-            <option value="name_asc">A → Z</option>
-            <option value="name_desc">Z → A</option>
-            <option value="sales_desc">Most Sales</option>
-            <option value="created_desc">Recently Added</option>
+            <option value="created_desc">Latest</option>
+            <option value="name_asc">Name A → Z</option>
+            <option value="name_desc">Name Z → A</option>
+            <option value="sales_desc">Highest Sales</option>
+            <option value="sales_asc">Lowest Sales</option>
           </select>
+        </div>
+      )}
+
+      {/* Filter pills */}
+      {!showingDeleted && (
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          {(['Retail', 'Reseller', 'Club TWB'] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setTypeFilter(v => v === p ? null : p)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                typeFilter === p
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          {typeFilter && (
+            <button
+              onClick={() => setTypeFilter(null)}
+              className="px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Clear filter
+            </button>
+          )}
         </div>
       )}
 
@@ -404,21 +527,81 @@ export default function ClientList({
             </div>
           )}
 
+          {/* Grid View */}
+          {visible.length > 0 && view === 'grid' && (
+            <div className={`grid gap-4 ${
+              gridCols === 5 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' :
+              gridCols === 4 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' :
+                               'grid-cols-2 md:grid-cols-3'
+            }`}>
+              {visible.map(c => {
+                const totalSales = clientSales[c.id] ?? 0
+                const dealCount  = clientDealCounts[c.id] ?? 0
+                const rating     = clientRating(dealCount, c.club_twb)
+                const isPolitical = ((c as any).labels as string[] | undefined)?.includes('political')
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                    className="bg-white border border-gray-100 rounded-2xl p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all relative"
+                  >
+                    {/* Three-dot menu */}
+                    <div className="absolute top-3 right-3 z-10" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id) }}
+                        className="p-1 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        <DotsIcon />
+                      </button>
+                      {openMenuId === c.id && (
+                        <div className="absolute top-7 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[120px]" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => router.push(`/dashboard/clients/${c.id}/edit`)} className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><EditIcon /> Edit</button>
+                          <button onClick={e => { handleCopy(e, c); setOpenMenuId(null) }} className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><CopyIcon /> Copy</button>
+                          <button onClick={e => { handleDelete(e, c.id); setOpenMenuId(null) }} className="w-full text-left px-3.5 py-2 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"><TrashIcon /> Delete</button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-start gap-2 mb-3 pr-6">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                        {getInitials(c.name)}
+                      </div>
+                      <div className="min-w-0 pt-0.5">
+                        <span className="text-xs font-bold text-gray-700">{rating}<span className="text-gray-400 font-normal">/10</span></span>
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 truncate mb-1.5">{c.name}</p>
+                    <div className="flex items-center gap-1 flex-wrap mb-2">
+                      <TypeBadge type={c.client_type} />
+                      {c.club_twb && <ClubTWBBadge />}
+                      {isPolitical && <PoliticalBadge />}
+                      {((c as any).labels as string[] | undefined)?.includes('at_risk') && <AtRiskBadge />}
+                      {((c as any).labels as string[] | undefined)?.includes('high_potential') && <HighPotentialBadge />}
+                    </div>
+                    {totalSales > 0 && (
+                      <p className="text-xs font-medium text-gray-700 tabular-nums">{formatLKR(totalSales)}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {/* Table */}
-          {visible.length > 0 && (
+          {visible.length > 0 && view === 'list' && (
             <div className="overflow-x-auto -mx-4 md:mx-0">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
                   <tr>
                     <th className="px-4 py-3 w-12" />
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">Phone</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell whitespace-nowrap">Email</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell whitespace-nowrap">Total Sales</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Sales Mgr</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Lead</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap"><SortHeader label="Name"       currentSort={sort} ascKey="name_asc"     descKey="name_desc"     onSort={setSort} /></th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">Phone</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap"><SortHeader label="Type"       currentSort={sort} ascKey="type_asc"     descKey="type_desc"     onSort={setSort} /></th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap hidden md:table-cell"><SortHeader label="Total Sales" currentSort={sort} ascKey="sales_asc"  descKey="sales_desc"    onSort={setSort} /></th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap hidden lg:table-cell"><SortHeader label="Sales Mgr"  currentSort={sort} ascKey="manager_asc" descKey="manager_desc"  onSort={setSort} /></th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Lead</th>
                     <th className="w-10" />
                   </tr>
                   <tr>
@@ -439,8 +622,13 @@ export default function ClientList({
                             {getInitials(c.name)}
                           </div>
                         </td>
-                        <td className="px-4 py-3 max-w-[180px]">
+                        <td className="px-4 py-3 max-w-[200px]">
                           <div className="font-semibold text-gray-900 truncate">{c.name}</div>
+                          <div className="flex gap-1 flex-wrap mt-0.5">
+                            {((c as any).labels as string[] | undefined)?.includes('political')      && <PoliticalBadge />}
+                            {((c as any).labels as string[] | undefined)?.includes('at_risk')         && <AtRiskBadge />}
+                            {((c as any).labels as string[] | undefined)?.includes('high_potential')  && <HighPotentialBadge />}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs tabular-nums whitespace-nowrap hidden sm:table-cell">
                           {c.phone ?? c.whatsapp ?? <span className="text-gray-300">—</span>}

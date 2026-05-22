@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import PhotoUpload from '@/components/watches/PhotoUpload'
+import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
   WATCH_CONDITIONS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
-  WATCH_STATUS_NEW,
   INVESTOR_NAMES,
   type WatchCondition,
   type WatchSetDetails,
@@ -38,15 +38,37 @@ async function uploadPhotos(watchId: string, files: File[]): Promise<string[]> {
     const { error } = await supabase.storage
       .from('watch-photos')
       .upload(path, file, { upsert: true })
-    if (error) {
-      console.error('[EditWatch] Storage upload failed for', path, error)
-    } else {
+    if (!error) {
       const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
-      console.log('[EditWatch] Uploaded photo URL:', data.publicUrl)
       urls.push(data.publicUrl)
     }
   }
   return urls
+}
+
+function LabelToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+        checked
+          ? 'bg-gray-900 text-white border-gray-900'
+          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+      }`}
+    >
+      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${checked ? 'border-white' : 'border-gray-300'}`}>
+        {checked && <span className="w-2 h-2 rounded-full bg-white" />}
+      </span>
+      {label}
+    </button>
+  )
+}
+
+// Normalise set_details: old 'Box and Papers' / 'Brand New' become 'Full Set'
+function normaliseSetDetails(v: string): WatchSetDetails {
+  const valid: WatchSetDetails[] = ['Full Set', 'Box and Watch', 'Watch Only']
+  return valid.includes(v as WatchSetDetails) ? (v as WatchSetDetails) : 'Full Set'
 }
 
 export default function EditWatchForm({
@@ -66,11 +88,10 @@ export default function EditWatchForm({
     serial_number:  watch.serial_number  ?? '',
     date_on_card:   watch.date_on_card   ?? '',
     condition:      watch.condition      as WatchCondition,
-    set_details:    watch.set_details    as WatchSetDetails,
+    set_details:    normaliseSetDetails(watch.set_details),
     purchased_from: watch.purchased_from ?? '',
     purchase_cost:  watch.purchase_cost  != null ? String(watch.purchase_cost) : '',
     status:         watch.status         as WatchStatus,
-    watch_status:   (watch as any).watch_status ?? 'Available',
     selling_price:  watch.selling_price  != null ? String(watch.selling_price) : '',
     comments:       watch.comments       ?? '',
   })
@@ -78,9 +99,15 @@ export default function EditWatchForm({
   const [brandId,      setBrandId]      = useState<string | null>((watch as any).brand_id ?? null)
   const [newBrandName, setNewBrandName] = useState('')
   const [showNewBrand, setShowNewBrand] = useState(false)
+  const [brandError,   setBrandError]   = useState<string | null>(null)
 
   const [existingUrls, setExistingUrls] = useState<string[]>(watch.photos ?? [])
   const [newFiles, setNewFiles]         = useState<File[]>([])
+
+  const existingLabels = (watch as any).labels as string[] ?? []
+  const [labelNewArrival, setLabelNewArrival] = useState(existingLabels.includes('new_arrival'))
+  const [labelHotSell,    setLabelHotSell]    = useState(existingLabels.includes('hot_sell'))
+  const [labelExpensive,  setLabelExpensive]  = useState(existingLabels.includes('expensive'))
 
   const [investors, setInvestors] = useState<InvestorRow[]>(
     watch.watch_investors?.length > 0
@@ -112,10 +139,26 @@ export default function EditWatchForm({
     setInvestors(v => v.map((row, i) => (i === idx ? { ...row, [key]: val } : row)))
   }
 
+  async function checkBrandDuplicate(name: string) {
+    if (!name.trim()) { setBrandError(null); return }
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('brands')
+      .select('id')
+      .ilike('name', name.trim())
+      .limit(1)
+    if (data && data.length > 0) {
+      setBrandError('Brand already exists')
+    } else {
+      setBrandError(null)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
+    if (brandError) { setError('Please fix the brand error before saving.'); return }
 
     setLoading(true)
     setError(null)
@@ -140,7 +183,11 @@ export default function EditWatchForm({
     }
 
     const photos = [...existingUrls, ...newUrls]
-    console.log('[EditWatch] Saving photos array:', photos)
+
+    const labels: string[] = []
+    if (labelNewArrival) labels.push('new_arrival')
+    if (labelHotSell)    labels.push('hot_sell')
+    if (labelExpensive)  labels.push('expensive')
 
     const { error: watchErr } = await supabase
       .from('watches')
@@ -154,11 +201,11 @@ export default function EditWatchForm({
         purchased_from: form.purchased_from.trim() || null,
         purchase_cost:  form.purchase_cost  ? parseFloat(form.purchase_cost)  : null,
         status:         form.status,
-        watch_status:   form.watch_status,
         selling_price:  form.selling_price ? parseFloat(form.selling_price) : null,
         comments:       form.comments.trim()       || null,
         photos,
         brand_id:       resolvedBrandId,
+        labels,
       })
       .eq('id', watch.id)
 
@@ -196,26 +243,43 @@ export default function EditWatchForm({
       <div className={card}>
         <p className={cardTitle}>Watch Details</p>
         <div className="space-y-4">
+
+          {/* Watch ID (read-only) */}
+          {(watch as any).watch_id && (
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Watch ID</p>
+                <p className="text-base font-bold text-gray-900 tracking-wide font-mono">{(watch as any).watch_id}</p>
+              </div>
+            </div>
+          )}
+
           {/* Brand */}
           <div>
             <label className={lbl}>Brand</label>
             {showNewBrand ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newBrandName}
-                  onChange={e => setNewBrandName(e.target.value)}
-                  placeholder="Enter brand name"
-                  className={inp}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => { setShowNewBrand(false); setNewBrandName('') }}
-                  className="shrink-0 text-sm text-gray-400 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="space-y-1.5">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newBrandName}
+                    onChange={e => { setNewBrandName(e.target.value); setBrandError(null) }}
+                    onBlur={() => checkBrandDuplicate(newBrandName)}
+                    placeholder="Enter brand name"
+                    className={inp}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewBrand(false); setNewBrandName(''); setBrandError(null) }}
+                    className="shrink-0 text-sm text-gray-400 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {brandError && (
+                  <p className="text-xs text-red-500">{brandError}</p>
+                )}
               </div>
             ) : (
               <select
@@ -280,10 +344,7 @@ export default function EditWatchForm({
           </div>
           <div>
             <label className={lbl}>Purchase Cost</label>
-            <div className="flex gap-2">
-              <input type="number" min="0" step="0.01" value={form.purchase_cost} onChange={field('purchase_cost')} placeholder="0.00" className={inp} />
-              <span className="shrink-0 flex items-center bg-gray-50 border border-gray-200 text-gray-400 rounded-xl px-4 text-sm font-medium">LKR</span>
-            </div>
+            <CurrencyInput value={form.purchase_cost} onChange={v => setForm(f => ({ ...f, purchase_cost: v }))} />
           </div>
         </div>
       </div>
@@ -292,27 +353,26 @@ export default function EditWatchForm({
       <div className={card}>
         <p className={cardTitle}>Sale</p>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Status</label>
-              <select value={form.status} onChange={field('status')} className={inp}>
-                {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Watch Status</label>
-              <select value={form.watch_status} onChange={field('watch_status')} className={inp}>
-                {WATCH_STATUS_NEW.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className={lbl}>Status</label>
+            <select value={form.status} onChange={field('status')} className={inp}>
+              {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
+            </select>
           </div>
           <div>
             <label className={lbl}>Selling Price</label>
-            <div className="flex gap-2">
-              <input type="number" min="0" step="0.01" value={form.selling_price} onChange={field('selling_price')} placeholder="0.00" className={inp} />
-              <span className="shrink-0 flex items-center bg-gray-50 border border-gray-200 text-gray-400 rounded-xl px-4 text-sm font-medium">LKR</span>
-            </div>
+            <CurrencyInput value={form.selling_price} onChange={v => setForm(f => ({ ...f, selling_price: v }))} />
           </div>
+        </div>
+      </div>
+
+      {/* ── Labels ───────────────────────────────────────── */}
+      <div className={card}>
+        <p className={cardTitle}>Labels</p>
+        <div className="flex gap-2 flex-wrap">
+          <LabelToggle label="New Arrival" checked={labelNewArrival} onChange={setLabelNewArrival} />
+          <LabelToggle label="🔥 Hot Sell"  checked={labelHotSell}    onChange={setLabelHotSell} />
+          <LabelToggle label="💰 Expensive" checked={labelExpensive}  onChange={setLabelExpensive} />
         </div>
       </div>
 
@@ -360,6 +420,7 @@ export default function EditWatchForm({
       {/* ── Photos ───────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Photos</p>
+        <p className="text-xs text-gray-400 mb-3">Add photos in this order: Watch Front, Watch Back, Card Front, Card Back (max 4 photos)</p>
         <PhotoUpload
           existingUrls={existingUrls}
           newFiles={newFiles}
@@ -377,7 +438,7 @@ export default function EditWatchForm({
       {/* ── Actions ──────────────────────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
         <button
-          type="submit" disabled={loading}
+          type="submit" disabled={loading || !!brandError}
           className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Saving…' : 'Save Changes'}

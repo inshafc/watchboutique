@@ -19,12 +19,12 @@ export interface Brand {
 // ── Watch enums ──────────────────────────────────────────────
 
 export type WatchCondition  = 'Brand New' | 'Excellent' | 'Good' | 'Fair' | 'Poor'
-export type WatchSetDetails = 'Box and Papers' | 'Box and Watch' | 'Watch Only' | 'Full Set'
+export type WatchSetDetails = 'Full Set' | 'Box and Watch' | 'Watch Only'
 export type WatchStatus     = 'Available' | 'On Hold' | 'Sold' | 'Consigned'
 export type WatchStatusNew  = 'Available' | 'On Hold' | 'Offered' | 'Sold'
 
 export const WATCH_CONDITIONS:    WatchCondition[]   = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
-export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Box and Papers', 'Box and Watch', 'Watch Only', 'Full Set']
+export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Full Set', 'Box and Watch', 'Watch Only']
 export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold', 'Consigned']
 export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']
 export const INVESTOR_NAMES = ['TWB', 'Investor 1', 'Investor 2', 'Investor 3'] as const
@@ -51,6 +51,9 @@ export interface Watch {
   brand_id:     string | null
   watch_status: string | null
   deleted_at?:  string | null
+  watch_id?:    string | null
+  sort_order?:  number
+  labels?:      string[]
 }
 
 export interface WatchWithBrand extends Watch {
@@ -94,6 +97,7 @@ export interface Client {
   avatar_color: string | null
   created_at: string
   deleted_at?: string | null
+  labels?:     string[]
 }
 
 export interface Wishlist {
@@ -125,7 +129,7 @@ export type DealStage         = 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' |
 export type PaymentMethod     = 'Cash' | 'Cash + Bank' | 'Bank Transfer' | 'Installment'
 export type InstallmentStatus = 'Pending' | 'Paid' | 'Overdue'
 
-export const DEAL_TYPES:           DealType[]          = ['Sale', 'Purchase', 'Trade']
+export const DEAL_TYPES:           DealType[]          = ['Sale', 'Trade']
 export const DEAL_STAGES:          DealStage[]         = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Delivered', 'Lost']
 export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Cash + Bank', 'Bank Transfer', 'Installment']
 export const INSTALLMENT_STATUSES: InstallmentStatus[] = ['Pending', 'Paid', 'Overdue']
@@ -155,6 +159,8 @@ export interface Deal {
   sale_date:          string | null
   delivery_status:    string | null
   bank_name:          string | null
+  cash_amount:        number | null
+  bank_amount:        number | null
   deleted_at?:        string | null
 }
 
@@ -182,6 +188,13 @@ export interface TradeIn {
   add_to_inventory: boolean
   watch_id:         string | null
   created_at:       string
+}
+
+// ── Sales Managers ───────────────────────────────────────────
+
+export interface SalesManager {
+  id:   string
+  name: string
 }
 
 export interface DealWithRelations extends Deal {

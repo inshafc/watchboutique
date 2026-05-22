@@ -93,10 +93,23 @@ export default async function WatchDetailPage({ params }: { params: { id: string
 
       {/* Title row */}
       <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
+        <div className="min-w-0">
+          {(watch as any).watch_id && (
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono mb-1">{(watch as any).watch_id}</p>
+          )}
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{watch.watch_name}</h1>
           {watch.reference && (
             <p className="text-sm text-gray-400 mt-0.5">Ref: {watch.reference}</p>
+          )}
+          {(watch as any).labels && (watch as any).labels.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {((watch as any).labels as string[]).includes('new_arrival') &&
+                (Date.now() - new Date(watch.created_at).getTime()) < 14 * 24 * 60 * 60 * 1000 && (
+                  <span className="text-xs font-bold bg-emerald-500 text-white rounded-full px-2 py-0.5">NEW</span>
+              )}
+              {((watch as any).labels as string[]).includes('hot_sell')  && <span className="text-sm">🔥</span>}
+              {((watch as any).labels as string[]).includes('expensive') && <span className="text-sm">💰</span>}
+            </div>
           )}
         </div>
         <StatusBadge status={watch.status} />

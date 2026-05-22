@@ -3,17 +3,20 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import AddDealForm from '@/components/deals/AddDealForm'
+import type { SalesManager } from '@/types'
 
 export default async function NewDealPage() {
   const supabase = createClient()
 
-  const [watchesRes, clientsRes] = await Promise.all([
+  const [watchesRes, clientsRes, smRes] = await Promise.all([
     supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').order('watch_name'),
     supabase.from('clients').select('id, name').order('name'),
+    supabase.from('sales_managers').select('*').order('name'),
   ])
 
-  const watches = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
-  const clients = (clientsRes.data ?? []) as { id: string; name: string }[]
+  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
+  const clients       = (clientsRes.data ?? []) as { id: string; name: string }[]
+  const salesManagers = (smRes.data ?? []) as SalesManager[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
@@ -30,7 +33,7 @@ export default async function NewDealPage() {
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight mt-3">New Sale</h2>
         <p className="text-sm text-gray-400 mt-1">Link a watch and client to track a sale.</p>
       </div>
-      <AddDealForm watches={watches} clients={clients} />
+      <AddDealForm watches={watches} clients={clients} salesManagers={salesManagers} />
     </div>
   )
 }
