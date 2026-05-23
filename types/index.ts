@@ -97,8 +97,12 @@ export interface Client {
   sales_manager: string | null
   avatar_color: string | null
   created_at: string
-  deleted_at?: string | null
-  labels?:     string[]
+  deleted_at?:   string | null
+  labels?:       string[]
+  is_draft?:     boolean
+  birthday?:     string | null
+  anniversary?:  string | null
+  status_tier?:  string | null
 }
 
 export interface Wishlist {

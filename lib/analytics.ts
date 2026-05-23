@@ -116,7 +116,7 @@ export function monthlyTrend(allDeals: DealRow[], count: number) {
 export function salesByBrand(deals: DealRow[]) {
   const map = new Map<string, { sold: number; totalSales: number; gp: number; commission: number }>()
   for (const d of deals) {
-    const brand = (d.watches as any)?.brands?.name ?? 'Other'
+    const brand = d.watches?.brands?.name ?? 'Other'
     const e = map.get(brand) ?? { sold: 0, totalSales: 0, gp: 0, commission: 0 }
     map.set(brand, {
       sold: e.sold + 1,

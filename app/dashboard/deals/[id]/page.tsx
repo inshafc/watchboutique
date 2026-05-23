@@ -60,7 +60,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const installments = (installRes.data   ?? []) as Installment[]
   const tradeIns     = (tradeInsRes.data  ?? []) as TradeIn[]
 
-  const watchCost     = (deal.watches as any)?.purchase_cost ?? 0
+  const watchCost     = deal.watches?.purchase_cost ?? 0
   const otherCostsAmt = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
   const commissionAmt = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
 

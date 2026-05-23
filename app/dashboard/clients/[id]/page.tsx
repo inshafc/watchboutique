@@ -142,13 +142,13 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             {client.club_twb && <ClubBadge />}
             {client.client_type   && <TypeBadge type={client.client_type} />}
             {client.lead_referral && <LeadBadge lead={client.lead_referral} />}
-            {((client as any).labels as string[] | undefined)?.includes('political') && (
+            {client.labels?.includes('political') && (
               <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">Political</span>
             )}
-            {((client as any).labels as string[] | undefined)?.includes('at_risk') && (
+            {client.labels?.includes('at_risk') && (
               <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-orange-50 text-orange-600 ring-1 ring-inset ring-orange-200">At Risk</span>
             )}
-            {((client as any).labels as string[] | undefined)?.includes('high_potential') && (
+            {client.labels?.includes('high_potential') && (
               <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200">High Potential</span>
             )}
           </div>

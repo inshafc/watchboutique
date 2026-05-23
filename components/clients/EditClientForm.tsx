@@ -85,7 +85,7 @@ export default function EditClientForm({
   const [salesManagerId, setSalesManagerId] = useState<string>(initialSmId)
   const [isVip,           setIsVip]          = useState(client.is_vip)
   const [clubTwb,         setClubTwb]        = useState(client.club_twb)
-  const existingLabels = ((client as any).labels as string[]) ?? []
+  const existingLabels = client.labels ?? []
   const [labelPolitical, setLabelPolitical]  = useState(existingLabels.includes('political'))
   const [labelAtRisk,    setLabelAtRisk]     = useState(existingLabels.includes('at_risk'))
   const [labelHighPot,   setLabelHighPot]    = useState(existingLabels.includes('high_potential'))
@@ -222,7 +222,7 @@ export default function EditClientForm({
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${previewColor}`}>
               {getInitials(form.name || client.name)}
             </div>
-            <p className="text-xs text-gray-400">Avatar colour is assigned automatically from the client's name.</p>
+            <p className="text-xs text-gray-400">Avatar colour is assigned automatically from the client&apos;s name.</p>
           </div>
 
           <div>

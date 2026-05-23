@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
@@ -39,7 +40,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
 }
 
 export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
-export type ClientOption = { id: string; name: string }
+export type ClientOption = { id: string; name: string; sales_manager?: string | null }
 
 function WatchPicker({
   watches,
@@ -80,7 +81,7 @@ function WatchPicker({
         {selected ? (
           <>
             {selected.photos && selected.photos.length > 0 ? (
-              <img src={selected.photos[0]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+              <Image src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
             )}
@@ -120,7 +121,7 @@ function WatchPicker({
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 transition-colors text-left ${value === w.id ? 'bg-gray-50' : ''}`}
                 >
                   {w.photos && w.photos.length > 0 ? (
-                    <img src={w.photos[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    <Image src={w.photos[0]} alt="" width={36} height={36} className="rounded-lg object-cover shrink-0" />
                   ) : (
                     <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
                   )}
@@ -366,7 +367,19 @@ export default function AddDealForm({
           </div>
           <div>
             <label className={lbl}>Client *</label>
-            <select value={form.client_id} onChange={field('client_id')} className={inp} required>
+            <select
+              value={form.client_id}
+              onChange={e => {
+                const id = e.target.value
+                const c = clients.find(cl => cl.id === id)
+                setForm(f => ({
+                  ...f,
+                  client_id: id,
+                  sales_manager: c?.sales_manager ?? f.sales_manager,
+                }))
+              }}
+              className={inp} required
+            >
               <option value="">— Select a client —</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>

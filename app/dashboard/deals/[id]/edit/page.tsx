@@ -12,8 +12,8 @@ export default async function EditDealPage({ params }: { params: { id: string } 
   const [dealRes, tradeInsRes, watchesRes, clientsRes, smRes] = await Promise.all([
     supabase.from('deals').select('*').eq('id', params.id).single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
-    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').order('watch_name'),
-    supabase.from('clients').select('id, name').order('name'),
+    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').is('deleted_at', null).order('watch_name'),
+    supabase.from('clients').select('id, name, sales_manager').is('deleted_at', null).order('name'),
     supabase.from('sales_managers').select('*').order('name'),
   ])
 
@@ -22,7 +22,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
   const deal          = dealRes.data as Deal
   const tradeIns      = (tradeInsRes.data ?? []) as TradeIn[]
   const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
-  const clients       = (clientsRes.data ?? []) as { id: string; name: string }[]
+  const clients       = (clientsRes.data ?? []) as { id: string; name: string; sales_manager: string | null }[]
   const salesManagers = (smRes.data ?? []) as SalesManager[]
 
   return (

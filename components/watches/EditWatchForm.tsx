@@ -78,7 +78,7 @@ export default function EditWatchForm({
     comments:       watch.comments       ?? '',
   })
 
-  const [brandId,      setBrandId]      = useState<string | null>((watch as any).brand_id ?? null)
+  const [brandId,      setBrandId]      = useState<string | null>(watch.brand_id ?? null)
   const [newBrandName, setNewBrandName] = useState('')
   const [showNewBrand, setShowNewBrand] = useState(false)
   const [brandError,   setBrandError]   = useState<string | null>(null)
@@ -87,7 +87,7 @@ export default function EditWatchForm({
     (watch.photos ?? []).map(url => ({ kind: 'url' as const, url }))
   )
 
-  const existingLabels = (watch as any).labels as string[] ?? []
+  const existingLabels = watch.labels ?? []
   const [labelNewArrival, setLabelNewArrival] = useState(existingLabels.includes('new_arrival'))
   const [labelHotSell,    setLabelHotSell]    = useState(existingLabels.includes('hot_sell'))
   const [labelExpensive,  setLabelExpensive]  = useState(existingLabels.includes('expensive'))
@@ -269,11 +269,11 @@ export default function EditWatchForm({
         <p className={cardTitle}>Watch Details</p>
         <div className="space-y-4">
 
-          {(watch as any).watch_id && (
+          {watch.watch_id && (
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Watch ID</p>
-                <p className="text-base font-bold text-gray-900 tracking-wide font-mono">{(watch as any).watch_id}</p>
+                <p className="text-base font-bold text-gray-900 tracking-wide font-mono">{watch.watch_id}</p>
               </div>
             </div>
           )}

@@ -538,7 +538,7 @@ export default function ClientList({
                 const totalSales = clientSales[c.id] ?? 0
                 const dealCount  = clientDealCounts[c.id] ?? 0
                 const rating     = clientRating(dealCount, c.club_twb)
-                const isPolitical = ((c as any).labels as string[] | undefined)?.includes('political')
+                const isPolitical = c.labels?.includes('political')
                 return (
                   <div
                     key={c.id}
@@ -575,8 +575,8 @@ export default function ClientList({
                       <TypeBadge type={c.client_type} />
                       {c.club_twb && <ClubTWBBadge />}
                       {isPolitical && <PoliticalBadge />}
-                      {((c as any).labels as string[] | undefined)?.includes('at_risk') && <AtRiskBadge />}
-                      {((c as any).labels as string[] | undefined)?.includes('high_potential') && <HighPotentialBadge />}
+                      {c.labels?.includes('at_risk') && <AtRiskBadge />}
+                      {c.labels?.includes('high_potential') && <HighPotentialBadge />}
                     </div>
                     {totalSales > 0 && (
                       <p className="text-xs font-medium text-gray-700 tabular-nums">{formatLKR(totalSales)}</p>
@@ -625,9 +625,9 @@ export default function ClientList({
                         <td className="px-4 py-3 max-w-[200px]">
                           <div className="font-semibold text-gray-900 truncate">{c.name}</div>
                           <div className="flex gap-1 flex-wrap mt-0.5">
-                            {((c as any).labels as string[] | undefined)?.includes('political')      && <PoliticalBadge />}
-                            {((c as any).labels as string[] | undefined)?.includes('at_risk')         && <AtRiskBadge />}
-                            {((c as any).labels as string[] | undefined)?.includes('high_potential')  && <HighPotentialBadge />}
+                            {c.labels?.includes('political')      && <PoliticalBadge />}
+                            {c.labels?.includes('at_risk')         && <AtRiskBadge />}
+                            {c.labels?.includes('high_potential')  && <HighPotentialBadge />}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs tabular-nums whitespace-nowrap hidden sm:table-cell">

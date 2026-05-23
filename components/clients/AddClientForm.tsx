@@ -188,7 +188,7 @@ export default function AddClientForm({
             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${previewColor}`}>
               {getInitials(form.name || 'C')}
             </div>
-            <p className="text-xs text-gray-400">Avatar colour is assigned automatically from the client's name.</p>
+            <p className="text-xs text-gray-400">Avatar colour is assigned automatically from the client&apos;s name.</p>
           </div>
 
           <div>

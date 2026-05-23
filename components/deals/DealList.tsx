@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { avatarColor, getInitials } from '@/lib/client-utils'
@@ -16,7 +17,7 @@ function grossProfit(d: DealWithRelations): number | null {
   if (d.sale_price == null) return null
   return (
     d.sale_price
-    - ((d.watches as any)?.purchase_cost ?? 0)
+    - (d.watches?.purchase_cost ?? 0)
     - (d.other_costs ? (d.other_costs_amount ?? 0) : 0)
     - (d.commission_payable ? (d.commission_amount ?? 0) : 0)
   )
@@ -118,7 +119,6 @@ export default function DealList({
   const [sort,        setSort]        = useState<SortKey>('recent_sale')
   const [smFilter,    setSmFilter]    = useState<string>('All')
   const [view,        setView]        = useState<'list' | 'tile'>('list')
-  const [duplicating, setDuplicating] = useState<string | null>(null)
   const [openMenuId,  setOpenMenuId]  = useState<string | null>(null)
 
   // Undo
@@ -233,7 +233,6 @@ export default function DealList({
 
   async function handleDuplicate(e: React.MouseEvent, deal: DealWithRelations) {
     e.stopPropagation()
-    setDuplicating(deal.id)
     const supabase = createClient()
     const { data: newDeal, error } = await supabase
       .from('deals')
@@ -248,7 +247,6 @@ export default function DealList({
       .select('id')
       .single()
     if (!error && newDeal) router.push(`/dashboard/deals/${newDeal.id}`)
-    setDuplicating(null)
   }
 
   function handleShare(e: React.MouseEvent, dealId: string) {
@@ -407,7 +405,7 @@ export default function DealList({
                         ) : <span className="text-sm text-gray-300">—</span>}
                       </td>
                       <td className="px-3 py-3.5 text-xs text-gray-300 tabular-nums hidden sm:table-cell">
-                        {(deal as any).deleted_at ? new Date((deal as any).deleted_at).toLocaleDateString('en-LK', { dateStyle: 'medium' }) : '—'}
+                        {deal.deleted_at ? new Date(deal.deleted_at).toLocaleDateString('en-LK', { dateStyle: 'medium' }) : '—'}
                       </td>
                       <td className="px-3 py-3.5 pr-4 md:pr-8">
                         <div className="flex items-center gap-2 justify-end">
@@ -471,7 +469,7 @@ export default function DealList({
 
                     <div className="relative h-40 bg-gray-50 overflow-hidden">
                       {deal.watches?.photos && deal.watches.photos.length > 0 ? (
-                        <img src={deal.watches.photos[0]} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <Image src={deal.watches.photos[0]} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <svg className="w-10 h-10 text-gray-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/></svg>

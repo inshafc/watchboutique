@@ -120,7 +120,7 @@ export default function InstallmentTracker({
         <p className="text-sm text-gray-400 mb-3">No installments yet.</p>
       ) : (
         <div className="space-y-2 mb-3">
-          {installments.map((inst, i) => (
+          {installments.map((inst) => (
             <div key={inst.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

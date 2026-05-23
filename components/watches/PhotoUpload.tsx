@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 
 export type PhotoItem = { kind: 'url'; url: string } | { kind: 'file'; file: File }
 
@@ -78,11 +79,14 @@ export default function PhotoUpload({ items, onChange }: PhotoUploadProps) {
                 dragOverIdx === idx ? 'ring-2 ring-gray-900 scale-105' : ''
               }`}
             >
-              <img
+              <Image
                 src={getPreview(item)}
                 alt={`Photo ${idx + 1}`}
+                width={80}
+                height={80}
                 className="w-full h-full object-cover rounded-xl border border-gray-100"
                 draggable={false}
+                unoptimized
               />
               {/* Drag handle pip */}
               <div className="absolute top-1 left-1 w-4 h-4 bg-black/30 rounded flex items-center justify-center pointer-events-none">

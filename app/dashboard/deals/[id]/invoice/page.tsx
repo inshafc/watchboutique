@@ -4,7 +4,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import PrintButton from '@/components/deals/PrintButton'
-import type { DealWithRelations, TradeIn } from '@/types'
+import type { Deal, TradeIn } from '@/types'
+
+type InvoiceWatch = {
+  watch_name: string; reference: string | null; serial_number: string | null
+  date_on_card: string | null; condition: string | null; set_details: string | null; purchase_cost: number | null
+}
+type InvoiceClient = { name: string; phone: string | null; email: string | null; address: string | null }
+type InvoiceDeal = Deal & { watches: InvoiceWatch | null; clients: InvoiceClient | null }
 
 function formatLKR(n: number | null | undefined) {
   if (n == null) return '—'
@@ -19,24 +26,20 @@ function formatDate(d: string | null) {
 export default async function InvoicePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, tradeInsRes, clientRes] = await Promise.all([
+  const [dealRes, tradeInsRes] = await Promise.all([
     supabase
       .from('deals')
       .select('*, watches(watch_name, reference, serial_number, date_on_card, condition, set_details, purchase_cost), clients(name, phone, email, address)')
       .eq('id', params.id)
       .single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
-    supabase.from('deals').select('client_id').eq('id', params.id).single(),
   ])
 
   if (!dealRes.data) notFound()
 
-  const deal     = dealRes.data as DealWithRelations & { watches: any; clients: any }
+  const deal     = dealRes.data as InvoiceDeal
   const tradeIns = (tradeInsRes.data ?? []) as TradeIn[]
 
-  const watchCost      = deal.watches?.purchase_cost ?? 0
-  const otherCostsAmt  = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
-  const commissionAmt  = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
   const tradeInTotal   = tradeIns.reduce((s, ti) => s + (ti.value ?? 0), 0)
   const netTotal       = (deal.sale_price ?? 0) - tradeInTotal
 
@@ -192,16 +195,16 @@ export default async function InvoicePage({ params }: { params: { id: string } }
               )}
               {deal.payment_method === 'Cash + Bank' && (
                 <>
-                  {(deal as any).cash_amount != null && (
+                  {deal.cash_amount != null && (
                     <div className="flex gap-3">
                       <span className="text-gray-400 w-32 shrink-0">Cash Amount</span>
-                      <span className="tabular-nums">{formatLKR((deal as any).cash_amount)}</span>
+                      <span className="tabular-nums">{formatLKR(deal.cash_amount)}</span>
                     </div>
                   )}
-                  {(deal as any).bank_amount != null && (
+                  {deal.bank_amount != null && (
                     <div className="flex gap-3">
                       <span className="text-gray-400 w-32 shrink-0">Bank Amount</span>
-                      <span className="tabular-nums">{formatLKR((deal as any).bank_amount)}</span>
+                      <span className="tabular-nums">{formatLKR(deal.bank_amount)}</span>
                     </div>
                   )}
                 </>

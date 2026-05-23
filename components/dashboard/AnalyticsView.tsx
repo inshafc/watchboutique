@@ -8,9 +8,9 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import {
   type DealRow, type Target, type DateRange,
-  filterDeals, getDateBounds, getPrevBounds, computeStats, computeGP,
+  filterDeals, getDateBounds, computeStats,
   salesByBrand, salesByManager, salesByReferral, topClients, clubTwbDeals, newVsExisting,
-  targetForPeriod, fmtLKR, fmtCompact, pctChange,
+  targetForPeriod, fmtLKR, fmtCompact,
 } from '@/lib/analytics'
 
 const RANGES: { label: string; value: DateRange }[] = [
@@ -78,12 +78,13 @@ function StatCard({ label, actual, target, range }: { label: string; actual: num
   )
 }
 
-function ChartTooltipLKR({ active, payload, label }: any) {
+interface ChartEntry { name: string; value: number | string; color: string }
+function ChartTooltipLKR({ active, payload, label }: { active?: boolean; payload?: ChartEntry[]; label?: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs">
       <p className="font-semibold text-gray-500 mb-1.5">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="font-medium">
           {p.name}: {typeof p.value === 'number' && p.value > 1000 ? fmtLKR(p.value) : p.value}
         </p>
@@ -137,14 +138,11 @@ export default function AnalyticsView({
   const nve        = newVsExisting(current)
 
   const maxBrand   = Math.max(...byBrand.map(b => b.totalSales), 1)
-  const maxMgr     = Math.max(...byManager.map(m => m.totalSales), 1)
-  const maxRef     = Math.max(...byReferral.map(r => r.totalSales), 1)
   const maxClient  = Math.max(...top.map(c => c.totalSales), 1)
   const maxClub    = Math.max(...club.map(c => c.totalSales), 1)
   const maxMgrComm = Math.max(...byManager.map(m => m.commission), 1)
 
   const tSold   = targetForPeriod(annualTargets.watches_sold, range)
-  const tSales  = targetForPeriod(annualTargets.total_sales, range)
   const tGP     = targetForPeriod(annualTargets.gross_profit, range)
   const tResell = getTarget('reseller_split')
   const tMargin = getTarget('gp_margin')

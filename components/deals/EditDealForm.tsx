@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
-import type { Deal, TradeIn, DealStage, PaymentMethod, SalesManager } from '@/types'
+import type { Deal, TradeIn, PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 
 const inp  = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
@@ -39,7 +40,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
 }
 
 type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
-type ClientOption = { id: string; name: string }
+type ClientOption = { id: string; name: string; sales_manager?: string | null }
 
 function WatchPicker({
   watches,
@@ -80,7 +81,7 @@ function WatchPicker({
         {selected ? (
           <>
             {selected.photos && selected.photos.length > 0 ? (
-              <img src={selected.photos[0]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+              <Image src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
             )}
@@ -120,7 +121,7 @@ function WatchPicker({
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 transition-colors text-left ${value === w.id ? 'bg-gray-50' : ''}`}
                 >
                   {w.photos && w.photos.length > 0 ? (
-                    <img src={w.photos[0]} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    <Image src={w.photos[0]} alt="" width={36} height={36} className="rounded-lg object-cover shrink-0" />
                   ) : (
                     <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
                   )}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
@@ -225,9 +226,9 @@ export default function WatchInventory({
 
     // Draft/non-draft separation
     if (statusFilter === 'Drafts') {
-      list = list.filter(w => (w as any).is_draft)
+      list = list.filter(w => w.is_draft)
     } else {
-      list = list.filter(w => !(w as any).is_draft)
+      list = list.filter(w => !w.is_draft)
     }
 
     if (search.trim()) {
@@ -269,11 +270,11 @@ export default function WatchInventory({
   function countByStatus(f: StatusFilter) {
     if (f === 'Deleted') return deletedWatches?.length ?? 0
     if (f === 'Drafts') {
-      let list = watches.filter(w => (w as any).is_draft)
+      let list = watches.filter(w => w.is_draft)
       if (brandId) list = list.filter(w => w.brand_id === brandId)
       return list.length
     }
-    let list = watches.filter(w => !(w as any).is_draft)
+    let list = watches.filter(w => !w.is_draft)
     if (brandId) list = list.filter(w => w.brand_id === brandId)
     if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
     if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
@@ -281,7 +282,7 @@ export default function WatchInventory({
   }
 
   const totalSellingValue = useMemo(
-    () => watches.filter(w => !(w as any).is_draft).reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
+    () => watches.filter(w => !w.is_draft).reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
     [watches]
   )
 
@@ -651,7 +652,7 @@ export default function WatchInventory({
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
                 >
                   {w.photos && w.photos.length > 0 ? (
-                    <img src={w.photos[0]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                    <Image src={w.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
                   )}
@@ -813,7 +814,7 @@ export default function WatchInventory({
                       <tr key={w.id} className="group">
                         <td className="px-4 py-3 sticky left-0 bg-white">
                           {w.photos && w.photos.length > 0 ? (
-                            <img src={w.photos[0]} alt={w.watch_name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 opacity-50" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 opacity-50" />
                           ) : (
                             <WatchPlaceholder small />
                           )}
@@ -899,7 +900,7 @@ export default function WatchInventory({
                       >
                         <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-amber-50/50 transition-colors">
                           {w.photos && w.photos.length > 0 ? (
-                            <img src={w.photos[0]} alt={w.watch_name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 opacity-70" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 opacity-70" />
                           ) : (
                             <WatchPlaceholder small />
                           )}
@@ -993,10 +994,11 @@ export default function WatchInventory({
                     {/* Photo */}
                     <div className="relative aspect-square bg-gray-50 overflow-hidden rounded-t-[14px]">
                       {w.photos && w.photos.length > 0 ? (
-                        <img
+                        <Image
                           src={w.photos[0]}
                           alt={w.watch_name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <WatchPlaceholder />
@@ -1058,7 +1060,7 @@ export default function WatchInventory({
                       )}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{w.watch_name}</p>
-                        {(w as any).is_draft && (
+                        {w.is_draft && (
                           <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
                         )}
                         <LabelBadges labels={w.labels} createdAt={w.created_at} />
@@ -1148,7 +1150,7 @@ export default function WatchInventory({
                         {/* Photo */}
                         <td className={`px-4 py-3 sticky left-0 bg-white transition-colors ${bulkMode && isSelected ? 'bg-gray-50' : 'group-hover:bg-gray-50/80'}`}>
                           {w.photos && w.photos.length > 0 ? (
-                            <img src={w.photos[0]} alt={w.watch_name} className="w-14 h-14 rounded-xl object-cover border border-gray-100 shrink-0" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 shrink-0" />
                           ) : (
                             <WatchPlaceholder small />
                           )}
@@ -1157,7 +1159,7 @@ export default function WatchInventory({
                         <td className="px-4 py-3 max-w-[220px]">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-gray-900 truncate">{w.watch_name}</span>
-                            {(w as any).is_draft && (
+                            {w.is_draft && (
                               <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
                             )}
                             <LabelBadges labels={w.labels} createdAt={w.created_at} />

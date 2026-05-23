@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -64,25 +65,30 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </Link>
 
       {/* Action buttons */}
-      <WatchDetailActions watchId={watch.id} isDraft={(watch as any).is_draft ?? false} />
+      <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} />
 
       {/* Photos */}
       {watch.photos && watch.photos.length > 0 ? (
         <div className="mb-6 space-y-3">
-          <img
-            src={watch.photos[0]}
-            alt={watch.watch_name}
-            className="w-full h-64 md:h-80 object-cover rounded-2xl border border-gray-100"
-          />
+          <div className="relative w-full h-64 md:h-80 rounded-2xl border border-gray-100 overflow-hidden">
+            <Image
+              src={watch.photos[0]}
+              alt={watch.watch_name}
+              fill
+              className="object-cover"
+            />
+          </div>
           {watch.photos.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
               {watch.photos.slice(1).map((url, i) => (
-                <img
-                  key={i}
-                  src={url}
-                  alt={`Photo ${i + 2}`}
-                  className="w-20 h-20 object-cover rounded-xl border border-gray-100 shrink-0"
-                />
+                <div key={i} className="relative w-20 h-20 rounded-xl border border-gray-100 shrink-0 overflow-hidden">
+                  <Image
+                    src={url}
+                    alt={`Photo ${i + 2}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -98,26 +104,26 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       {/* Title row */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          {(watch as any).watch_id && (
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono mb-1">{(watch as any).watch_id}</p>
+          {watch.watch_id && (
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono mb-1">{watch.watch_id}</p>
           )}
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{watch.watch_name}</h1>
-            {(watch as any).is_draft && (
+            {watch.is_draft && (
               <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1.5 py-0.5 leading-none">DRAFT</span>
             )}
           </div>
           {watch.reference && (
             <p className="text-sm text-gray-400 mt-0.5">Ref: {watch.reference}</p>
           )}
-          {(watch as any).labels && (watch as any).labels.length > 0 && (
+          {watch.labels && watch.labels.length > 0 && (
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              {((watch as any).labels as string[]).includes('new_arrival') &&
+              {watch.labels.includes('new_arrival') &&
                 (Date.now() - new Date(watch.created_at).getTime()) < 14 * 24 * 60 * 60 * 1000 && (
                   <span className="text-xs font-bold bg-emerald-500 text-white rounded-full px-2 py-0.5">NEW</span>
               )}
-              {((watch as any).labels as string[]).includes('hot_sell')  && <span className="text-sm">🔥</span>}
-              {((watch as any).labels as string[]).includes('expensive') && <span className="text-sm">💰</span>}
+              {watch.labels.includes('hot_sell')  && <span className="text-sm">🔥</span>}
+              {watch.labels.includes('expensive') && <span className="text-sm">💰</span>}
             </div>
           )}
         </div>
@@ -142,7 +148,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       {/* Watch Status inline buttons */}
       <div className="border border-gray-100 rounded-2xl p-5 mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Watch Status</p>
-        <WatchStatusButtons watchId={watch.id} initialStatus={(watch as any).watch_status} />
+        <WatchStatusButtons watchId={watch.id} initialStatus={watch.watch_status} />
       </div>
 
       {/* Details */}

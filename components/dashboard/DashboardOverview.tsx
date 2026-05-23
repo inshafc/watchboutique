@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import {
   type DealRow, type Target, type DateRange,
-  filterDeals, getDateBounds, getPrevBounds, computeStats, computeGP,
+  filterDeals, getDateBounds, getPrevBounds, computeStats,
   monthlyTrend, salesByBrand, salesByManager, salesByReferral,
   topClients, clubTwbDeals, newVsExisting, targetForPeriod,
   fmtLKR, fmtCompact, pctChange,
@@ -86,12 +86,13 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   return <div className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm ${className}`}>{children}</div>
 }
 
-function ChartTooltipLKR({ active, payload, label }: any) {
+interface ChartEntry { name: string; value: number | string; color: string }
+function ChartTooltipLKR({ active, payload, label }: { active?: boolean; payload?: ChartEntry[]; label?: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs">
       <p className="font-semibold text-gray-500 mb-1.5">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="font-medium">
           {p.name}: {typeof p.value === 'number' && p.value > 1000 ? fmtLKR(p.value) : p.value}
         </p>
@@ -138,11 +139,8 @@ export default function DashboardOverview({
   const clubTwb    = clubTwbDeals(current)
   const nve        = newVsExisting(current)
 
-  const maxBrandSales = Math.max(...byBrand.map(b => b.totalSales), 1)
-  const maxMgrSales   = Math.max(...byManager.map(m => m.totalSales), 1)
   const maxRefSales   = Math.max(...byReferral.map(r => r.totalSales), 1)
   const maxClientSales = Math.max(...top5.map(c => c.totalSales), 1)
-  const maxClubSales   = Math.max(...clubTwb.map(c => c.totalSales), 1)
   const maxMgrComm     = Math.max(...byManager.map(m => m.commission), 1)
 
   return (

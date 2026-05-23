@@ -32,7 +32,7 @@ export default async function DashboardPage() {
   ])
 
   const deals = (dealsRes.data ?? []) as unknown as DealRow[]
-  const inventoryValue = (watchesRes.data ?? []).reduce((s: number, w: any) => s + (w.selling_price ?? 0), 0)
+  const inventoryValue = (watchesRes.data ?? []).reduce((s: number, w: { selling_price: number | null }) => s + (w.selling_price ?? 0), 0)
   const targets = (targetsRes.data ?? []) as Target[]
 
   return <DashboardOverview deals={deals} inventoryValue={inventoryValue} targets={targets} />

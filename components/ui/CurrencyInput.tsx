@@ -8,11 +8,6 @@ function addCommas(s: string): string {
   return parts.length > 1 ? parts[0] + '.' + parts[1] : parts[0]
 }
 
-function fmtBlur(raw: string): string {
-  const n = parseFloat(raw.replace(/,/g, ''))
-  return isNaN(n) ? raw : n.toLocaleString('en-LK')
-}
-
 export default function CurrencyInput({
   value,
   onChange,
