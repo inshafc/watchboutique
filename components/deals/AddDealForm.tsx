@@ -227,6 +227,11 @@ export default function AddDealForm({
   const showBankDropdown   = form.payment_method === 'Bank Transfer'
   const showCashBankInputs = form.payment_method === 'Cash + Bank'
 
+  const cashAmt       = num(form.cash_amount) ?? 0
+  const bankAmt       = num(form.bank_amount) ?? 0
+  const cashBankTotal = cashAmt + bankAmt
+  const cashBankValid = salePrice == null || Math.abs(cashBankTotal - salePrice) < 1
+
   function updateTradeIn(i: number, key: keyof TradeInRow, value: string | boolean) {
     setTradeInRows(rows => rows.map((r, idx) => idx === i ? { ...r, [key]: value } : r))
   }
@@ -248,6 +253,11 @@ export default function AddDealForm({
       }
     }
 
+    if (form.payment_method === 'Cash + Bank' && salePrice != null && !cashBankValid) {
+      setError(`Cash + Bank total (${formatLKR(cashBankTotal)}) must equal the sale price (${formatLKR(salePrice)}).`)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -259,7 +269,7 @@ export default function AddDealForm({
         watch_id:           form.watch_id,
         client_id:          form.client_id,
         deal_type:          form.deal_type,
-        stage:              'Closed',
+        stage:              'Delivered',
         sale_price:         num(form.sale_price),
         payment_method:     form.payment_method || null,
         bank_name:          showBankDropdown && form.bank_name ? form.bank_name : null,
@@ -282,6 +292,10 @@ export default function AddDealForm({
       setError(dealErr?.message ?? 'Failed to create sale.')
       setLoading(false)
       return
+    }
+
+    if (form.watch_id) {
+      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold' }).eq('id', form.watch_id)
     }
 
     if (form.payment_method === 'Installment' && installmentRows.length > 0) {
@@ -515,15 +529,23 @@ export default function AddDealForm({
           </div>
 
           {showCashBankInputs && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Cash Amount</label>
-                <CurrencyInput value={form.cash_amount} onChange={v => setForm(f => ({ ...f, cash_amount: v }))} />
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lbl}>Cash Amount</label>
+                  <CurrencyInput value={form.cash_amount} onChange={v => setForm(f => ({ ...f, cash_amount: v }))} />
+                </div>
+                <div>
+                  <label className={lbl}>Bank Amount</label>
+                  <CurrencyInput value={form.bank_amount} onChange={v => setForm(f => ({ ...f, bank_amount: v }))} />
+                </div>
               </div>
-              <div>
-                <label className={lbl}>Bank Amount</label>
-                <CurrencyInput value={form.bank_amount} onChange={v => setForm(f => ({ ...f, bank_amount: v }))} />
-              </div>
+              {salePrice != null && (cashAmt > 0 || bankAmt > 0) && (
+                <p className={`text-xs font-medium tabular-nums ${cashBankValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  Total: {formatLKR(cashBankTotal)} of {formatLKR(salePrice)}
+                  {!cashBankValid && <span className="ml-1">— must match sale price</span>}
+                </p>
+              )}
             </div>
           )}
 

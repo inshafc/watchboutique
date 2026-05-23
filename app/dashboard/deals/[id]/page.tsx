@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import StageSelector from '@/components/deals/StageSelector'
 import InstallmentTracker from '@/components/deals/InstallmentTracker'
+import DealDetailActions from '@/components/deals/DealDetailActions'
 import type { DealWithRelations, Installment, DealStage, TradeIn } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -39,7 +40,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const [dealRes, installRes, tradeInsRes] = await Promise.all([
     supabase
       .from('deals')
-      .select('*, watches(watch_name, reference, status, photos, purchase_cost), clients(name, avatar_color)')
+      .select('*, watches(watch_name, reference, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb)')
       .eq('id', params.id)
       .single(),
     supabase
@@ -82,7 +83,21 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="mb-6">
+        {/* Action row: Invoice left, icon actions right */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <Link
+            href={`/dashboard/deals/${deal.id}/invoice`}
+            className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
+            </svg>
+            Generate Invoice
+          </Link>
+          <DealDetailActions deal={deal} />
+        </div>
+        {/* Watch name + meta */}
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${TYPE_COLORS[deal.deal_type] ?? 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
@@ -103,23 +118,6 @@ export default async function DealDetailPage({ params }: { params: { id: string 
           {deal.watches?.reference && (
             <p className="text-sm text-gray-400 mt-0.5">Ref: {deal.watches.reference}</p>
           )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={`/dashboard/deals/${deal.id}/invoice`}
-            className="text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
-            </svg>
-            Invoice
-          </Link>
-          <Link
-            href={`/dashboard/deals/${deal.id}/edit`}
-            className="text-sm font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Edit
-          </Link>
         </div>
       </div>
 
@@ -153,7 +151,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
 
       {/* Stage selector */}
       <div className="border border-gray-100 rounded-2xl p-5 mb-4">
-        <StageSelector dealId={deal.id} initialStage={deal.stage as DealStage} />
+        <StageSelector dealId={deal.id} initialStage={deal.stage as DealStage} watchId={deal.watch_id} />
         {deal.closed_at && (
           <p className="text-xs text-gray-400 mt-3">
             Closed {formatDate(deal.closed_at)}

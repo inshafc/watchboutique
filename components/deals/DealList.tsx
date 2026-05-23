@@ -28,6 +28,7 @@ function dealTypeLabel(t: DealType) {
 }
 
 const STAGE_COLORS: Record<DealStage, string> = {
+  Idle:        'bg-gray-50 text-gray-400 ring-1 ring-inset ring-gray-200',
   Inquiry:     'bg-gray-100 text-gray-600',
   Offer:       'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200',
   Negotiation: 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
@@ -41,6 +42,8 @@ const TYPE_COLORS: Record<DealType, string> = {
   Purchase: 'bg-violet-50 text-violet-600',
   Trade:    'bg-amber-50 text-amber-600',
 }
+
+const STAGES: DealStage[] = ['Inquiry', 'Offer', 'Delivered']
 
 function StageBadge({ stage }: { stage: DealStage }) {
   return (
@@ -58,15 +61,16 @@ function TypeBadge({ type }: { type: DealType }) {
   )
 }
 
-function ListIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg> }
-function GridIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
-function RestoreIcon() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
-function XSmallIcon()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg> }
-function EditIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2.5l2.5 2.5-8 8H3v-2.5l8-8z" strokeLinejoin="round"/></svg> }
-function CopyIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8" strokeLinecap="round"/></svg> }
-function ShareIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="13" cy="3" r="1.5"/><circle cx="13" cy="13" r="1.5"/><circle cx="3" cy="8" r="1.5"/><path d="M4.5 7.25L11.5 3.75M4.5 8.75L11.5 12.25" strokeLinecap="round"/></svg> }
-function TrashIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
-function DotsIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg> }
+function ListIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg> }
+function GridIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
+function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+function XSmallIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg> }
+function EditIcon()      { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2.5l2.5 2.5-8 8H3v-2.5l8-8z" strokeLinejoin="round"/></svg> }
+function CopyIcon()      { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8" strokeLinecap="round"/></svg> }
+function TrashIcon()     { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+function InvoiceIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/></svg> }
+function FilterIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5 8h6M7 12h2" strokeLinecap="round"/></svg> }
+function SelectIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><path d="M9 11.5l1.5 1.5 3-3" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 
 function ActionBtn({ children, title, onClick, danger = false }: { children: React.ReactNode; title: string; onClick: (e: React.MouseEvent) => void; danger?: boolean }) {
   return (
@@ -99,27 +103,30 @@ function SortHeader({ label, currentSort, ascKey, descKey, onSort }: { label: st
 }
 
 type StageFilter = DealStage | 'All' | 'Deleted'
-type TypeFilter  = DealType | 'All'
-type SortKey     = 'recent_sale' | 'sale_value_desc' | 'sale_value_asc' | 'profit_desc' | 'profit_asc' | 'date_asc' | 'watch_asc' | 'client_asc'
-
-const STAGES: DealStage[] = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Delivered', 'Lost']
+type SortKey     = 'recent' | 'price_desc' | 'price_asc' | 'name_asc' | 'name_desc'
 
 export default function DealList({
   initialDeals,
   salesManagers = [],
+  brands = [],
 }: {
   initialDeals: DealWithRelations[]
   salesManagers?: SalesManager[]
+  brands?: { id: string; name: string; color: string | null }[]
 }) {
   const router = useRouter()
-  const [deals,       setDeals]       = useState(initialDeals)
-  const [search,      setSearch]      = useState('')
-  const [stage,       setStage]       = useState<StageFilter>('All')
-  const [typeFilter,  setTypeFilter]  = useState<TypeFilter>('All')
-  const [sort,        setSort]        = useState<SortKey>('recent_sale')
-  const [smFilter,    setSmFilter]    = useState<string>('All')
-  const [view,        setView]        = useState<'list' | 'tile'>('list')
-  const [openMenuId,  setOpenMenuId]  = useState<string | null>(null)
+  const [deals,        setDeals]        = useState(initialDeals)
+  const [search,       setSearch]       = useState('')
+  const [stage,        setStage]        = useState<StageFilter>('All')
+  const [brandFilter,  setBrandFilter]  = useState<string | null>(null)
+  const [vipFilter,    setVipFilter]    = useState(false)
+  const [clubFilter,   setClubFilter]   = useState(false)
+  const [sort,         setSort]         = useState<SortKey>('recent')
+  const [view,         setView]         = useState<'list' | 'tile'>('list')
+  const [gridCols,     setGridCols]     = useState<3 | 4 | 5>(3)
+  const [showFilters,  setShowFilters]  = useState(false)
+  const [selectMode,   setSelectMode]   = useState(false)
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
 
   // Undo
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -135,17 +142,11 @@ export default function DealList({
     }
   }, [stage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!openMenuId) return
-    function close() { setOpenMenuId(null) }
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [openMenuId])
-
   const filtered = deals.filter(d => {
     if (stage !== 'All' && stage !== 'Deleted' && d.stage !== stage) return false
-    if (typeFilter !== 'All' && d.deal_type !== typeFilter) return false
-    if (smFilter !== 'All' && (d.sales_manager ?? '') !== smFilter) return false
+    if (brandFilter && d.watches?.brands?.id !== brandFilter) return false
+    if (vipFilter   && !d.clients?.is_vip)   return false
+    if (clubFilter  && !d.clients?.club_twb) return false
     if (search) {
       const q = search.toLowerCase()
       const watchMatch  = d.watches?.watch_name.toLowerCase().includes(q) || d.watches?.reference?.toLowerCase().includes(q)
@@ -157,18 +158,15 @@ export default function DealList({
 
   const sorted = [...filtered].sort((a, b) => {
     switch (sort) {
-      case 'date_asc':        return new Date(a.sale_date ?? a.created_at).getTime() - new Date(b.sale_date ?? b.created_at).getTime()
-      case 'sale_value_desc': return (b.sale_price ?? 0) - (a.sale_price ?? 0)
-      case 'sale_value_asc':  return (a.sale_price ?? 0) - (b.sale_price ?? 0)
-      case 'profit_desc':     return (grossProfit(b) ?? -Infinity) - (grossProfit(a) ?? -Infinity)
-      case 'profit_asc':      return (grossProfit(a) ?? Infinity)  - (grossProfit(b) ?? Infinity)
-      case 'watch_asc':       return (a.watches?.watch_name ?? '').localeCompare(b.watches?.watch_name ?? '')
-      case 'client_asc':      return (a.clients?.name ?? '').localeCompare(b.clients?.name ?? '')
-      default:                return new Date(b.sale_date ?? b.created_at).getTime() - new Date(a.sale_date ?? a.created_at).getTime()
+      case 'price_desc': return (b.sale_price ?? 0) - (a.sale_price ?? 0)
+      case 'price_asc':  return (a.sale_price ?? 0) - (b.sale_price ?? 0)
+      case 'name_asc':   return (a.watches?.watch_name ?? '').localeCompare(b.watches?.watch_name ?? '')
+      case 'name_desc':  return (b.watches?.watch_name ?? '').localeCompare(a.watches?.watch_name ?? '')
+      default:           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     }
   })
 
-  // ── Undo ─────────────────────────────────────────────────
+  // ── Undo ───────────────────────────────────────────────────
 
   function showUndo(message: string, restore: () => Promise<void>) {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
@@ -185,14 +183,14 @@ export default function DealList({
     await restore()
   }
 
-  // ── Deleted ───────────────────────────────────────────────
+  // ── Deleted ────────────────────────────────────────────────
 
   async function loadDeletedDeals() {
     setLoadingDeleted(true)
     const supabase = createClient()
     const { data } = await supabase
       .from('deals')
-      .select('*, watches(watch_name, reference, status, photos, purchase_cost), clients(name, avatar_color)')
+      .select('*, watches(watch_name, reference, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb)')
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false })
     setDeletedDeals((data ?? []) as DealWithRelations[])
@@ -215,7 +213,7 @@ export default function DealList({
     setDeletedDeals(v => v?.filter(d => d.id !== id) ?? null)
   }
 
-  // ── Actions ───────────────────────────────────────────────
+  // ── Row actions ────────────────────────────────────────────
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation()
@@ -225,8 +223,7 @@ export default function DealList({
     await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     setDeals(ds => ds.filter(d => d.id !== id))
     showUndo('Sale deleted', async () => {
-      const sb = createClient()
-      await sb.from('deals').update({ deleted_at: null }).eq('id', id)
+      await createClient().from('deals').update({ deleted_at: null }).eq('id', id)
       setDeals(ds => [deal, ...ds])
     })
   }
@@ -249,42 +246,126 @@ export default function DealList({
     if (!error && newDeal) router.push(`/dashboard/deals/${newDeal.id}`)
   }
 
-  function handleShare(e: React.MouseEvent, dealId: string) {
-    e.stopPropagation()
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard/deals/${dealId}`)
+  // ── Select mode ────────────────────────────────────────────
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
   }
 
-  const showingDeleted = stage === 'Deleted'
+  function toggleSelectAll() {
+    if (selectedIds.size === sorted.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(sorted.map(d => d.id)))
+    }
+  }
+
+  // ── Bulk actions ────────────────────────────────────────────
+
+  function handleBulkInvoice() {
+    for (const id of Array.from(selectedIds)) {
+      window.open(`/dashboard/deals/${id}/invoice`, '_blank')
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} sale${selectedIds.size !== 1 ? 's' : ''}?`)) return
+    const ids = Array.from(selectedIds)
+    const affected = deals.filter(d => ids.includes(d.id))
+    const supabase = createClient()
+    await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).in('id', ids)
+    setDeals(ds => ds.filter(d => !selectedIds.has(d.id)))
+    setSelectedIds(new Set())
+    setSelectMode(false)
+    showUndo(`${ids.length} sale${ids.length !== 1 ? 's' : ''} deleted`, async () => {
+      await createClient().from('deals').update({ deleted_at: null }).in('id', ids)
+      setDeals(ds => [...affected, ...ds])
+    })
+  }
+
+  const filtersActive   = brandFilter !== null || vipFilter || clubFilter
+  const showingDeleted  = stage === 'Deleted'
+
+  const gridColsClass = gridCols === 4
+    ? 'grid-cols-2 lg:grid-cols-4'
+    : gridCols === 5
+    ? 'grid-cols-2 lg:grid-cols-5'
+    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
 
   return (
     <div>
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-8 pt-6 pb-4">
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Sales</h1>
         <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Sales</h1>
+          <span className="text-sm text-gray-400 tabular-nums">{deals.length}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           {!showingDeleted && (
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-              <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
-              <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
-            </div>
-          )}
-          {!showingDeleted && (
-            <Link
-              href="/dashboard/deals/new"
-              className="inline-flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
-              New Sale
-            </Link>
+            <>
+              {/* Filter */}
+              <button
+                onClick={() => setShowFilters(v => !v)}
+                title="Filters"
+                className={`relative p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+              >
+                <FilterIcon />
+                {filtersActive && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+                )}
+              </button>
+
+              {/* Select */}
+              <button
+                onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
+                title="Select"
+                className={`p-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+              >
+                <SelectIcon />
+              </button>
+
+              {/* List/Grid toggle */}
+              <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+                <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
+                <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
+              </div>
+
+              {/* Grid size (tile view only) */}
+              {view === 'tile' && (
+                <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+                  {([3, 4, 5] as const).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setGridCols(n)}
+                      className={`w-7 h-8 rounded-lg text-xs font-semibold transition-colors ${gridCols === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <Link
+                href="/dashboard/deals/new"
+                className="inline-flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
+                New Sale
+              </Link>
+            </>
           )}
         </div>
       </div>
 
-      {/* Search + filters + sort */}
+      {/* ── Search ─────────────────────────────────────────── */}
       {!showingDeleted && (
-        <div className="flex flex-wrap items-center gap-2 px-4 md:px-8 mb-3">
-          <div className="relative flex-1 min-w-48">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
+        <div className="px-4 md:px-8 mb-3">
+          <div className="relative">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
               <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
             </svg>
             <input
@@ -292,54 +373,89 @@ export default function DealList({
               placeholder="Search watch or client…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
             />
           </div>
-          {/* Type pills */}
-          <div className="flex gap-1.5">
-            {([
-              { value: 'All',   label: 'All' },
-              { value: 'Sale',  label: 'Sale' },
-              { value: 'Trade', label: 'Trade-In' },
-            ] as const).map(t => (
-              <button
-                key={t.value}
-                onClick={() => setTypeFilter(t.value as TypeFilter)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  typeFilter === t.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {/* Sales Manager filter */}
-          {salesManagers.length > 0 && (
-            <select
-              value={smFilter}
-              onChange={e => setSmFilter(e.target.value)}
-              className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-            >
-              <option value="All">All Managers</option>
-              {salesManagers.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
-            </select>
-          )}
-          {/* Sort */}
-          <select
-            value={sort}
-            onChange={e => setSort(e.target.value as SortKey)}
-            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-          >
-            <option value="recent_sale">Recent Sale</option>
-            <option value="sale_value_desc">Sale Value: High → Low</option>
-            <option value="sale_value_asc">Sale Value: Low → High</option>
-            <option value="profit_desc">Profit: High → Low</option>
-            <option value="profit_asc">Profit: Low → High</option>
-          </select>
         </div>
       )}
 
-      {/* Stage tabs */}
+      {/* ── Filter panel ───────────────────────────────────── */}
+      {!showingDeleted && showFilters && (
+        <div className="px-4 md:px-8 mb-3 space-y-2">
+          {/* Brand pills */}
+          {brands.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {brands.map(brand => (
+                <button
+                  key={brand.id}
+                  onClick={() => setBrandFilter(brandFilter === brand.id ? null : brand.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                    brandFilter === brand.id
+                      ? 'bg-gray-900 border-gray-900 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {brand.color && (
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brand.color }} />
+                  )}
+                  {brand.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Client tier + sort */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setVipFilter(v => !v)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${vipFilter ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'}`}
+            >
+              ★ VIP
+            </button>
+            <button
+              onClick={() => setClubFilter(v => !v)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${clubFilter ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'}`}
+            >
+              ★ Club TWB
+            </button>
+            {/* Sales manager filter */}
+            {salesManagers.length > 0 && (
+              <select
+                onChange={e => {
+                  const v = e.target.value
+                  // handled inline via separate state if needed — for now drive a local filtered approach
+                  void v
+                }}
+                className="bg-white border border-gray-200 text-gray-600 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+              >
+                <option value="">All Managers</option>
+                {salesManagers.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
+              </select>
+            )}
+            {/* Sort */}
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value as SortKey)}
+              className="bg-white border border-gray-200 text-gray-600 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
+            >
+              <option value="recent">Recently Added</option>
+              <option value="price_desc">Price High → Low</option>
+              <option value="price_asc">Price Low → High</option>
+              <option value="name_asc">Name A → Z</option>
+              <option value="name_desc">Name Z → A</option>
+            </select>
+            {filtersActive && (
+              <button
+                onClick={() => { setBrandFilter(null); setVipFilter(false); setClubFilter(false) }}
+                className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Stage tabs ─────────────────────────────────────── */}
       <div className="flex gap-0 border-b border-gray-100 px-4 md:px-8 overflow-x-auto">
         {(['All', ...STAGES, 'Deleted'] as StageFilter[]).map(s => (
           <button
@@ -364,7 +480,7 @@ export default function DealList({
         ))}
       </div>
 
-      {/* ── Deleted ────────────────────────────────────────── */}
+      {/* ── Deleted view ───────────────────────────────────── */}
       {showingDeleted && (
         <div>
           {loadingDeleted && (
@@ -426,7 +542,7 @@ export default function DealList({
         </div>
       )}
 
-      {/* ── Normal content ───────────────────────────────── */}
+      {/* ── Normal content ─────────────────────────────────── */}
       {!showingDeleted && (
         <>
           {sorted.length === 0 && (
@@ -438,34 +554,28 @@ export default function DealList({
             </div>
           )}
 
-          {/* Tile View */}
+          {/* ── Tile View ──────────────────────────────────── */}
           {sorted.length > 0 && view === 'tile' && (
-            <div className="px-4 md:px-8 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className={`px-4 md:px-8 py-5 grid gap-4 ${gridColsClass}`}>
               {sorted.map(deal => {
-                const gp = grossProfit(deal)
+                const gp       = grossProfit(deal)
+                const selected = selectedIds.has(deal.id)
                 return (
                   <div
                     key={deal.id}
-                    onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
-                    className="bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all group cursor-pointer relative"
+                    onClick={() => selectMode ? toggleSelect(deal.id) : router.push(`/dashboard/deals/${deal.id}`)}
+                    className={`bg-white border rounded-2xl overflow-hidden transition-all group cursor-pointer relative ${
+                      selected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-100 hover:border-gray-300 hover:shadow-sm'
+                    }`}
                   >
-                    {/* Three-dot menu */}
-                    <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === deal.id ? null : deal.id) }}
-                        className="p-1.5 rounded-lg bg-white/80 text-gray-400 hover:text-gray-700 hover:bg-white transition-colors shadow-sm"
-                      >
-                        <DotsIcon />
-                      </button>
-                      {openMenuId === deal.id && (
-                        <div className="absolute top-8 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden min-w-[130px]" onClick={e => e.stopPropagation()}>
-                          <button onClick={e => { e.stopPropagation(); router.push(`/dashboard/deals/${deal.id}/edit`) }} className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><EditIcon /> Edit</button>
-                          <button onClick={e => { handleDuplicate(e, deal); setOpenMenuId(null) }} className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><CopyIcon /> Duplicate</button>
-                          <button onClick={e => { handleShare(e, deal.id); setOpenMenuId(null) }} className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><ShareIcon /> Share</button>
-                          <button onClick={e => { handleDelete(e, deal.id); setOpenMenuId(null) }} className="w-full text-left px-3.5 py-2 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"><TrashIcon /> Delete</button>
-                        </div>
-                      )}
-                    </div>
+                    {/* Select checkbox overlay */}
+                    {selectMode && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selected ? 'bg-gray-900 border-gray-900' : 'bg-white/80 border-gray-300'}`}>
+                          {selected && <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="relative h-40 bg-gray-50 overflow-hidden">
                       {deal.watches?.photos && deal.watches.photos.length > 0 ? (
@@ -475,9 +585,18 @@ export default function DealList({
                           <svg className="w-10 h-10 text-gray-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/></svg>
                         </div>
                       )}
-                      <div className="absolute top-2 left-2">
+                      <div className="absolute top-2 right-2">
                         <StageBadge stage={deal.stage} />
                       </div>
+                      {/* Hover actions */}
+                      {!selectMode && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2 gap-1" onClick={e => e.stopPropagation()}>
+                          <ActionBtn title="Invoice" onClick={e => { e.stopPropagation(); router.push(`/dashboard/deals/${deal.id}/invoice`) }}><InvoiceIcon /></ActionBtn>
+                          <ActionBtn title="Edit"      onClick={e => { e.stopPropagation(); router.push(`/dashboard/deals/${deal.id}/edit`) }}><EditIcon /></ActionBtn>
+                          <ActionBtn title="Duplicate" onClick={e => handleDuplicate(e, deal)}><CopyIcon /></ActionBtn>
+                          <ActionBtn title="Delete"    onClick={e => handleDelete(e, deal.id)} danger><TrashIcon /></ActionBtn>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -491,6 +610,8 @@ export default function DealList({
                         <div className="flex items-center gap-2 mb-3">
                           <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>{getInitials(deal.clients.name)}</div>
                           <span className="text-xs text-gray-600 truncate">{deal.clients.name}</span>
+                          {deal.clients.club_twb && <span className="text-[10px] font-semibold text-gray-400">★</span>}
+                          {deal.clients.is_vip   && !deal.clients.club_twb && <span className="text-[10px] font-semibold text-amber-500">★</span>}
                         </div>
                       )}
                       <div>
@@ -504,44 +625,62 @@ export default function DealList({
             </div>
           )}
 
-          {/* List View */}
+          {/* ── List View ──────────────────────────────────── */}
           {sorted.length > 0 && view === 'list' && (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100">
+                    {selectMode && (
+                      <th className="px-4 md:px-8 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === sorted.length && sorted.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 md:px-8 py-3 text-left whitespace-nowrap hidden lg:table-cell">
-                      <SortHeader label="Date" currentSort={sort} ascKey="date_asc" descKey="recent_sale" onSort={setSort} />
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</span>
                     </th>
                     <th className="px-3 py-3 text-left whitespace-nowrap">
-                      <SortHeader label="Watch" currentSort={sort} ascKey="watch_asc" descKey="watch_asc" onSort={setSort} />
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Watch</span>
                     </th>
                     <th className="px-3 py-3 text-left whitespace-nowrap hidden sm:table-cell">
-                      <SortHeader label="Client" currentSort={sort} ascKey="client_asc" descKey="client_asc" onSort={setSort} />
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Client</span>
                     </th>
                     <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Stage</th>
                     <th className="px-3 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Type</th>
                     <th className="px-3 py-3 text-right whitespace-nowrap hidden md:table-cell">
-                      <SortHeader label="Price" currentSort={sort} ascKey="sale_value_asc" descKey="sale_value_desc" onSort={setSort} />
-                    </th>
-                    <th className="px-3 py-3 text-right whitespace-nowrap hidden lg:table-cell">
-                      <SortHeader label="Profit" currentSort={sort} ascKey="profit_asc" descKey="profit_desc" onSort={setSort} />
+                      <SortHeader label="Price" currentSort={sort} ascKey="price_asc" descKey="price_desc" onSort={setSort} />
                     </th>
                     <th className="w-24 px-3 py-3 pr-4 md:pr-8" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {sorted.map(deal => {
-                    const gp = grossProfit(deal)
+                    const gp       = grossProfit(deal)
                     const saleDate = deal.sale_date
                       ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                       : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
+                    const selected = selectedIds.has(deal.id)
                     return (
                       <tr
                         key={deal.id}
-                        className="group hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
+                        className={`group hover:bg-gray-50 transition-colors cursor-pointer ${selected ? 'bg-gray-50' : ''}`}
+                        onClick={() => selectMode ? toggleSelect(deal.id) : router.push(`/dashboard/deals/${deal.id}`)}
                       >
+                        {selectMode && (
+                          <td className="px-4 md:px-8 py-3.5" onClick={e => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleSelect(deal.id)}
+                              className="w-4 h-4 rounded border-gray-300 accent-gray-900"
+                            />
+                          </td>
+                        )}
                         <td className="px-4 md:px-8 py-3.5 hidden lg:table-cell">
                           <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">{saleDate}</span>
                         </td>
@@ -556,6 +695,7 @@ export default function DealList({
                             <div className="flex items-center gap-2">
                               <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>{getInitials(deal.clients.name)}</div>
                               <span className="text-sm text-gray-700 truncate max-w-[120px]">{deal.clients.name}</span>
+                              {deal.clients.club_twb && <span className="text-xs text-gray-400">★</span>}
                             </div>
                           ) : <span className="text-sm text-gray-300">—</span>}
                         </td>
@@ -567,19 +707,13 @@ export default function DealList({
                         </td>
                         <td className="px-3 py-3.5 hidden md:table-cell text-right">
                           <span className="text-sm text-gray-900 tabular-nums">{formatLKR(deal.sale_price ?? deal.offered_price)}</span>
-                        </td>
-                        <td className="px-3 py-3.5 hidden lg:table-cell text-right">
-                          {gp != null ? (
-                            <span className={`text-sm font-medium tabular-nums ${gp >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                              {gp >= 0 ? '+' : ''}{formatLKR(gp)}
-                            </span>
-                          ) : <span className="text-sm text-gray-300">—</span>}
+                          {gp != null && <p className={`text-xs tabular-nums ${gp >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{gp >= 0 ? '+' : ''}{formatLKR(gp)}</p>}
                         </td>
                         <td className="px-3 py-3.5 pr-4 md:pr-8" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5 justify-end opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
+                            <ActionBtn title="Invoice"   onClick={e => { e.stopPropagation(); router.push(`/dashboard/deals/${deal.id}/invoice`) }}><InvoiceIcon /></ActionBtn>
                             <ActionBtn title="Edit"      onClick={e => { e.stopPropagation(); router.push(`/dashboard/deals/${deal.id}/edit`) }}><EditIcon /></ActionBtn>
                             <ActionBtn title="Duplicate" onClick={e => handleDuplicate(e, deal)}><CopyIcon /></ActionBtn>
-                            <ActionBtn title="Share"     onClick={e => handleShare(e, deal.id)}><ShareIcon /></ActionBtn>
                             <ActionBtn title="Delete"    onClick={e => handleDelete(e, deal.id)} danger><TrashIcon /></ActionBtn>
                           </div>
                         </td>
@@ -597,7 +731,30 @@ export default function DealList({
         </>
       )}
 
-      {/* Undo toast */}
+      {/* ── Bulk action bar ────────────────────────────────── */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+          <span className="text-sm font-medium pr-1">{selectedIds.size} selected</span>
+          <div className="w-px h-4 bg-white/20 mx-1" />
+          <button
+            onClick={handleBulkInvoice}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <InvoiceIcon /> Invoice
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
+          >
+            <TrashIcon /> Delete
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-white/40 hover:text-white/80 transition-colors ml-1">
+            <XSmallIcon />
+          </button>
+        </div>
+      )}
+
+      {/* ── Undo toast ─────────────────────────────────────── */}
       {undoState && (
         <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
           <span className="text-sm">{undoState.message}</span>

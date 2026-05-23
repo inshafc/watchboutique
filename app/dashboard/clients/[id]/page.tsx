@@ -8,22 +8,6 @@ import ContactLogSection from '@/components/clients/ContactLogSection'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import type { Client, Wishlist, ContactLog, DealWithRelations } from '@/types'
 
-function VIPBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-200">
-      ★ VIP
-    </span>
-  )
-}
-
-function ClubBadge() {
-  return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-900 text-white">
-      Club TWB
-    </span>
-  )
-}
-
 function TypeBadge({ type }: { type: string }) {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
@@ -54,6 +38,33 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
       <p className="text-sm text-gray-700">{value}</p>
     </div>
   )
+}
+
+function formatMonthDay(mmdd: string | null | undefined): string | null {
+  if (!mmdd) return null
+  const [mm, dd] = mmdd.split('-')
+  if (!mm || !dd) return null
+  const month = new Date(2000, parseInt(mm, 10) - 1, 1).toLocaleString('en-US', { month: 'long' })
+  return `${month} ${parseInt(dd, 10)}`
+}
+
+function StatusTierBadge({ client }: { client: Client }) {
+  const tier = client.status_tier ?? (client.club_twb ? 'Club TWB' : client.is_vip ? 'VIP' : 'General')
+  if (tier === 'Club TWB') {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-900 text-white">
+        ★ Club TWB
+      </span>
+    )
+  }
+  if (tier === 'VIP') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-200">
+        ★ VIP
+      </span>
+    )
+  }
+  return null
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
@@ -138,8 +149,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-tight">{client.name}</h1>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {client.is_vip   && <VIPBadge />}
-            {client.club_twb && <ClubBadge />}
+            <StatusTierBadge client={client} />
             {client.client_type   && <TypeBadge type={client.client_type} />}
             {client.lead_referral && <LeadBadge lead={client.lead_referral} />}
             {client.labels?.includes('political') && (
@@ -227,6 +237,27 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         <div className="border border-gray-100 rounded-2xl p-5 mb-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
           <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{notes}</p>
+        </div>
+      )}
+
+      {/* Customer Relationship */}
+      {(client.birthday || client.anniversary) && (
+        <div className="border border-gray-100 rounded-2xl p-5 mb-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Customer Relationship</p>
+          <div className="space-y-2.5">
+            {client.birthday && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Birthday</p>
+                <p className="text-sm text-gray-700">{formatMonthDay(client.birthday)}</p>
+              </div>
+            )}
+            {client.anniversary && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-0.5">Anniversary</p>
+                <p className="text-sm text-gray-700">{formatMonthDay(client.anniversary)}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

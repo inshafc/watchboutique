@@ -22,6 +22,46 @@ const PHONE_COUNTRIES = [
   { code: '+61',  flag: '🇦🇺', name: 'Australia',    id: 'AU' },
 ]
 
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+function MonthDayPicker({
+  month, day, onMonthChange, onDayChange,
+}: {
+  month: string; day: string
+  onMonthChange: (m: string) => void
+  onDayChange: (d: string) => void
+}) {
+  const daysInMonth = month ? new Date(2000, parseInt(month), 0).getDate() : 31
+  return (
+    <div className="flex gap-2">
+      <select
+        value={month}
+        onChange={e => {
+          onMonthChange(e.target.value)
+          if (day && parseInt(day) > new Date(2000, parseInt(e.target.value), 0).getDate()) onDayChange('')
+        }}
+        className={`${inp} flex-1`}
+      >
+        <option value="">Month</option>
+        {MONTHS.map((m, i) => (
+          <option key={i + 1} value={String(i + 1).padStart(2, '0')}>{m}</option>
+        ))}
+      </select>
+      <select
+        value={day}
+        onChange={e => onDayChange(e.target.value)}
+        disabled={!month}
+        className={`${inp} w-24`}
+      >
+        <option value="">Day</option>
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+          <option key={d} value={String(d).padStart(2, '0')}>{d}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 function detectCountry(phone: string | null) {
   if (!phone) return PHONE_COUNTRIES[0]
   if (phone.startsWith('+94') || phone.startsWith('0')) return PHONE_COUNTRIES[0]
@@ -63,6 +103,19 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
+function initStatusTier(client: Client): 'General' | 'VIP' | 'Club TWB' {
+  if (client.status_tier === 'Club TWB' || client.club_twb) return 'Club TWB'
+  if (client.status_tier === 'VIP' || client.is_vip) return 'VIP'
+  return 'General'
+}
+
+function parseMonthDay(mmdd: string | null | undefined): { month: string; day: string } {
+  if (!mmdd) return { month: '', day: '' }
+  const parts = mmdd.split('-')
+  if (parts.length !== 2) return { month: '', day: '' }
+  return { month: parts[0], day: parts[1] }
+}
+
 export default function EditClientForm({
   client,
   salesManagers = [],
@@ -83,14 +136,21 @@ export default function EditClientForm({
 
   const initialSmId = salesManagers.find(sm => sm.name === client.sales_manager)?.id ?? ''
   const [salesManagerId, setSalesManagerId] = useState<string>(initialSmId)
-  const [isVip,           setIsVip]          = useState(client.is_vip)
-  const [clubTwb,         setClubTwb]        = useState(client.club_twb)
+  const [statusTier,     setStatusTier]     = useState<'General' | 'VIP' | 'Club TWB'>(initStatusTier(client))
   const existingLabels = client.labels ?? []
   const [labelPolitical, setLabelPolitical]  = useState(existingLabels.includes('political'))
   const [labelAtRisk,    setLabelAtRisk]     = useState(existingLabels.includes('at_risk'))
   const [labelHighPot,   setLabelHighPot]    = useState(existingLabels.includes('high_potential'))
   const [leadReferral,   setLeadReferral]    = useState<LeadReferral | ''>(client.lead_referral ?? '')
   const [clientType,     setClientType]      = useState<ClientType | ''>(client.client_type ?? '')
+
+  // Birthday / Anniversary
+  const initBday  = parseMonthDay(client.birthday)
+  const initAnniv = parseMonthDay(client.anniversary)
+  const [bdayMonth,  setBdayMonth]  = useState(initBday.month)
+  const [bdayDay,    setBdayDay]    = useState(initBday.day)
+  const [annivMonth, setAnnivMonth] = useState(initAnniv.month)
+  const [annivDay,   setAnnivDay]   = useState(initAnniv.day)
 
   // Phone
   const initCountry = detectCountry(client.phone)
@@ -100,7 +160,6 @@ export default function EditClientForm({
   const [showCountryPicker, setShowCountryPicker]  = useState(false)
   const phonePickerRef = useRef<HTMLDivElement>(null)
 
-  // Email
   const [emailError, setEmailError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -165,8 +224,7 @@ export default function EditClientForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave(isDraft: boolean) {
     if (!form.name.trim()) { setError('Client name is required.'); return }
     if (emailError) { setError('Please fix the email error before saving.'); return }
     if (phoneError) { setError('Please fix the phone error before saving.'); return }
@@ -180,6 +238,9 @@ export default function EditClientForm({
     if (labelAtRisk)    labels.push('at_risk')
     if (labelHighPot)   labels.push('high_potential')
 
+    const birthday    = bdayMonth && bdayDay    ? `${bdayMonth}-${bdayDay}` : null
+    const anniversary = annivMonth && annivDay  ? `${annivMonth}-${annivDay}` : null
+
     const supabase = createClient()
     const { error: err } = await supabase
       .from('clients')
@@ -190,12 +251,16 @@ export default function EditClientForm({
         address:       form.address.trim() || null,
         sales_manager: salesManagerName,
         profile_notes: form.notes.trim()   || null,
-        is_vip:        isVip,
-        club_twb:      clubTwb,
+        is_vip:        statusTier === 'VIP',
+        club_twb:      statusTier === 'Club TWB',
+        status_tier:   statusTier,
         lead_referral: leadReferral || null,
         client_type:   clientType   || null,
         avatar_color:  null,
         labels,
+        is_draft:      isDraft,
+        birthday,
+        anniversary,
       })
       .eq('id', client.id)
 
@@ -205,8 +270,16 @@ export default function EditClientForm({
     router.refresh()
   }
 
+  async function handleDelete() {
+    if (!confirm(`Delete ${client.name}? They will be moved to the deleted tab.`)) return
+    const supabase = createClient()
+    await supabase.from('clients').update({ deleted_at: new Date().toISOString() }).eq('id', client.id)
+    router.push('/dashboard/clients')
+    router.refresh()
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
@@ -260,10 +333,26 @@ export default function EditClientForm({
           </div>
 
           <div>
-            <label className={lbl}>Status</label>
-            <div className="flex gap-2 flex-wrap">
-              <Toggle label="★ VIP"    checked={isVip}   onChange={setIsVip} />
-              <Toggle label="Club TWB" checked={clubTwb} onChange={setClubTwb} />
+            <label className={lbl}>Status Tier</label>
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+              {(['General', 'VIP', 'Club TWB'] as const).map(tier => (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => setStatusTier(tier)}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors border-r border-gray-200 last:border-r-0 ${
+                    statusTier === tier
+                      ? tier === 'Club TWB'
+                        ? 'bg-amber-600 text-white'
+                        : tier === 'VIP'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {tier === 'VIP' ? '★ VIP' : tier === 'Club TWB' ? '★ Club TWB' : tier}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -273,7 +362,6 @@ export default function EditClientForm({
       <div className={card}>
         <p className={cardTitle}>Contact</p>
         <div className="space-y-4">
-          {/* Phone with collapsible country picker */}
           <div>
             <label className={lbl}>Phone</label>
             <div className="flex gap-2">
@@ -339,6 +427,27 @@ export default function EditClientForm({
         </div>
       </div>
 
+      {/* ── Customer Relationship ────────────────────────── */}
+      <div className={card}>
+        <p className={cardTitle}>Customer Relationship</p>
+        <div className="space-y-4">
+          <div>
+            <label className={lbl}>Birthday</label>
+            <MonthDayPicker
+              month={bdayMonth} day={bdayDay}
+              onMonthChange={setBdayMonth} onDayChange={setBdayDay}
+            />
+          </div>
+          <div>
+            <label className={lbl}>Anniversary</label>
+            <MonthDayPicker
+              month={annivMonth} day={annivDay}
+              onMonthChange={setAnnivMonth} onDayChange={setAnnivDay}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* ── Labels ───────────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Labels</p>
@@ -356,17 +465,36 @@ export default function EditClientForm({
       </div>
 
       {/* ── Actions ──────────────────────────────────────── */}
-      <div className="flex items-center gap-4 pt-2 pb-8">
+      <div className="flex items-center gap-3 pt-2 pb-8 flex-wrap">
         <button
-          type="submit" disabled={loading}
+          type="button"
+          onClick={() => handleSave(false)}
+          disabled={loading}
           className="bg-gray-900 text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Saving…' : 'Save Changes'}
+          {loading ? 'Saving…' : 'Publish'}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSave(true)}
+          disabled={loading}
+          className="bg-white text-gray-700 text-sm font-semibold px-6 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Save Draft
         </button>
         <Link href={`/dashboard/clients/${client.id}`} className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
           Cancel
         </Link>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={loading}
+          className="text-sm text-red-400 hover:text-red-600 transition-colors"
+        >
+          Delete client
+        </button>
       </div>
-    </form>
+    </div>
   )
 }

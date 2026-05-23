@@ -130,12 +130,12 @@ export const CONTACT_CHANNELS: ContactChannel[] = ['WhatsApp', 'Instagram', 'Pho
 // ── Deals ────────────────────────────────────────────────────
 
 export type DealType          = 'Sale' | 'Purchase' | 'Trade'
-export type DealStage         = 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Delivered' | 'Lost'
+export type DealStage         = 'Idle' | 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Delivered' | 'Lost'
 export type PaymentMethod     = 'Cash' | 'Cash + Bank' | 'Bank Transfer' | 'Installment'
 export type InstallmentStatus = 'Pending' | 'Paid' | 'Overdue'
 
 export const DEAL_TYPES:           DealType[]          = ['Sale', 'Trade']
-export const DEAL_STAGES:          DealStage[]         = ['Inquiry', 'Offer', 'Negotiation', 'Closed', 'Delivered', 'Lost']
+export const DEAL_STAGES:          DealStage[]         = ['Idle', 'Inquiry', 'Offer', 'Delivered']
 export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Cash + Bank', 'Bank Transfer', 'Installment']
 export const INSTALLMENT_STATUSES: InstallmentStatus[] = ['Pending', 'Paid', 'Overdue']
 
@@ -203,7 +203,20 @@ export interface SalesManager {
 }
 
 export interface DealWithRelations extends Deal {
-  watches:      { watch_name: string; reference: string | null; status?: string; photos?: string[]; purchase_cost?: number | null } | null
-  clients:      { name: string; avatar_color: string | null } | null
+  watches: {
+    watch_name: string
+    reference: string | null
+    status?: string
+    photos?: string[]
+    purchase_cost?: number | null
+    brand_id?: string | null
+    brands?: { id: string; name: string; color: string | null } | null
+  } | null
+  clients: {
+    name: string
+    avatar_color: string | null
+    is_vip?: boolean
+    club_twb?: boolean
+  } | null
   installments?: Installment[]
 }

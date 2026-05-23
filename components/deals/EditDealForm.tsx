@@ -216,6 +216,11 @@ export default function EditDealForm({
   const showBankDropdown   = form.payment_method === 'Bank Transfer'
   const showCashBankInputs = form.payment_method === 'Cash + Bank'
 
+  const cashAmt       = num(form.cash_amount) ?? 0
+  const bankAmt       = num(form.bank_amount) ?? 0
+  const cashBankTotal = cashAmt + bankAmt
+  const cashBankValid = salePrice == null || Math.abs(cashBankTotal - salePrice) < 1
+
   const totalTradeInCount = existingTradeIns.length + newTradeInRows.length
 
   function updateNewTradeIn(i: number, key: keyof NewTradeInRow, value: string | boolean) {
@@ -235,6 +240,11 @@ export default function EditDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
+
+    if (form.payment_method === 'Cash + Bank' && salePrice != null && !cashBankValid) {
+      setError(`Cash + Bank total (${formatLKR(cashBankTotal)}) must equal the sale price (${formatLKR(salePrice)}).`)
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -268,6 +278,10 @@ export default function EditDealForm({
       .eq('id', deal.id)
 
     if (updateErr) { setError(updateErr.message); setLoading(false); return }
+
+    if (form.stage === 'Delivered' && form.watch_id) {
+      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold' }).eq('id', form.watch_id)
+    }
 
     if (form.deal_type === 'Trade' && newTradeInRows.length > 0) {
       for (const row of newTradeInRows) {
@@ -325,7 +339,19 @@ export default function EditDealForm({
           </div>
           <div>
             <label className={lbl}>Client *</label>
-            <select value={form.client_id} onChange={field('client_id')} className={inp} required>
+            <select
+              value={form.client_id}
+              onChange={e => {
+                const id = e.target.value
+                const c = clients.find(cl => cl.id === id)
+                setForm(f => ({
+                  ...f,
+                  client_id: id,
+                  sales_manager: c?.sales_manager ?? f.sales_manager,
+                }))
+              }}
+              className={inp} required
+            >
               <option value="">— Select a client —</option>
               {clients.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -454,15 +480,23 @@ export default function EditDealForm({
           </div>
 
           {showCashBankInputs && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Cash Amount</label>
-                <CurrencyInput value={form.cash_amount} onChange={v => setForm(f => ({ ...f, cash_amount: v }))} />
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lbl}>Cash Amount</label>
+                  <CurrencyInput value={form.cash_amount} onChange={v => setForm(f => ({ ...f, cash_amount: v }))} />
+                </div>
+                <div>
+                  <label className={lbl}>Bank Amount</label>
+                  <CurrencyInput value={form.bank_amount} onChange={v => setForm(f => ({ ...f, bank_amount: v }))} />
+                </div>
               </div>
-              <div>
-                <label className={lbl}>Bank Amount</label>
-                <CurrencyInput value={form.bank_amount} onChange={v => setForm(f => ({ ...f, bank_amount: v }))} />
-              </div>
+              {salePrice != null && (cashAmt > 0 || bankAmt > 0) && (
+                <p className={`text-xs font-medium tabular-nums ${cashBankValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  Total: {formatLKR(cashBankTotal)} of {formatLKR(salePrice)}
+                  {!cashBankValid && <span className="ml-1">— must match sale price</span>}
+                </p>
+              )}
             </div>
           )}
 
