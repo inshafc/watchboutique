@@ -1,14 +1,14 @@
 export const dynamic = 'force-dynamic'
 
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import PrintButton from '@/components/deals/PrintButton'
-import type { Deal, TradeIn } from '@/types'
+import type { Deal } from '@/types'
 
 type InvoiceWatch = {
   watch_name: string; reference: string | null; serial_number: string | null
-  date_on_card: string | null; condition: string | null; set_details: string | null; purchase_cost: number | null
+  date_on_card: string | null; condition: string | null; set_details: string | null
 }
 type InvoiceClient = { name: string; phone: string | null; email: string | null; address: string | null }
 type InvoiceDeal = Deal & { watches: InvoiceWatch | null; clients: InvoiceClient | null }
@@ -26,24 +26,36 @@ function formatDate(d: string | null) {
 export default async function InvoicePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, tradeInsRes] = await Promise.all([
-    supabase
-      .from('deals')
-      .select('*, watches(watch_name, reference, serial_number, date_on_card, condition, set_details, purchase_cost), clients(name, phone, email, address)')
-      .eq('id', params.id)
-      .single(),
-    supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
-  ])
+  // If a proper invoice exists for this deal, redirect to it
+  const { data: linked } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('deal_id', params.id)
+    .is('deleted_at', null)
+    .maybeSingle()
 
-  if (!dealRes.data) notFound()
+  if (linked) {
+    redirect(`/dashboard/invoices/${linked.id}/print`)
+  }
 
-  const deal     = dealRes.data as InvoiceDeal
-  const tradeIns = (tradeInsRes.data ?? []) as TradeIn[]
+  const { data: dealData } = await supabase
+    .from('deals')
+    .select('*, watches(watch_name, reference, serial_number, date_on_card, condition, set_details), clients(name, phone, email, address)')
+    .eq('id', params.id)
+    .single()
 
-  const tradeInTotal   = tradeIns.reduce((s, ti) => s + (ti.value ?? 0), 0)
-  const netTotal       = (deal.sale_price ?? 0) - tradeInTotal
+  if (!dealData) notFound()
 
-  const invoiceNo = 'INV-' + params.id.slice(0, 8).toUpperCase()
+  const deal = dealData as InvoiceDeal
+
+  // Generate a proper TWB-YYYY-XXXX display number (no stored invoice yet)
+  const year = new Date().getFullYear()
+  const { count } = await supabase
+    .from('invoices')
+    .select('*', { count: 'exact', head: true })
+    .like('invoice_number', `TWB-${year}-%`)
+  const invoiceNo = `TWB-${year}-${String((count ?? 0) + 1).padStart(4, '0')}`
+
   const watchYear = deal.watches?.date_on_card
     ? new Date(deal.watches.date_on_card).getFullYear()
     : null
@@ -62,7 +74,15 @@ export default async function InvoicePage({ params }: { params: { id: string } }
           </svg>
           Back to Sale
         </Link>
-        <PrintButton />
+        <Link
+          href={`/dashboard/deals/${params.id}`}
+          className="text-sm text-amber-600 hover:text-amber-800 transition-colors"
+        >
+          Generate a full invoice → use the Generate Invoice button on the sale page
+        </Link>
+        <div className="ml-auto">
+          <PrintButton />
+        </div>
       </div>
 
       {/* Invoice document */}
@@ -72,10 +92,9 @@ export default async function InvoicePage({ params }: { params: { id: string } }
         <div className="flex items-start justify-between mb-8 pb-6 border-b-2 border-gray-900">
           <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">THE WATCH BOUTIQUE</h1>
-            <p className="text-sm text-gray-400 mt-1">Premium Watch Trading</p>
           </div>
-          <div className="w-20 h-20 bg-gray-100 rounded-xl flex items-center justify-center text-[10px] text-gray-400 font-medium text-center leading-tight">
-            LOGO
+          <div className="text-right">
+            <p className="text-sm font-semibold text-gray-400 tracking-widest">INVOICE</p>
           </div>
         </div>
 
@@ -141,7 +160,7 @@ export default async function InvoicePage({ params }: { params: { id: string } }
           </table>
         </div>
 
-        {/* Financials */}
+        {/* Financials — sale price only, no internal deductions */}
         <div className="mb-8">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Financials</p>
           <table className="w-full text-sm">
@@ -150,29 +169,9 @@ export default async function InvoicePage({ params }: { params: { id: string } }
                 <td className="py-2.5 text-gray-600">Sale Price</td>
                 <td className="py-2.5 text-right font-medium text-gray-900 tabular-nums">{formatLKR(deal.sale_price)}</td>
               </tr>
-              {tradeIns.map((ti, i) => (
-                <tr key={ti.id} className="border-b border-gray-100">
-                  <td className="py-2.5 text-gray-400 pl-4">
-                    Trade-in: {[ti.brand, ti.reference].filter(Boolean).join(' · ') || `Trade-in #${i + 1}`}
-                  </td>
-                  <td className="py-2.5 text-right text-red-500 tabular-nums">− {formatLKR(ti.value)}</td>
-                </tr>
-              ))}
-              {deal.other_costs && deal.other_costs_amount != null && (
-                <tr className="border-b border-gray-100">
-                  <td className="py-2.5 text-gray-400 pl-4">Other Costs</td>
-                  <td className="py-2.5 text-right text-red-500 tabular-nums">− {formatLKR(deal.other_costs_amount)}</td>
-                </tr>
-              )}
-              {deal.commission_payable && deal.commission_amount != null && (
-                <tr className="border-b border-gray-100">
-                  <td className="py-2.5 text-gray-400 pl-4">Commission</td>
-                  <td className="py-2.5 text-right text-red-500 tabular-nums">− {formatLKR(deal.commission_amount)}</td>
-                </tr>
-              )}
               <tr className="border-t-2 border-gray-900">
                 <td className="py-3 font-bold text-gray-900 text-base">NET TOTAL</td>
-                <td className="py-3 text-right font-bold text-gray-900 text-base tabular-nums">{formatLKR(netTotal)}</td>
+                <td className="py-3 text-right font-bold text-gray-900 text-base tabular-nums">{formatLKR(deal.sale_price)}</td>
               </tr>
             </tbody>
           </table>
