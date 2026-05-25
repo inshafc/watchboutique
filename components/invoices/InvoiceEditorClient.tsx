@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import InvoicePrintLayout from './InvoicePrintLayout'
@@ -49,10 +49,12 @@ export default function InvoiceEditorClient({
   invoice,
   salesManagers = [],
   banks = [],
+  initialLogoUrl = null,
 }: {
-  invoice:       InvoiceWithItems
-  salesManagers?: SalesManager[]
-  banks?:         SavedBank[]
+  invoice:          InvoiceWithItems
+  salesManagers?:   SalesManager[]
+  banks?:           SavedBank[]
+  initialLogoUrl?:  string | null
 }) {
   const [form, setForm] = useState({
     date:              invoice.date                   ?? new Date().toISOString().split('T')[0],
@@ -89,9 +91,29 @@ export default function InvoiceEditorClient({
       : [emptyItem()]
   )
 
+  const [logoUrl,       setLogoUrl]       = useState<string | null>(initialLogoUrl)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
   const [saved,  setSaved]  = useState(false)
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoUploading(true)
+    setError(null)
+    const supabase = createClient()
+    const ext  = file.name.split('.').pop() ?? 'png'
+    const path = `logo/logo_${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('invoice-assets').upload(path, file)
+    if (upErr) { setError(`Logo upload failed: ${upErr.message}`); setLogoUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('invoice-assets').getPublicUrl(path)
+    await supabase.from('app_settings').upsert({ key: 'invoice_logo_url', value: publicUrl }, { onConflict: 'key' })
+    setLogoUrl(publicUrl)
+    setLogoUploading(false)
+  }
 
   function f(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -223,6 +245,26 @@ export default function InvoiceEditorClient({
                 <label className={lbl}>Invoice Number</label>
                 <div className="w-full bg-gray-50 border border-gray-100 text-gray-500 rounded-xl px-3.5 py-2.5 text-sm font-mono select-all">
                   {invoice.invoice_number}
+                </div>
+              </div>
+              <div>
+                <label className={lbl}>Logo</label>
+                <div className="flex items-center gap-3">
+                  {logoUrl && (
+                    <div className="h-9 w-24 shrink-0 bg-gray-50 rounded-lg overflow-hidden flex items-center p-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logoUrl} alt="logo" className="h-full w-full object-contain object-left" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                    className="text-xs text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {logoUploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload Logo'}
+                  </button>
+                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -458,6 +500,7 @@ export default function InvoiceEditorClient({
               notes={form.notes || null}
               items={previewItems}
               bank={previewBank}
+              logoUrl={logoUrl}
             />
           </div>
         </div>

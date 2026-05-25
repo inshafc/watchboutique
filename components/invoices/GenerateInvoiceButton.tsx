@@ -43,21 +43,15 @@ export default function GenerateInvoiceButton({ deal }: { deal: DealSnapshot }) 
       return
     }
 
-    // Generate next invoice number
+    // Generate next invoice number (count-based, sequential)
     const year   = new Date().getFullYear()
     const prefix = `TWB-${year}-`
-    const { data: rows } = await supabase
+    const { count } = await supabase
       .from('invoices')
-      .select('invoice_number')
+      .select('*', { count: 'exact', head: true })
       .like('invoice_number', `${prefix}%`)
-      .order('invoice_number', { ascending: false })
-      .limit(1)
 
-    let seq = 1
-    if (rows && rows.length > 0) {
-      const num = parseInt(rows[0].invoice_number.replace(prefix, ''), 10)
-      if (!isNaN(num)) seq = num + 1
-    }
+    const seq            = (count ?? 0) + 1
     const invoice_number = `${prefix}${String(seq).padStart(4, '0')}`
 
     // Create invoice pre-populated from deal

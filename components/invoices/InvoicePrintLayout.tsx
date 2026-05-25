@@ -37,6 +37,7 @@ export interface InvoicePrintLayoutProps {
   notes:           string | null
   items:           PrintItem[]
   bank?:           PrintBank | null
+  logoUrl?:        string | null
 }
 
 function fmt(amount: number | null | undefined, currency: string): string {
@@ -88,10 +89,11 @@ export default function InvoicePrintLayout({
   notes,
   items,
   bank,
+  logoUrl,
 }: InvoicePrintLayoutProps) {
-  const subtotal     = items.reduce((s, it) => s + (it.amount ?? 0), 0)
-  const balanceDue   = type === 'sourcing' && advancePaid != null ? subtotal - advancePaid : null
-  const sc           = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
+  const subtotal   = items.reduce((s, it) => s + (it.amount ?? 0), 0)
+  const balanceDue = type === 'sourcing' && advancePaid != null ? subtotal - advancePaid : null
+  const sc         = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
 
   return (
     <div id="invoice-document" className="bg-white font-sans text-gray-900">
@@ -103,8 +105,13 @@ export default function InvoicePrintLayout({
           <p className="text-sm text-gray-400 mt-2 font-medium tracking-widest">{invoiceNumber}</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-black text-gray-900 tracking-tight leading-none">THE WATCH BOUTIQUE</p>
-          <p className="text-xs font-semibold tracking-[0.25em] text-gray-400 mt-1.5 uppercase">Sri Lanka</p>
+          {logoUrl ? (
+            <div className="relative h-14 w-44 ml-auto">
+              <Image src={logoUrl} alt="The Watch Boutique" fill className="object-contain object-right" />
+            </div>
+          ) : (
+            <p className="text-2xl font-black text-gray-900 tracking-tight leading-none">THE WATCH BOUTIQUE</p>
+          )}
           {exchangeRate && (
             <p className="text-xs text-gray-400 mt-2">
               Exchange rate: 1 {currency} = LKR {exchangeRate.toLocaleString('en-LK')}
@@ -204,7 +211,6 @@ export default function InvoicePrintLayout({
 
       {/* ── Totals ──────────────────────────────────────────────── */}
       <div className="px-10 mt-4">
-        {/* Main total bar */}
         <div className="bg-gray-900 text-white flex items-center justify-between px-5 py-3.5 rounded-xl">
           <span className="text-xs font-semibold uppercase tracking-[0.18em]">Total</span>
           <span className="text-lg font-black tabular-nums">{fmt(subtotal, currency)}</span>
