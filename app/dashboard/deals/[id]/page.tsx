@@ -87,22 +87,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       <div className="mb-6">
         {/* Action row: Invoice left, icon actions right */}
         <div className="flex items-center justify-between gap-3 mb-4">
-          <GenerateInvoiceButton
-            deal={{
-              id:              deal.id,
-              currency:        deal.currency,
-              sales_manager:   deal.sales_manager,
-              payment_method:  deal.payment_method,
-              sale_price:      deal.sale_price,
-              client_name:     deal.clients?.name         ?? null,
-              client_phone:    deal.clients?.phone        ?? null,
-              client_address:  deal.clients?.address      ?? null,
-              watch_name:      deal.watches?.watch_name   ?? null,
-              watch_reference: deal.watches?.reference    ?? null,
-              watch_serial:    deal.watches?.serial_number    ?? null,
-              watch_photo:     deal.watches?.photos?.[0]  ?? null,
-            }}
-          />
+          <GenerateInvoiceButton dealId={deal.id} />
           <DealDetailActions deal={deal} />
         </div>
         {/* Watch name + meta */}
