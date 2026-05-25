@@ -7,6 +7,7 @@ import { avatarColor, getInitials } from '@/lib/client-utils'
 import StageSelector from '@/components/deals/StageSelector'
 import InstallmentTracker from '@/components/deals/InstallmentTracker'
 import DealDetailActions from '@/components/deals/DealDetailActions'
+import GenerateInvoiceButton from '@/components/invoices/GenerateInvoiceButton'
 import type { DealWithRelations, Installment, DealStage, TradeIn } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -40,7 +41,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const [dealRes, installRes, tradeInsRes] = await Promise.all([
     supabase
       .from('deals')
-      .select('*, watches(watch_name, reference, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb)')
+      .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
       .eq('id', params.id)
       .single(),
     supabase
@@ -86,15 +87,22 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       <div className="mb-6">
         {/* Action row: Invoice left, icon actions right */}
         <div className="flex items-center justify-between gap-3 mb-4">
-          <Link
-            href={`/dashboard/deals/${deal.id}/invoice`}
-            className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
-            </svg>
-            Generate Invoice
-          </Link>
+          <GenerateInvoiceButton
+            deal={{
+              id:              deal.id,
+              currency:        deal.currency,
+              sales_manager:   deal.sales_manager,
+              payment_method:  deal.payment_method,
+              sale_price:      deal.sale_price,
+              client_name:     deal.clients?.name         ?? null,
+              client_phone:    deal.clients?.phone        ?? null,
+              client_address:  deal.clients?.address      ?? null,
+              watch_name:      deal.watches?.watch_name   ?? null,
+              watch_reference: deal.watches?.reference    ?? null,
+              watch_serial:    deal.watches?.serial_number    ?? null,
+              watch_photo:     deal.watches?.photos?.[0]  ?? null,
+            }}
+          />
           <DealDetailActions deal={deal} />
         </div>
         {/* Watch name + meta */}

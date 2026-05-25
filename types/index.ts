@@ -204,19 +204,91 @@ export interface SalesManager {
 
 export interface DealWithRelations extends Deal {
   watches: {
-    watch_name: string
-    reference: string | null
-    status?: string
-    photos?: string[]
+    watch_name:    string
+    reference:     string | null
+    serial_number?: string | null
+    status?:       string
+    photos?:       string[]
     purchase_cost?: number | null
-    brand_id?: string | null
-    brands?: { id: string; name: string; color: string | null } | null
+    brand_id?:     string | null
+    brands?:       { id: string; name: string; color: string | null } | null
   } | null
   clients: {
-    name: string
+    name:         string
     avatar_color: string | null
-    is_vip?: boolean
-    club_twb?: boolean
+    is_vip?:      boolean
+    club_twb?:    boolean
+    phone?:       string | null
+    address?:     string | null
   } | null
   installments?: Installment[]
+}
+
+// ── Invoices ─────────────────────────────────────────────────
+
+export type InvoiceType   = 'sale' | 'general' | 'sourcing'
+export type InvoiceStatus = 'draft' | 'advance_paid' | 'paid_in_full' | 'overdue'
+
+export const INVOICE_TYPES:    InvoiceType[]   = ['sale', 'general', 'sourcing']
+export const INVOICE_STATUSES: InvoiceStatus[] = ['draft', 'advance_paid', 'paid_in_full', 'overdue']
+
+export interface SavedBank {
+  id:             string
+  bank_name:      string
+  account_name:   string | null
+  account_number: string | null
+  branch:         string | null
+  swift_code:     string | null
+  is_active:      boolean
+  created_at:     string
+}
+
+export interface Invoice {
+  id:                string
+  invoice_number:    string
+  type:              InvoiceType
+  status:            InvoiceStatus
+  client_id:         string | null
+  client_name:       string | null
+  client_address:    string | null
+  client_phone:      string | null
+  deal_id:           string | null
+  date:              string
+  currency:          string
+  exchange_rate:     number | null
+  sales_manager:     string | null
+  payment_method:    string | null
+  bank_id:           string | null
+  show_bank_details: boolean
+  show_signatures:   boolean
+  advance_paid:      number | null
+  notes:             string | null
+  deleted_at?:       string | null
+  created_at:        string
+}
+
+export interface InvoiceItem {
+  id:            string
+  invoice_id:    string
+  watch_id:      string | null
+  watch_name:    string
+  reference:     string | null
+  serial_number: string | null
+  year:          string | null
+  condition:     string | null
+  photo_url:     string | null
+  amount:        number | null
+  sort_order:    number
+  created_at:    string
+}
+
+export interface InvoiceWithItems extends Invoice {
+  invoice_items: InvoiceItem[]
+  saved_banks?: {
+    bank_name:      string
+    account_name:   string | null
+    account_number: string | null
+    branch:         string | null
+    swift_code:     string | null
+  } | null
 }
