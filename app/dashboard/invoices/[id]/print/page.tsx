@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import InvoicePrintLayout from '@/components/invoices/InvoicePrintLayout'
-import type { InvoiceWithItems } from '@/types'
+import type { Invoice, InvoiceItem } from '@/types'
 
 function PrintControls({ invoiceId }: { invoiceId: string }) {
   return (
@@ -45,22 +45,44 @@ function PrintControls({ invoiceId }: { invoiceId: string }) {
 export default async function InvoicePrintPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [invRes, logoRes] = await Promise.all([
+  // Fetch invoice independently — no joins
+  const { data: invData, error: invError } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('id', params.id)
+    .is('deleted_at', null)
+    .single()
+
+  if (invError || !invData) notFound()
+
+  const inv = invData as Invoice
+
+  // Fetch items and logo independently
+  const [itemsRes, logoRes] = await Promise.all([
     supabase
-      .from('invoices')
-      .select('*, invoice_items(*), saved_banks(bank_name, account_name, account_number, branch, swift_code)')
-      .eq('id', params.id)
-      .is('deleted_at', null)
-      .single(),
-    supabase.from('app_settings').select('value').eq('key', 'invoice_logo_url').maybeSingle(),
+      .from('invoice_items')
+      .select('*')
+      .eq('invoice_id', params.id)
+      .order('sort_order'),
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'invoice_logo_url')
+      .maybeSingle(),
   ])
 
-  if (!invRes.data) notFound()
+  // Fetch linked bank for display if show_bank_details is on
+  let bank: { bank_name: string; account_name: string | null; account_number: string | null; branch: string | null; swift_code: string | null } | null = null
+  if (inv.show_bank_details && inv.bank_id) {
+    const { data } = await supabase
+      .from('saved_banks')
+      .select('bank_name, account_name, account_number, branch, swift_code')
+      .eq('id', inv.bank_id)
+      .single()
+    bank = data ?? null
+  }
 
-  const inv     = invRes.data as InvoiceWithItems
-  const logoUrl = logoRes.data?.value ?? null
-
-  const items = (inv.invoice_items ?? [])
+  const items = ((itemsRes.data ?? []) as InvoiceItem[])
     .sort((a, b) => a.sort_order - b.sort_order)
     .map(it => ({
       watch_name:    it.watch_name,
@@ -72,7 +94,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
       amount:        it.amount,
     }))
 
-  const bank = inv.show_bank_details && inv.saved_banks ? inv.saved_banks : null
+  const logoUrl = logoRes.data?.value ?? null
 
   return (
     <div className="min-h-screen bg-gray-100">
