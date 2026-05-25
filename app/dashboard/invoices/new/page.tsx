@@ -11,7 +11,7 @@ export default async function NewInvoicePage({
   const supabase = createClient()
   const dealId   = searchParams?.deal_id ?? null
 
-  // If deal_id provided, check for an existing invoice for this deal
+  // If deal_id provided, check for an existing invoice for this deal first
   if (dealId) {
     const { data: existing } = await supabase
       .from('invoices')
@@ -25,11 +25,22 @@ export default async function NewInvoicePage({
     }
   }
 
-  // Fetch deal data for pre-population (server-side — bypasses RLS)
+  // Fetch full deal + watch + client data for pre-population
   type DealRow = {
-    currency: string; sale_price: number | null; sales_manager: string | null
+    watch_id:       string | null
+    currency:       string
+    sale_price:     number | null
+    sales_manager:  string | null
     payment_method: string | null
-    watches: { watch_name: string; reference: string | null; serial_number: string | null; photos: string[] | null } | null
+    watches: {
+      watch_name:    string
+      reference:     string | null
+      serial_number: string | null
+      date_on_card:  string | null
+      condition:     string | null
+      set_details:   string | null
+      photos:        string[] | null
+    } | null
     clients: { name: string; phone: string | null; address: string | null } | null
   }
   let deal: DealRow | null = null
@@ -37,7 +48,15 @@ export default async function NewInvoicePage({
   if (dealId) {
     const { data } = await supabase
       .from('deals')
-      .select('currency, sale_price, sales_manager, payment_method, watches(watch_name, reference, serial_number, photos), clients(name, phone, address)')
+      .select(`
+        watch_id,
+        currency,
+        sale_price,
+        sales_manager,
+        payment_method,
+        watches(watch_name, reference, serial_number, date_on_card, condition, set_details, photos),
+        clients(name, phone, address)
+      `)
       .eq('id', dealId)
       .maybeSingle()
     deal = data as DealRow | null
@@ -60,11 +79,11 @@ export default async function NewInvoicePage({
       deal_id:        dealId,
       type:           dealId ? 'sale' : 'general',
       status:         'draft',
-      currency:       deal?.currency       ?? 'LKR',
-      sales_manager:  deal?.sales_manager  ?? null,
-      payment_method: deal?.payment_method ?? null,
-      client_name:    deal?.clients?.name    ?? null,
-      client_phone:   deal?.clients?.phone   ?? null,
+      currency:       deal?.currency        ?? 'LKR',
+      sales_manager:  deal?.sales_manager   ?? null,
+      payment_method: deal?.payment_method  ?? null,
+      client_name:    deal?.clients?.name   ?? null,
+      client_phone:   deal?.clients?.phone  ?? null,
       client_address: deal?.clients?.address ?? null,
     })
     .select('id')
@@ -75,23 +94,41 @@ export default async function NewInvoicePage({
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-sm font-semibold text-red-500 mb-1">Failed to create invoice</p>
-          <p className="text-xs text-gray-400">{error?.message ?? 'Unknown error — check that sprint10.sql has been run in Supabase'}</p>
+          <p className="text-xs text-gray-400">
+            {error?.message ?? 'Unknown error — check that sprint10.sql has been run in Supabase'}
+          </p>
         </div>
       </div>
     )
   }
 
-  // Add watch as line item if coming from a deal
+  // Add watch as line item, populated with all available fields
   if (deal?.watches?.watch_name) {
-    await supabase.from('invoice_items').insert({
+    const w = deal.watches
+
+    // Extract year from date_on_card (stored as a date string)
+    const watchYear = w.date_on_card
+      ? String(new Date(w.date_on_card).getFullYear())
+      : null
+
+    const { error: itemError } = await supabase.from('invoice_items').insert({
       invoice_id:    inv.id,
-      watch_name:    deal.watches.watch_name,
-      reference:     deal.watches.reference    ?? null,
-      serial_number: deal.watches.serial_number ?? null,
-      photo_url:     deal.watches.photos?.[0]  ?? null,
-      amount:        deal.sale_price            ?? null,
+      watch_id:      deal.watch_id          ?? null,
+      watch_name:    w.watch_name,
+      reference:     w.reference            ?? null,
+      serial_number: w.serial_number        ?? null,
+      year:          watchYear,
+      condition:     w.condition            ?? null,
+      photo_url:     w.photos?.[0]          ?? null,
+      amount:        deal.sale_price        ?? null,
       sort_order:    0,
     })
+
+    if (itemError) {
+      // Line item failed — the invoice still exists so we continue.
+      // Most likely cause: invoice_items table not yet created (run sprint10.sql).
+      console.error('[invoice/new] line item insert failed:', itemError.message)
+    }
   }
 
   redirect(`/dashboard/invoices/${inv.id}/edit`)
