@@ -486,10 +486,10 @@ export default function InvoiceEditorClient({
       </div>
 
       {/* ── Right panel: live preview ───────────────────────── */}
-      <div className="w-[42%] shrink-0 bg-gray-100 border-l border-gray-100 sticky top-0 h-screen overflow-y-auto">
-        <div className="p-4">
+      <div className="w-[42%] shrink-0 border-l border-gray-100 sticky top-0 h-screen overflow-y-auto" style={{ background: '#f0f0f0' }}>
+        <div className="p-5">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">Live Preview</p>
-          <div className="rounded-xl overflow-hidden shadow-xl" style={{ zoom: 0.6 }}>
+          <div className="shadow-2xl" style={{ zoom: 0.55, borderRadius: '2px', overflow: 'hidden' }}>
             <InvoicePrintLayout
               invoiceNumber={invoice.invoice_number}
               date={form.date}

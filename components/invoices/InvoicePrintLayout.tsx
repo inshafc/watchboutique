@@ -1,5 +1,7 @@
-import Image from 'next/image'
 import type { InvoiceType, InvoiceStatus } from '@/types'
+
+const TWB_LOGO_URL =
+  'https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/The%20Watch%20Boutique%20Sri%20Lanka%20Logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby9UaGUgV2F0Y2ggQm91dGlxdWUgU3JpIExhbmthIExvZ28ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MTQ2MTQ0OSwiZXhwIjo3Mzk3NDYxNDQ5fQ.KCxDWOYjqZXZ-IFdYvW3I5EFlzA7Y-GTnZGUxITzLo8'
 
 export interface PrintItem {
   watch_name:    string
@@ -45,9 +47,9 @@ function fmt(amount: number | null | undefined, currency: string): string {
   if (amount == null) return '—'
   const n = Math.round(amount)
   if (currency === 'LKR') return 'LKR ' + n.toLocaleString('en-LK')
-  if (currency === 'USD') return '$ ' + n.toLocaleString('en-US')
+  if (currency === 'USD') return '$ '   + n.toLocaleString('en-US')
   if (currency === 'AED') return 'AED ' + n.toLocaleString('en-US')
-  if (currency === 'AUD') return 'A$ ' + n.toLocaleString('en-US')
+  if (currency === 'AUD') return 'A$ '  + n.toLocaleString('en-US')
   return currency + ' ' + n.toLocaleString('en-US')
 }
 
@@ -59,18 +61,14 @@ function fmtDate(d: string): string {
   }
 }
 
-const STATUS_CONFIG: Record<InvoiceStatus, { label: string; dot: string; text: string }> = {
-  paid_in_full:  { label: 'Paid in Full',  dot: 'bg-emerald-500', text: 'text-emerald-700' },
-  advance_paid:  { label: 'Advance Paid',  dot: 'bg-amber-500',   text: 'text-amber-700'   },
-  overdue:       { label: 'Overdue',       dot: 'bg-red-500',     text: 'text-red-700'      },
-  draft:         { label: 'Draft',         dot: 'bg-gray-400',    text: 'text-gray-500'     },
+const STATUS_CONFIG: Record<InvoiceStatus, { label: string; dotColor: string; textColor: string }> = {
+  paid_in_full: { label: 'Paid in Full', dotColor: '#10b981', textColor: '#047857' },
+  advance_paid: { label: 'Advance Paid', dotColor: '#f59e0b', textColor: '#b45309' },
+  overdue:      { label: 'Overdue',      dotColor: '#ef4444', textColor: '#b91c1c' },
+  draft:        { label: 'Draft',        dotColor: '#9ca3af', textColor: '#6b7280' },
 }
 
-const TYPE_LABELS: Record<InvoiceType, string> = {
-  sale:     'Sale',
-  general:  'General',
-  sourcing: 'Sourcing',
-}
+const MIN_ROWS = 3
 
 export default function InvoicePrintLayout({
   invoiceNumber,
@@ -97,217 +95,319 @@ export default function InvoicePrintLayout({
   const balanceDue = type === 'sourcing' && advancePaid != null ? subtotal - advancePaid : null
   const sc         = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
 
+  const effectiveLogo = logoUrl || TWB_LOGO_URL
+
+  // Pad to MIN_ROWS with null placeholders
+  const displayRows: (PrintItem | null)[] = [
+    ...items,
+    ...Array(Math.max(0, MIN_ROWS - items.length)).fill(null),
+  ]
+
+  const openSans    = "'Open Sans', sans-serif"
+  const serifFont   = "'Playfair Display', 'Georgia', serif"
+
   return (
     <>
-    {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-    <style>{`@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');`}</style>
-    <div id="invoice-document" className="bg-white text-gray-900" style={{ fontFamily: "'Open Sans', sans-serif" }}>
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap');
+        @media print {
+          @page { size: A4 portrait; margin: 0; }
+          body  { margin: 0; }
+        }
+      `}</style>
 
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between px-10 pt-10 pb-6">
-        <div>
-          <h1 className="text-5xl font-black tracking-tight text-gray-900 leading-none">INVOICE</h1>
-          <p className="text-sm text-gray-400 mt-2 font-medium tracking-widest">{invoiceNumber}</p>
+      <div
+        id="invoice-document"
+        style={{
+          fontFamily:   openSans,
+          background:   '#ffffff',
+          color:        '#111111',
+          width:        '210mm',
+          minHeight:    '297mm',
+          display:      'flex',
+          flexDirection:'column',
+          boxSizing:    'border-box',
+        }}
+      >
+        {/* ── HEADER ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '40px 48px 28px' }}>
+          {/* Left: INVOICE heading only */}
+          <div>
+            <h1 style={{
+              fontFamily:    serifFont,
+              fontWeight:    700,
+              fontSize:      '56px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color:         '#111111',
+              lineHeight:    1,
+              margin:        0,
+            }}>
+              INVOICE
+            </h1>
+          </div>
+
+          {/* Right: Logo */}
+          <div style={{ textAlign: 'right' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={effectiveLogo}
+              alt="The Watch Boutique"
+              style={{ maxHeight: '80px', objectFit: 'contain', display: 'block', marginLeft: 'auto' }}
+            />
+            {exchangeRate && (
+              <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontFamily: openSans }}>
+                Exchange rate: 1 {currency} = LKR {exchangeRate.toLocaleString('en-LK')}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="text-right">
-          {logoUrl ? (
-            <div className="relative h-14 w-44 ml-auto">
-              <Image src={logoUrl} alt="The Watch Boutique" fill className="object-contain object-right" />
-            </div>
-          ) : (
-            <p className="text-2xl font-black text-gray-900 tracking-tight leading-none">THE WATCH BOUTIQUE</p>
-          )}
-          {exchangeRate && (
-            <p className="text-xs text-gray-400 mt-2">
-              Exchange rate: 1 {currency} = LKR {exchangeRate.toLocaleString('en-LK')}
+
+        {/* Divider */}
+        <div style={{ height: '1px', background: '#e5e7eb', margin: '0 48px' }} />
+
+        {/* ── META ROW ───────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', padding: '24px 48px 24px' }}>
+          {/* Left: Billing Details */}
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+              Billing Details
             </p>
-          )}
-        </div>
-      </div>
-
-      {/* Thin divider */}
-      <div className="mx-10 border-t border-gray-200" />
-
-      {/* ── Billing + Meta ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-8 px-10 py-6">
-        {/* Left: billing details */}
-        <div>
-          <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.18em] mb-3">Billing Details</p>
-          {clientName ? (
-            <p className="text-sm font-bold text-gray-900 mb-1">{clientName}</p>
-          ) : (
-            <p className="text-sm text-gray-300 mb-1">—</p>
-          )}
-          {clientPhone   && <p className="text-xs text-gray-500">{clientPhone}</p>}
-          {clientAddress && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{clientAddress}</p>}
-        </div>
-
-        {/* Right: invoice metadata */}
-        <div className="space-y-1.5 text-right">
-          <div className="flex justify-end gap-6">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-28 text-right">Invoice #</span>
-            <span className="text-xs font-semibold text-gray-700 w-32 text-right">{invoiceNumber}</span>
+            {clientName
+              ? <p style={{ fontSize: '16px', fontWeight: 700, color: '#111111', marginBottom: '4px' }}>{clientName}</p>
+              : <p style={{ fontSize: '14px', color: '#d1d5db', marginBottom: '4px' }}>—</p>
+            }
+            {clientPhone   && <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{clientPhone}</p>}
+            {clientAddress && <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', lineHeight: 1.5 }}>{clientAddress}</p>}
           </div>
-          <div className="flex justify-end gap-6">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-28 text-right">Date</span>
-            <span className="text-xs text-gray-700 w-32 text-right">{fmtDate(date)}</span>
-          </div>
-          <div className="flex justify-end gap-6">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-28 text-right">Type</span>
-            <span className="text-xs text-gray-700 w-32 text-right">{TYPE_LABELS[type]}</span>
-          </div>
-          {salesManager && (
-            <div className="flex justify-end gap-6">
-              <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-28 text-right">Sales Manager</span>
-              <span className="text-xs text-gray-700 w-32 text-right">{salesManager}</span>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── Line Items ──────────────────────────────────────────── */}
-      <div className="px-10 mb-0">
-        {/* Table header */}
-        <div className="bg-gray-900 text-white grid grid-cols-[1fr_auto_auto] px-4 py-2.5 rounded-t-xl">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em]">Item</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] w-12 text-center">Qty</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] w-28 text-right">Amount</span>
-        </div>
-
-        {/* Items */}
-        {items.length === 0 ? (
-          <div className="border-x border-b border-gray-100 rounded-b-xl px-4 py-6 text-center text-sm text-gray-300">
-            No items added
-          </div>
-        ) : (
-          items.map((item, i) => (
-            <div key={i} className={`border-x border-b border-gray-100 ${i === items.length - 1 ? 'rounded-b-xl' : ''} px-4 py-3 grid grid-cols-[1fr_auto_auto] gap-4 items-center`}>
-              <div className="flex items-center gap-3 min-w-0">
-                {item.photo_url ? (
-                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-gray-50">
-                    <Image src={item.photo_url} alt="" fill className="object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-14 h-14 rounded-lg bg-gray-50 shrink-0 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{item.watch_name || '—'}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                    {item.reference    && <span className="text-[11px] text-gray-400">Ref: {item.reference}</span>}
-                    {item.serial_number && <span className="text-[11px] text-gray-400">SN: {item.serial_number}</span>}
-                    {item.year         && <span className="text-[11px] text-gray-400">Year: {item.year}</span>}
-                    {item.condition    && <span className="text-[11px] text-gray-400">{item.condition}</span>}
-                  </div>
-                </div>
+          {/* Right: Invoice meta */}
+          <div style={{ textAlign: 'right' }}>
+            {[
+              { label: 'Invoice #',     value: invoiceNumber },
+              { label: 'Date',          value: fmtDate(date) },
+              ...(salesManager ? [{ label: 'Sales Manager', value: salesManager }] : []),
+            ].map(row => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', minWidth: '100px', textAlign: 'right' }}>
+                  {row.label}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: row.label === 'Invoice #' ? 600 : 400, color: '#111111', minWidth: '120px', textAlign: 'right' }}>
+                  {row.value}
+                </span>
               </div>
-              <span className="text-sm text-gray-500 w-12 text-center">1</span>
-              <span className="text-sm font-semibold text-gray-900 tabular-nums w-28 text-right">
-                {fmt(item.amount, currency)}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ── Totals ──────────────────────────────────────────────── */}
-      <div className="px-10 mt-4">
-        <div className="bg-gray-900 text-white flex items-center justify-between px-5 py-3.5 rounded-xl">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em]">Total</span>
-          <span className="text-lg font-black tabular-nums">{fmt(subtotal, currency)}</span>
+            ))}
+          </div>
         </div>
 
-        {/* Advance paid + balance due (sourcing only) */}
-        {type === 'sourcing' && advancePaid != null && (
-          <div className="mt-1 space-y-0">
-            <div className="flex items-center justify-between px-5 py-2 bg-gray-50 rounded-xl">
-              <span className="text-xs text-gray-500">Advance Paid</span>
-              <span className="text-sm font-semibold text-gray-700 tabular-nums">{fmt(advancePaid, currency)}</span>
-            </div>
-            <div className="flex items-center justify-between px-5 py-2 border border-gray-200 rounded-xl mt-1">
-              <span className="text-xs font-semibold text-gray-700">Balance Due</span>
-              <span className="text-sm font-bold text-gray-900 tabular-nums">{fmt(balanceDue, currency)}</span>
-            </div>
-          </div>
-        )}
-      </div>
+        {/* Divider */}
+        <div style={{ height: '1px', background: '#e5e7eb', margin: '0 48px' }} />
 
-      {/* ── Payment ─────────────────────────────────────────────── */}
-      <div className="px-10 mt-5">
-        <div className="flex items-start gap-8">
-          {/* Payment method + status */}
-          <div className="space-y-1.5">
+        {/* ── LINE ITEMS TABLE ────────────────────────────────────── */}
+        <div style={{ padding: '24px 48px 0' }}>
+          {/* Header row */}
+          <div style={{
+            background:    '#1a1a1a',
+            color:         '#ffffff',
+            display:       'grid',
+            gridTemplateColumns: '1fr 60px 140px',
+            padding:       '10px 16px',
+            borderRadius:  '8px 8px 0 0',
+          }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Item</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>Qty</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'right' }}>Amount</span>
+          </div>
+
+          {/* Rows */}
+          {displayRows.map((item, i) => {
+            const isLast  = i === displayRows.length - 1
+            const isEmpty = item === null
+            return (
+              <div
+                key={i}
+                style={{
+                  display:         'grid',
+                  gridTemplateColumns: '1fr 60px 140px',
+                  gap:             '16px',
+                  alignItems:      'center',
+                  minHeight:       '72px',
+                  padding:         '12px 16px',
+                  borderLeft:      '1px solid #f3f4f6',
+                  borderRight:     '1px solid #f3f4f6',
+                  borderBottom:    isEmpty ? '1px dashed #e5e7eb' : '1px solid #f3f4f6',
+                  borderRadius:    isLast ? '0 0 8px 8px' : undefined,
+                }}
+              >
+                {isEmpty ? (
+                  <>
+                    <div />
+                    <div />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    {/* Item description */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                      {item.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.photo_url}
+                          alt=""
+                          style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{ width: '48px', height: '48px', borderRadius: '6px', background: '#f9fafb', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
+                            <circle cx="12" cy="12" r="7" /><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round" />
+                          </svg>
+                        </div>
+                      )}
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.watch_name || '—'}
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '3px' }}>
+                          {item.reference     && <span style={{ fontSize: '11px', color: '#9ca3af' }}>Ref: {item.reference}</span>}
+                          {item.serial_number && <span style={{ fontSize: '11px', color: '#9ca3af' }}>SN: {item.serial_number}</span>}
+                          {item.year          && <span style={{ fontSize: '11px', color: '#9ca3af' }}>Year: {item.year}</span>}
+                          {item.condition     && <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.condition}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Qty */}
+                    <span style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>1</span>
+
+                    {/* Amount */}
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#111111', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmt(item.amount, currency)}
+                    </span>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── SUBTOTAL + TOTAL ────────────────────────────────────── */}
+        <div style={{ padding: '12px 48px 0' }}>
+          {/* Subtotal row */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '24px', padding: '8px 16px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Subtotal</span>
+            <span style={{ fontSize: '13px', color: '#6b7280', minWidth: '140px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(subtotal, currency)}</span>
+          </div>
+
+          {/* Total bar */}
+          <div style={{
+            background:     '#1a1a1a',
+            color:          '#ffffff',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'space-between',
+            padding:        '14px 20px',
+            borderRadius:   '8px',
+          }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.18em' }}>Total</span>
+            <span style={{ fontSize: '20px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{fmt(subtotal, currency)}</span>
+          </div>
+
+          {/* Sourcing: advance paid + balance due */}
+          {type === 'sourcing' && advancePaid != null && (
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', background: '#f9fafb', borderRadius: '6px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>Advance Paid</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{fmt(advancePaid, currency)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#111111' }}>Balance Due</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111111', fontVariantNumeric: 'tabular-nums' }}>{fmt(balanceDue, currency)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── PAYMENT SECTION ─────────────────────────────────────── */}
+        <div style={{ padding: '16px 48px 0' }}>
+          <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '14px 20px', display: 'flex', gap: '40px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {paymentMethod && (
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-32">Payment Method</span>
-                <span className="text-xs text-gray-700">{paymentMethod}</span>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Payment Method</p>
+                <p style={{ fontSize: '13px', color: '#111111' }}>{paymentMethod}</p>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.15em] w-32">Status</span>
-              <span className={`flex items-center gap-1.5 text-xs font-semibold ${sc.text}`}>
-                <span className={`w-2 h-2 rounded-full ${sc.dot}`} />
-                {sc.label}
-              </span>
-            </div>
-          </div>
-
-          {/* Bank details (if toggled) */}
-          {showBankDetails && bank && (
-            <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3">
-              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] mb-2">Bank Details</p>
-              <div className="space-y-0.5 text-xs text-gray-600">
-                <p className="font-semibold text-gray-900">{bank.bank_name}</p>
-                {bank.account_name   && <p>Account Name: {bank.account_name}</p>}
-                {bank.account_number && <p>Account No: {bank.account_number}</p>}
-                {bank.branch         && <p>Branch: {bank.branch}</p>}
-                {bank.swift_code     && <p>SWIFT: {bank.swift_code}</p>}
+            <div>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Status</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: sc.dotColor, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: sc.textColor }}>{sc.label}</span>
               </div>
             </div>
-          )}
+            {showBankDetails && bank && (
+              <div style={{ flex: 1, minWidth: '180px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Bank Details</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#111111', marginBottom: '2px' }}>{bank.bank_name}</p>
+                {bank.account_name   && <p style={{ fontSize: '11px', color: '#6b7280' }}>Account Name: {bank.account_name}</p>}
+                {bank.account_number && <p style={{ fontSize: '11px', color: '#6b7280' }}>Account No: {bank.account_number}</p>}
+                {bank.branch         && <p style={{ fontSize: '11px', color: '#6b7280' }}>Branch: {bank.branch}</p>}
+                {bank.swift_code     && <p style={{ fontSize: '11px', color: '#6b7280' }}>SWIFT: {bank.swift_code}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── NOTES ───────────────────────────────────────────────── */}
+        <div style={{ padding: '16px 48px 0' }}>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Notes</p>
+          {notes
+            ? <p style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{notes}</p>
+            : <div style={{ height: '1px', background: '#d1d5db', width: '240px' }} />
+          }
+        </div>
+
+        {/* ── TERMS & CONDITIONS ──────────────────────────────────── */}
+        {termsAndConditions && (
+          <div style={{ padding: '14px 48px 0' }}>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Terms &amp; Conditions</p>
+            <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{termsAndConditions}</p>
+          </div>
+        )}
+
+        {/* ── SIGNATURES ──────────────────────────────────────────── */}
+        {showSignatures && (
+          <div style={{ padding: '40px 48px 0', display: 'flex', justifyContent: 'space-between', gap: '32px' }}>
+            {[
+              { label: 'Authorised Signature & Seal' },
+              { label: 'Customer Signature' },
+            ].map(sig => (
+              <div key={sig.label} style={{ flex: 1 }}>
+                <div style={{ height: '1px', background: '#6b7280', marginBottom: '8px', width: '100%' }} />
+                <p style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.12em', fontVariant: 'small-caps' }}>
+                  {sig.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Spacer pushes footer to bottom */}
+        <div style={{ flex: 1 }} />
+
+        {/* ── FOOTER ──────────────────────────────────────────────── */}
+        <div style={{ background: '#1a1a1a', padding: '14px 48px', marginTop: '24px' }}>
+          <p style={{ fontSize: '10px', color: '#d1d5db', textAlign: 'center', letterSpacing: '0.08em', margin: '0 0 2px' }}>
+            THE WATCH BOUTIQUE SRI LANKA
+          </p>
+          <p style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', letterSpacing: '0.08em', margin: '0 0 2px' }}>
+            66, KYNSEY ROAD, COLOMBO 8
+          </p>
+          <p style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', letterSpacing: '0.08em', margin: 0 }}>
+            www.thewatchboutiquesl.com
+          </p>
         </div>
       </div>
-
-      {/* ── Notes ───────────────────────────────────────────────── */}
-      {notes && (
-        <div className="px-10 mt-5">
-          <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] mb-1.5">Notes</p>
-          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{notes}</p>
-        </div>
-      )}
-
-      {/* ── Terms & Conditions ──────────────────────────────────── */}
-      {termsAndConditions && (
-        <div className="px-10 mt-5">
-          <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] mb-1.5">Terms &amp; Conditions</p>
-          <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{termsAndConditions}</p>
-        </div>
-      )}
-
-      {/* ── Signatures ──────────────────────────────────────────── */}
-      {showSignatures && (
-        <div className="px-10 mt-8 flex justify-end gap-16">
-          {['Authorized By', 'Accepted By'].map(label => (
-            <div key={label} className="text-center">
-              <div className="w-40 border-b border-gray-300 mb-2" />
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.15em]">{label}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Footer ──────────────────────────────────────────────── */}
-      <div className="mt-8 bg-gray-900 px-10 py-4">
-        <p className="text-xs text-gray-300 text-center tracking-wide">
-          The Watch Boutique &nbsp;·&nbsp; 66, Kynsey Road, Colombo, Sri Lanka
-        </p>
-      </div>
-
-    </div>
     </>
   )
 }
