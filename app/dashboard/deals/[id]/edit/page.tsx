@@ -4,14 +4,15 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import EditDealForm from '@/components/deals/EditDealForm'
-import type { Deal, TradeIn, SalesManager } from '@/types'
+import type { Deal, TradeIn, DealExpense, SalesManager } from '@/types'
 
 export default async function EditDealPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, tradeInsRes, watchesRes, clientsRes, smRes] = await Promise.all([
+  const [dealRes, tradeInsRes, expensesRes, watchesRes, clientsRes, smRes] = await Promise.all([
     supabase.from('deals').select('*').eq('id', params.id).single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
+    supabase.from('deal_expenses').select('*').eq('deal_id', params.id).order('created_at'),
     supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').is('deleted_at', null).order('watch_name'),
     supabase.from('clients').select('id, name, sales_manager').is('deleted_at', null).order('name'),
     supabase.from('sales_managers').select('*').order('name'),
@@ -21,6 +22,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
 
   const deal          = dealRes.data as Deal
   const tradeIns      = (tradeInsRes.data ?? []) as TradeIn[]
+  const expenses      = (expensesRes.data ?? []) as DealExpense[]
   const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
   const clients       = (clientsRes.data ?? []) as { id: string; name: string; sales_manager: string | null }[]
   const salesManagers = (smRes.data ?? []) as SalesManager[]
@@ -39,7 +41,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
         </Link>
         <h2 className="text-2xl font-bold text-gray-900 tracking-tight mt-3">Edit Sale</h2>
       </div>
-      <EditDealForm deal={deal} initialTradeIns={tradeIns} watches={watches} clients={clients} salesManagers={salesManagers} />
+      <EditDealForm deal={deal} initialTradeIns={tradeIns} initialExpenses={expenses} watches={watches} clients={clients} salesManagers={salesManagers} />
     </div>
   )
 }

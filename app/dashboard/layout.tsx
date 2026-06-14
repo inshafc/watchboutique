@@ -53,6 +53,14 @@ function ReceiptIcon() {
   )
 }
 
+function TrendingUpIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+      <path fillRule="evenodd" d="M0 0h1v15h15v1H0zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/>
+    </svg>
+  )
+}
+
 function GearIcon() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
@@ -84,7 +92,8 @@ const NAV = [
   { label: 'Clients',   href: '/dashboard/clients',    Icon: PeopleIcon,  exact: false },
   { label: 'Sales',     href: '/dashboard/deals',      Icon: TagIcon,     exact: false },
   { label: 'Invoices',  href: '/dashboard/invoices',   Icon: ReceiptIcon, exact: false },
-  { label: 'Analytics', href: '/dashboard/analytics',  Icon: ChartIcon,   exact: false },
+  { label: 'Analytics', href: '/dashboard/analytics',  Icon: ChartIcon,       exact: false },
+  { label: 'Investors', href: '/dashboard/investors',  Icon: TrendingUpIcon,  exact: false },
 ]
 
 const BOTTOM_NAV = [

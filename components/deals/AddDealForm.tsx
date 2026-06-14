@@ -140,6 +140,17 @@ function WatchPicker({
   )
 }
 
+const EXPENSE_CATEGORIES = ['Polishing & Cleaning', 'Watch Box', 'Watch Transport', 'Other'] as const
+type ExpenseCategory = typeof EXPENSE_CATEGORIES[number]
+
+interface ExpenseRow {
+  category:     ExpenseCategory
+  custom_label: string
+  amount:       string
+}
+
+const DEFAULT_EXPENSE: ExpenseRow = { category: 'Polishing & Cleaning', custom_label: '', amount: '' }
+
 interface TradeInRow {
   brand:            string
   reference:        string
@@ -193,7 +204,7 @@ export default function AddDealForm({
     commission_amount: '50000',
   })
   const [otherCosts,        setOtherCosts]        = useState(false)
-  const [otherCostsAmount,  setOtherCostsAmount]  = useState('')
+  const [expenseRows,       setExpenseRows]       = useState<ExpenseRow[]>([{ ...DEFAULT_EXPENSE }])
   const [commissionPayable, setCommissionPayable] = useState(false)
   const [newClient,         setNewClient]         = useState(false)
 
@@ -213,7 +224,7 @@ export default function AddDealForm({
   const selectedWatch  = watches.find(w => w.id === form.watch_id)
   const watchCost      = selectedWatch?.purchase_cost ?? 0
   const salePrice      = num(form.sale_price)
-  const otherCostsAmt  = otherCosts ? (num(otherCostsAmount) ?? 0) : 0
+  const otherCostsAmt  = otherCosts ? expenseRows.reduce((s, r) => s + (num(r.amount) ?? 0), 0) : 0
   const commissionAmt  = commissionPayable ? (num(form.commission_amount) ?? 0) : 0
   const tradeInTotal   = form.deal_type === 'Trade'
     ? tradeInRows.reduce((s, r) => s + (num(r.value) ?? 0), 0)
@@ -279,7 +290,7 @@ export default function AddDealForm({
         notes:              form.notes.trim() || null,
         sale_date:          form.sale_date || null,
         other_costs:        otherCosts,
-        other_costs_amount: otherCosts ? num(otherCostsAmount) : null,
+        other_costs_amount: otherCosts ? otherCostsAmt : null,
         commission_payable: commissionPayable,
         commission_amount:  commissionPayable ? num(form.commission_amount) : null,
         new_client:         newClient,
@@ -292,6 +303,19 @@ export default function AddDealForm({
       setError(dealErr?.message ?? 'Failed to create sale.')
       setLoading(false)
       return
+    }
+
+    if (otherCosts && expenseRows.length > 0) {
+      await supabase.from('deal_expenses').insert(
+        expenseRows
+          .filter(r => num(r.amount) != null)
+          .map(r => ({
+            deal_id:      deal.id,
+            category:     r.category,
+            custom_label: r.category === 'Other' && r.custom_label.trim() ? r.custom_label.trim() : null,
+            amount:       num(r.amount)!,
+          }))
+      )
     }
 
     if (form.watch_id) {
@@ -461,9 +485,55 @@ export default function AddDealForm({
           </div>
 
           {otherCosts && (
-            <div>
-              <label className={lbl}>Other Costs Amount</label>
-              <CurrencyInput value={otherCostsAmount} onChange={setOtherCostsAmount} />
+            <div className="space-y-2">
+              {expenseRows.map((row, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <select
+                        value={row.category}
+                        onChange={e => setExpenseRows(rows => rows.map((r, idx) => idx === i ? { ...r, category: e.target.value as ExpenseCategory } : r))}
+                        className={inp + ' flex-1'}
+                      >
+                        {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <div className="w-36 shrink-0">
+                        <CurrencyInput value={row.amount} onChange={v => setExpenseRows(rows => rows.map((r, idx) => idx === i ? { ...r, amount: v } : r))} />
+                      </div>
+                    </div>
+                    {row.category === 'Other' && (
+                      <input
+                        type="text"
+                        value={row.custom_label}
+                        onChange={e => setExpenseRows(rows => rows.map((r, idx) => idx === i ? { ...r, custom_label: e.target.value } : r))}
+                        placeholder="Describe this cost…"
+                        className={inp}
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseRows(rows => rows.filter((_, idx) => idx !== i))}
+                    disabled={expenseRows.length === 1}
+                    className="mt-2 p-2 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setExpenseRows(rows => [...rows, { ...DEFAULT_EXPENSE }])}
+                  className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1.5 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
+                  Add expense
+                </button>
+                {otherCostsAmt > 0 && (
+                  <span className="text-xs font-medium text-gray-500 tabular-nums">Total: {formatLKR(otherCostsAmt)}</span>
+                )}
+              </div>
             </div>
           )}
 

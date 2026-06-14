@@ -180,6 +180,15 @@ export interface Installment {
   created_at: string
 }
 
+export interface DealExpense {
+  id:           string
+  deal_id:      string
+  category:     string
+  custom_label: string | null
+  amount:       number
+  created_at:   string
+}
+
 export interface TradeIn {
   id:               string
   deal_id:          string

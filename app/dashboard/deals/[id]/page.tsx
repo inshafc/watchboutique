@@ -8,7 +8,7 @@ import StageSelector from '@/components/deals/StageSelector'
 import InstallmentTracker from '@/components/deals/InstallmentTracker'
 import DealDetailActions from '@/components/deals/DealDetailActions'
 import GenerateInvoiceButton from '@/components/invoices/GenerateInvoiceButton'
-import type { DealWithRelations, Installment, DealStage, TradeIn } from '@/types'
+import type { DealWithRelations, Installment, DealStage, TradeIn, DealExpense } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
   if (n == null) return '—'
@@ -38,7 +38,7 @@ function FinancialRow({ label, value, sub }: { label: string; value: React.React
 export default async function DealDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, installRes, tradeInsRes] = await Promise.all([
+  const [dealRes, installRes, tradeInsRes, expensesRes] = await Promise.all([
     supabase
       .from('deals')
       .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
@@ -54,6 +54,11 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       .select('*')
       .eq('deal_id', params.id)
       .order('created_at'),
+    supabase
+      .from('deal_expenses')
+      .select('*')
+      .eq('deal_id', params.id)
+      .order('created_at'),
   ])
 
   if (!dealRes.data) notFound()
@@ -61,6 +66,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const deal         = dealRes.data as DealWithRelations
   const installments = (installRes.data   ?? []) as Installment[]
   const tradeIns     = (tradeInsRes.data  ?? []) as TradeIn[]
+  const expenses     = (expensesRes.data  ?? []) as DealExpense[]
 
   const watchCost     = deal.watches?.purchase_cost ?? 0
   const otherCostsAmt = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
@@ -158,8 +164,19 @@ export default async function DealDetailPage({ params }: { params: { id: string 
         {deal.offered_price != null && <FinancialRow label="Offered Price" value={formatLKR(deal.offered_price)} />}
         <FinancialRow label="Sale Price" value={formatLKR(deal.sale_price)} />
         {watchCost > 0 && <FinancialRow label="Watch Cost" value={`− ${formatLKR(watchCost)}`} sub />}
-        {deal.other_costs && deal.other_costs_amount != null && (
+        {deal.other_costs && expenses.length > 0 && expenses.map(exp => (
+          <FinancialRow
+            key={exp.id}
+            label={exp.category === 'Other' && exp.custom_label ? `${exp.category} — ${exp.custom_label}` : exp.category}
+            value={`− ${formatLKR(exp.amount)}`}
+            sub
+          />
+        ))}
+        {deal.other_costs && expenses.length === 0 && deal.other_costs_amount != null && (
           <FinancialRow label="Other Costs" value={`− ${formatLKR(deal.other_costs_amount)}`} sub />
+        )}
+        {deal.other_costs && expenses.length > 1 && otherCostsAmt > 0 && (
+          <FinancialRow label="Total Other Costs" value={`− ${formatLKR(otherCostsAmt)}`} />
         )}
         {deal.commission_payable && deal.commission_amount != null && (
           <FinancialRow label="Commission" value={`− ${formatLKR(deal.commission_amount)}`} sub />

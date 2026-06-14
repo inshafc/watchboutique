@@ -34,7 +34,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
 
   const [watchRes, dealsRes] = await Promise.all([
     supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
-    supabase.from('deals').select('id, deal_type, stage, sale_price, offered_price, closed_at, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
+    supabase.from('deals').select('id, deal_type, stage, sale_price, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
   ])
 
   if (!watchRes.data) notFound()
@@ -47,6 +47,10 @@ export default async function WatchDetailPage({ params }: { params: { id: string
     sale_price: number | null
     offered_price: number | null
     closed_at: string | null
+    other_costs: boolean
+    other_costs_amount: number | null
+    commission_payable: boolean
+    commission_amount: number | null
     clients: { name: string; avatar_color: string | null } | null
   }
   const deals = (dealsRes.data ?? []) as unknown as WatchDeal[]
@@ -191,6 +195,60 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             </div>
           </div>
         )}
+
+        {/* Investor Returns — only when watch has a Delivered deal */}
+        {(() => {
+          const deliveredDeal = deals.find(d => d.stage === 'Delivered' && d.sale_price != null)
+          if (!deliveredDeal || !watch.watch_investors || watch.watch_investors.length === 0) return null
+          const salePrice   = deliveredDeal.sale_price!
+          const cost        = watch.purchase_cost ?? 0
+          const otherCosts  = deliveredDeal.other_costs ? (deliveredDeal.other_costs_amount ?? 0) : 0
+          const commission  = deliveredDeal.commission_payable ? (deliveredDeal.commission_amount ?? 0) : 0
+          const netProfit   = salePrice - cost - otherCosts - commission
+          return (
+            <div className="border border-gray-100 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Investor Returns</p>
+              <div className="text-xs text-gray-400 mb-3 space-y-0.5">
+                <div className="flex justify-between"><span>Sale price</span><span className="tabular-nums">{formatLKR(salePrice)}</span></div>
+                {cost > 0 && <div className="flex justify-between"><span>− Watch cost</span><span className="tabular-nums">{formatLKR(cost)}</span></div>}
+                {otherCosts > 0 && <div className="flex justify-between"><span>− Other costs</span><span className="tabular-nums">{formatLKR(otherCosts)}</span></div>}
+                {commission > 0 && <div className="flex justify-between"><span>− Commission</span><span className="tabular-nums">{formatLKR(commission)}</span></div>}
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                    <th className="text-left pb-2">Investor</th>
+                    <th className="text-right pb-2">%</th>
+                    <th className="text-right pb-2">Profit Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {watch.watch_investors.map(inv => {
+                    const share = netProfit * (inv.percentage / 100)
+                    return (
+                      <tr key={inv.id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2 font-medium text-gray-700">{inv.investor_name}</td>
+                        <td className="py-2 text-right text-gray-500 tabular-nums">{inv.percentage}%</td>
+                        <td className={`py-2 text-right font-semibold tabular-nums ${share >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {share >= 0 ? '' : '−'}{formatLKR(Math.abs(share))}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-200">
+                    <td className="pt-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Profit</td>
+                    <td className="pt-2.5 text-right text-xs text-gray-400">100%</td>
+                    <td className={`pt-2.5 text-right font-bold tabular-nums ${netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {netProfit >= 0 ? '+' : ''}{formatLKR(netProfit)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )
+        })()}
 
         {/* Notes */}
         {watch.comments && (
