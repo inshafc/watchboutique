@@ -45,12 +45,12 @@ export interface InvoicePrintLayoutProps {
 
 function fmt(amount: number | null | undefined, currency: string): string {
   if (amount == null) return '—'
-  const n = Math.round(amount)
-  if (currency === 'LKR') return 'LKR ' + n.toLocaleString('en-LK')
-  if (currency === 'USD') return '$ '   + n.toLocaleString('en-US')
-  if (currency === 'AED') return 'AED ' + n.toLocaleString('en-US')
-  if (currency === 'AUD') return 'A$ '  + n.toLocaleString('en-US')
-  return currency + ' ' + n.toLocaleString('en-US')
+  const opts: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+  if (currency === 'LKR') return 'LKR ' + amount.toLocaleString('en-LK', opts)
+  if (currency === 'USD') return '$ '   + amount.toLocaleString('en-US', opts)
+  if (currency === 'AED') return 'AED ' + amount.toLocaleString('en-US', opts)
+  if (currency === 'AUD') return 'A$ '  + amount.toLocaleString('en-US', opts)
+  return currency + ' ' + amount.toLocaleString('en-US', opts)
 }
 
 function fmtDate(d: string): string {
@@ -109,7 +109,7 @@ export default function InvoicePrintLayout({
     <>
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@200;300;400&display=swap');
         @media print {
           @page { size: A4 portrait; margin: 0; }
           body  { margin: 0; }
@@ -134,10 +134,10 @@ export default function InvoicePrintLayout({
           {/* Left: INVOICE heading only */}
           <div>
             <h1 style={{
-              fontFamily:    openSans,
-              fontWeight:    800,
+              fontFamily:    "'Plus Jakarta Sans', sans-serif",
+              fontWeight:    300,
               fontSize:      '52px',
-              letterSpacing: '0.22em',
+              letterSpacing: '0.28em',
               textTransform: 'uppercase',
               color:         '#111111',
               lineHeight:    1,
@@ -371,9 +371,10 @@ export default function InvoicePrintLayout({
 
         {/* ── SIGNATURES ──────────────────────────────────────────── */}
         {showSignatures && (
-          <div style={{ padding: '48px 48px 0', display: 'flex', justifyContent: 'space-between', gap: '48px' }}>
+          <div style={{ padding: '48px 48px 0', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ width: '50%', display: 'flex', gap: '40px' }}>
             {[
-              { label: 'Authorised Signature & Seal' },
+              { label: 'Authorised By' },
               { label: 'Customer Signature' },
             ].map(sig => (
               <div key={sig.label} style={{ flex: 1 }}>
@@ -384,6 +385,7 @@ export default function InvoicePrintLayout({
                 </p>
               </div>
             ))}
+            </div>
           </div>
         )}
 
