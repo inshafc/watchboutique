@@ -74,7 +74,6 @@ export default function InvoicePrintLayout({
   invoiceNumber,
   date,
   currency,
-  exchangeRate,
   type,
   status,
   clientName,
