@@ -121,7 +121,6 @@ export default async function NewInvoicePage({
       condition:     w.condition            ?? null,
       photo_url:     w.photos?.[0]          ?? null,
       amount:        deal.sale_price        ?? null,
-      sort_order:    0,
     })
 
     if (itemError) {

@@ -20,24 +20,25 @@ export interface PrintBank {
 }
 
 export interface InvoicePrintLayoutProps {
-  invoiceNumber:   string
-  date:            string
-  currency:        string
-  exchangeRate:    number | null
-  type:            InvoiceType
-  status:          InvoiceStatus
-  clientName:      string | null
-  clientAddress:   string | null
-  clientPhone:     string | null
-  salesManager:    string | null
-  paymentMethod:   string | null
-  showBankDetails: boolean
-  showSignatures:  boolean
-  advancePaid:     number | null
-  notes:           string | null
-  items:           PrintItem[]
-  bank?:           PrintBank | null
-  logoUrl?:        string | null
+  invoiceNumber:        string
+  date:                 string
+  currency:             string
+  exchangeRate:         number | null
+  type:                 InvoiceType
+  status:               InvoiceStatus
+  clientName:           string | null
+  clientAddress:        string | null
+  clientPhone:          string | null
+  salesManager:         string | null
+  paymentMethod:        string | null
+  showBankDetails:      boolean
+  showSignatures:       boolean
+  advancePaid:          number | null
+  notes:                string | null
+  termsAndConditions?:  string | null
+  items:                PrintItem[]
+  bank?:                PrintBank | null
+  logoUrl?:             string | null
 }
 
 function fmt(amount: number | null | undefined, currency: string): string {
@@ -87,6 +88,7 @@ export default function InvoicePrintLayout({
   showSignatures,
   advancePaid,
   notes,
+  termsAndConditions,
   items,
   bank,
   logoUrl,
@@ -96,7 +98,10 @@ export default function InvoicePrintLayout({
   const sc         = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
 
   return (
-    <div id="invoice-document" className="bg-white font-sans text-gray-900">
+    <>
+    {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+    <style>{`@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');`}</style>
+    <div id="invoice-document" className="bg-white text-gray-900" style={{ fontFamily: "'Open Sans', sans-serif" }}>
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-start justify-between px-10 pt-10 pb-6">
@@ -275,6 +280,14 @@ export default function InvoicePrintLayout({
         </div>
       )}
 
+      {/* ── Terms & Conditions ──────────────────────────────────── */}
+      {termsAndConditions && (
+        <div className="px-10 mt-5">
+          <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em] mb-1.5">Terms &amp; Conditions</p>
+          <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-wrap">{termsAndConditions}</p>
+        </div>
+      )}
+
       {/* ── Signatures ──────────────────────────────────────────── */}
       {showSignatures && (
         <div className="px-10 mt-8 flex justify-end gap-16">
@@ -295,5 +308,6 @@ export default function InvoicePrintLayout({
       </div>
 
     </div>
+    </>
   )
 }

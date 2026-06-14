@@ -57,21 +57,22 @@ export default function InvoiceEditorClient({
   initialLogoUrl?:  string | null
 }) {
   const [form, setForm] = useState({
-    date:              invoice.date                   ?? new Date().toISOString().split('T')[0],
-    currency:          (invoice.currency ?? 'LKR') as typeof CURRENCIES[number],
-    exchange_rate:     invoice.exchange_rate?.toString() ?? '',
-    type:              invoice.type                   as InvoiceType,
-    client_name:       invoice.client_name            ?? '',
-    client_address:    invoice.client_address         ?? '',
-    client_phone:      invoice.client_phone           ?? '',
-    sales_manager:     invoice.sales_manager          ?? '',
-    payment_method:    invoice.payment_method         ?? '',
-    bank_id:           invoice.bank_id                ?? '',
-    show_bank_details: invoice.show_bank_details      ?? false,
-    show_signatures:   invoice.show_signatures        ?? false,
-    status:            invoice.status                 as InvoiceStatus,
-    advance_paid:      invoice.advance_paid?.toString() ?? '',
-    notes:             invoice.notes                  ?? '',
+    date:                 invoice.date                   ?? new Date().toISOString().split('T')[0],
+    currency:             (invoice.currency ?? 'LKR') as typeof CURRENCIES[number],
+    exchange_rate:        invoice.exchange_rate?.toString() ?? '',
+    type:                 invoice.type                   as InvoiceType,
+    client_name:          invoice.client_name            ?? '',
+    client_address:       invoice.client_address         ?? '',
+    client_phone:         invoice.client_phone           ?? '',
+    sales_manager:        invoice.sales_manager          ?? '',
+    payment_method:       invoice.payment_method         ?? '',
+    bank_id:              invoice.bank_id                ?? '',
+    show_bank_details:    invoice.show_bank_details      ?? false,
+    show_signatures:      invoice.show_signatures        ?? false,
+    status:               invoice.status                 as InvoiceStatus,
+    advance_paid:         invoice.advance_paid?.toString() ?? '',
+    notes:                invoice.notes                  ?? '',
+    terms_and_conditions: ((invoice as unknown as Record<string, unknown>).terms_and_conditions as string) ?? '',
   })
 
   const [items, setItems] = useState<LineItem[]>(() =>
@@ -150,8 +151,9 @@ export default function InvoiceEditorClient({
         show_bank_details: form.show_bank_details,
         show_signatures:   form.show_signatures,
         status:            form.status,
-        advance_paid:      form.type === 'sourcing' ? num(form.advance_paid) : null,
-        notes:             form.notes.trim() || null,
+        advance_paid:          form.type === 'sourcing' ? num(form.advance_paid) : null,
+        notes:                 form.notes.trim() || null,
+        terms_and_conditions:  form.terms_and_conditions.trim() || null,
       })
       .eq('id', invoice.id)
 
@@ -463,6 +465,12 @@ export default function InvoiceEditorClient({
             <textarea value={form.notes} onChange={f('notes')} rows={3} placeholder="Optional notes…" className={inp} />
           </div>
 
+          {/* ── Terms & Conditions ───────────────────────── */}
+          <div className={card}>
+            <p className={cardHead}>Terms &amp; Conditions</p>
+            <textarea value={form.terms_and_conditions} onChange={f('terms_and_conditions')} rows={4} placeholder="e.g. All sales are final. No returns accepted…" className={inp} />
+          </div>
+
           {/* ── Options ──────────────────────────────────── */}
           <div className={card}>
             <p className={cardHead}>Options</p>
@@ -481,7 +489,7 @@ export default function InvoiceEditorClient({
       <div className="w-[42%] shrink-0 bg-gray-100 border-l border-gray-100 sticky top-0 h-screen overflow-y-auto">
         <div className="p-4">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">Live Preview</p>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="rounded-xl overflow-hidden shadow-xl" style={{ zoom: 0.6 }}>
             <InvoicePrintLayout
               invoiceNumber={invoice.invoice_number}
               date={form.date}
@@ -498,6 +506,7 @@ export default function InvoiceEditorClient({
               showSignatures={form.show_signatures}
               advancePaid={num(form.advance_paid)}
               notes={form.notes || null}
+              termsAndConditions={form.terms_and_conditions || null}
               items={previewItems}
               bank={previewBank}
               logoUrl={logoUrl}

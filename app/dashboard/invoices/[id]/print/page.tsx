@@ -63,7 +63,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
       .from('invoice_items')
       .select('*')
       .eq('invoice_id', params.id)
-      .order('sort_order'),
+      .order('created_at', { ascending: true }),
     supabase
       .from('app_settings')
       .select('value')
@@ -83,7 +83,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
   }
 
   const items = ((itemsRes.data ?? []) as InvoiceItem[])
-    .sort((a, b) => a.sort_order - b.sort_order)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map(it => ({
       watch_name:    it.watch_name,
       reference:     it.reference,
@@ -116,6 +116,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
           showSignatures={inv.show_signatures}
           advancePaid={inv.advance_paid}
           notes={inv.notes}
+          termsAndConditions={(inv as unknown as Record<string, unknown>).terms_and_conditions as string ?? null}
           items={items}
           bank={bank}
           logoUrl={logoUrl}

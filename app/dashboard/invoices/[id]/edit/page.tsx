@@ -26,7 +26,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .from('invoice_items')
       .select('*')
       .eq('invoice_id', params.id)
-      .order('sort_order'),
+      .order('created_at', { ascending: true }),
     supabase
       .from('saved_banks')
       .select('*')
