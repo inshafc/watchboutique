@@ -103,14 +103,13 @@ export default function InvoicePrintLayout({
     ...Array(Math.max(0, MIN_ROWS - items.length)).fill(null),
   ]
 
-  const openSans    = "'Open Sans', sans-serif"
-  const serifFont   = "'Playfair Display', 'Georgia', serif"
+  const openSans = "'Open Sans', sans-serif"
 
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');
         @media print {
           @page { size: A4 portrait; margin: 0; }
           body  { margin: 0; }
@@ -135,10 +134,10 @@ export default function InvoicePrintLayout({
           {/* Left: INVOICE heading only */}
           <div>
             <h1 style={{
-              fontFamily:    serifFont,
-              fontWeight:    700,
-              fontSize:      '56px',
-              letterSpacing: '0.15em',
+              fontFamily:    openSans,
+              fontWeight:    800,
+              fontSize:      '52px',
+              letterSpacing: '0.22em',
               textTransform: 'uppercase',
               color:         '#111111',
               lineHeight:    1,
@@ -156,11 +155,6 @@ export default function InvoicePrintLayout({
               alt="The Watch Boutique"
               style={{ maxHeight: '80px', objectFit: 'contain', display: 'block', marginLeft: 'auto' }}
             />
-            {exchangeRate && (
-              <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontFamily: openSans }}>
-                Exchange rate: 1 {currency} = LKR {exchangeRate.toLocaleString('en-LK')}
-              </p>
-            )}
           </div>
         </div>
 
@@ -273,7 +267,7 @@ export default function InvoicePrintLayout({
                           {item.reference     && <span style={{ fontSize: '11px', color: '#9ca3af' }}>Ref: {item.reference}</span>}
                           {item.serial_number && <span style={{ fontSize: '11px', color: '#9ca3af' }}>SN: {item.serial_number}</span>}
                           {item.year          && <span style={{ fontSize: '11px', color: '#9ca3af' }}>Year: {item.year}</span>}
-                          {item.condition     && <span style={{ fontSize: '11px', color: '#9ca3af' }}>{item.condition}</span>}
+                          {item.condition     && <span style={{ fontSize: '11px', color: '#9ca3af' }}>Condition: {item.condition}</span>}
                         </div>
                       </div>
                     </div>
@@ -377,14 +371,15 @@ export default function InvoicePrintLayout({
 
         {/* ── SIGNATURES ──────────────────────────────────────────── */}
         {showSignatures && (
-          <div style={{ padding: '40px 48px 0', display: 'flex', justifyContent: 'space-between', gap: '32px' }}>
+          <div style={{ padding: '48px 48px 0', display: 'flex', justifyContent: 'space-between', gap: '48px' }}>
             {[
               { label: 'Authorised Signature & Seal' },
               { label: 'Customer Signature' },
             ].map(sig => (
               <div key={sig.label} style={{ flex: 1 }}>
-                <div style={{ height: '1px', background: '#6b7280', marginBottom: '8px', width: '100%' }} />
-                <p style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.12em', fontVariant: 'small-caps' }}>
+                <div style={{ height: '60px' }} />
+                <div style={{ height: '1px', background: '#374151', marginBottom: '10px', width: '100%' }} />
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                   {sig.label}
                 </p>
               </div>
