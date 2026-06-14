@@ -62,8 +62,20 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   ])
 
   if (!dealRes.data) notFound()
-
   const deal         = dealRes.data as DealWithRelations
+
+  // Fetch investors only if stage is Delivered and there is a linked watch
+  type WatchInvestorRow = { id: string; investor_name: string; percentage: number }
+  let investors: WatchInvestorRow[] = []
+  if (deal.stage === 'Delivered' && deal.watch_id) {
+    const { data: invData } = await supabase
+      .from('watch_investors')
+      .select('id, investor_name, percentage')
+      .eq('watch_id', deal.watch_id)
+      .order('percentage', { ascending: false })
+    investors = (invData ?? []) as WatchInvestorRow[]
+  }
+
   const installments = (installRes.data   ?? []) as Installment[]
   const tradeIns     = (tradeInsRes.data  ?? []) as TradeIn[]
   const expenses     = (expensesRes.data  ?? []) as DealExpense[]
@@ -190,6 +202,36 @@ export default async function DealDetailPage({ params }: { params: { id: string 
           </div>
         )}
       </div>
+
+      {/* Investor Returns — only when Delivered and investors exist */}
+      {investors.length > 0 && grossProfit != null && (
+        <div className="border border-gray-100 rounded-2xl p-5 mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Investor Returns</p>
+          {investors.map(inv => {
+            const share = Math.round(grossProfit * (inv.percentage / 100))
+            return (
+              <div key={inv.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                <span className="text-sm text-gray-500">{inv.investor_name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-gray-400 bg-gray-100 rounded-full px-2 py-0.5 tabular-nums">{inv.percentage}%</span>
+                  <span className={`text-sm font-medium tabular-nums ${share >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {share >= 0 ? '+' : '−'}{formatLKR(Math.abs(share))}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+            <span className="text-sm font-semibold text-gray-700">Total Distributed</span>
+            <span className={`text-base font-bold tabular-nums ${grossProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              {grossProfit >= 0 ? '+' : '−'}{formatLKR(Math.abs(Math.round(grossProfit)))}
+            </span>
+          </div>
+          {Math.abs(investors.reduce((s, i) => s + i.percentage, 0) - 100) > 0.01 && (
+            <p className="text-xs text-amber-600 mt-2">⚠ Investor percentages do not total 100%</p>
+          )}
+        </div>
+      )}
 
       {/* Deal details */}
       <div className="border border-gray-100 rounded-2xl p-5 mb-4">
