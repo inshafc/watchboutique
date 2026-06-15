@@ -107,8 +107,15 @@ export default function InvoicePrintLayout({
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@200;300;400&display=swap"
+        rel="stylesheet"
+      />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@200;300;400&display=swap');
         @media print {
           @page { size: A4 portrait; margin: 0; }
           body  { margin: 0; }
