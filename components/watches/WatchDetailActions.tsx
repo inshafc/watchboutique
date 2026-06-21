@@ -156,13 +156,15 @@ export default function WatchDetailActions({
             <CheckIcon /> Mark as Available
           </button>
         )}
-        <button
-          onClick={publish}
-          disabled={busy}
-          className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
-        >
-          <CheckIcon /> {isDraft ? 'Publish' : 'Re-publish'}
-        </button>
+        {isDraft && (
+          <button
+            onClick={publish}
+            disabled={busy}
+            className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+          >
+            <CheckIcon /> Publish
+          </button>
+        )}
         {!isDraft && (
           <button
             onClick={saveDraft}

@@ -190,10 +190,12 @@ export default function AddDealForm({
   watches,
   clients,
   salesManagers = [],
+  initialWatchId,
 }: {
   watches: WatchOption[]
   clients: ClientOption[]
   salesManagers?: SalesManager[]
+  initialWatchId?: string
 }) {
   const router  = useRouter()
   const [loading, setLoading] = useState(false)
@@ -202,7 +204,7 @@ export default function AddDealForm({
   const today = new Date().toISOString().split('T')[0]
 
   const [form, setForm] = useState({
-    watch_id:          '',
+    watch_id:          initialWatchId ?? '',
     client_id:         '',
     deal_type:         'Sale' as 'Sale' | 'Trade',
     sale_date:         today,
@@ -406,11 +408,26 @@ export default function AddDealForm({
         <div className="space-y-4">
           <div>
             <label className={lbl}>Watch *</label>
-            <WatchPicker
-              watches={watches}
-              value={form.watch_id}
-              onChange={id => setForm(f => ({ ...f, watch_id: id }))}
-            />
+            {initialWatchId ? (
+              <div className="w-full flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm">
+                {selectedWatch?.photos && selectedWatch.photos.length > 0 ? (
+                  <Image src={selectedWatch.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <span className="text-gray-900 font-medium truncate block">{selectedWatch?.watch_name ?? '—'}</span>
+                  {selectedWatch?.reference && <span className="text-xs text-gray-400">{selectedWatch.reference}</span>}
+                </div>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Locked</span>
+              </div>
+            ) : (
+              <WatchPicker
+                watches={watches}
+                value={form.watch_id}
+                onChange={id => setForm(f => ({ ...f, watch_id: id }))}
+              />
+            )}
             {selectedWatch?.purchase_cost != null && (
               <p className="text-xs text-gray-400 mt-1.5">Cost price: {formatLKR(selectedWatch.purchase_cost)}</p>
             )}

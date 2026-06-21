@@ -155,6 +155,16 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         <WatchStatusButtons watchId={watch.id} initialStatus={watch.watch_status} />
       </div>
 
+      {/* Record Sale */}
+      {watch.watch_status !== 'Sold' && (
+        <Link
+          href={`/dashboard/deals/new?watch_id=${watch.id}`}
+          className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white text-sm font-semibold px-4 py-3 rounded-xl hover:bg-black transition-colors mb-4"
+        >
+          Record Sale →
+        </Link>
+      )}
+
       {/* Details */}
       <div className="space-y-4">
         {/* Purchase */}
