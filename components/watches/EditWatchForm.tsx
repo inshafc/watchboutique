@@ -233,37 +233,6 @@ export default function EditWatchForm({
         </div>
       )}
 
-      {/* ── Action buttons ────────────────────────────────────── */}
-      <div className="flex items-center gap-2 pt-1 pb-2 flex-wrap">
-        <button
-          type="button"
-          onClick={() => doSave(false)}
-          disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          {loading ? 'Saving…' : 'Publish'}
-        </button>
-        <button
-          type="button"
-          onClick={() => doSave(true)}
-          disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg>
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-sm font-medium text-red-500 px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 ml-auto"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Delete
-        </button>
-      </div>
-
       {/* ── Watch Details ─────────────────────────────────── */}
       <div className={card}>
         <p className={cardTitle}>Watch Details</p>
@@ -461,6 +430,37 @@ export default function EditWatchForm({
       <div className={card}>
         <p className={cardTitle}>Notes</p>
         <textarea value={form.comments} onChange={field('comments')} rows={3} placeholder="Any additional notes…" className={inp} />
+      </div>
+
+      {/* ── Action buttons ────────────────────────────────────── */}
+      <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
+        <button
+          type="button"
+          onClick={() => doSave(false)}
+          disabled={loading || !!brandError}
+          className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {loading ? 'Saving…' : 'Publish'}
+        </button>
+        <button
+          type="button"
+          onClick={() => doSave(true)}
+          disabled={loading || !!brandError}
+          className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg>
+          Save Draft
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={loading}
+          className="flex items-center gap-1.5 text-sm font-medium text-red-500 px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 ml-auto"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Delete
+        </button>
       </div>
     </form>
   )

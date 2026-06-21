@@ -146,6 +146,12 @@ export default function WatchInventory({
   const [bulkMode,    setBulkMode]    = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
+  // Bulk mark-available dialog
+  const [bulkAvailableDialog, setBulkAvailableDialog] = useState<{
+    watchesWithDeals: Array<{ watchId: string; watchName: string; dealId: string }>
+  } | null>(null)
+  const [bulkAvailableActing, setBulkAvailableActing] = useState(false)
+
   // Undo
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [undoState,   setUndoState]   = useState<{ message: string; restore: () => Promise<void> } | null>(null)
@@ -506,6 +512,130 @@ export default function WatchInventory({
           })
         )
       }
+    )
+  }
+
+  async function bulkMarkAvailable() {
+    const supabase = createClient()
+    const ids = Array.from(selectedIds)
+    const selected = watches.filter(w => ids.includes(w.id))
+
+    // Non-sold watches: update directly
+    const nonSold = selected.filter(w => (w.watch_status ?? w.status) !== 'Sold')
+    if (nonSold.length > 0) {
+      const nonSoldIds = nonSold.map(w => w.id)
+      await supabase.from('watches').update({ status: 'Available', watch_status: 'Available' }).in('id', nonSoldIds)
+      setWatches(v => v.map(w => nonSoldIds.includes(w.id) ? { ...w, status: 'Available' as WatchStatus, watch_status: 'Available' } : w))
+    }
+
+    // Sold watches: check each for a linked active deal
+    const soldWatches = selected.filter(w => (w.watch_status ?? w.status) === 'Sold')
+    if (soldWatches.length === 0) {
+      exitBulkMode()
+      return
+    }
+
+    console.log('[bulkMarkAvailable] checking', soldWatches.length, 'sold watches for linked deals')
+    const watchesWithDeals: Array<{ watchId: string; watchName: string; dealId: string }> = []
+    const soldWithoutDeal: typeof soldWatches = []
+
+    for (const w of soldWatches) {
+      const { data } = await supabase
+        .from('deals')
+        .select('id')
+        .eq('watch_id', w.id)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle()
+      console.log('[bulkMarkAvailable]', w.watch_name, '→ deal:', data)
+      if (data) {
+        watchesWithDeals.push({ watchId: w.id, watchName: w.watch_name, dealId: data.id })
+      } else {
+        soldWithoutDeal.push(w)
+      }
+    }
+
+    // Sold watches without a linked deal: update directly
+    if (soldWithoutDeal.length > 0) {
+      const noDealsIds = soldWithoutDeal.map(w => w.id)
+      await supabase.from('watches').update({ status: 'Available', watch_status: 'Available' }).in('id', noDealsIds)
+      setWatches(v => v.map(w => noDealsIds.includes(w.id) ? { ...w, status: 'Available' as WatchStatus, watch_status: 'Available' } : w))
+    }
+
+    if (watchesWithDeals.length > 0) {
+      // Show dialog — don't exit bulk mode yet
+      setBulkAvailableDialog({ watchesWithDeals })
+    } else {
+      exitBulkMode()
+    }
+  }
+
+  async function handleBulkAvailableDuplicate() {
+    if (!bulkAvailableDialog || bulkAvailableActing) return
+    setBulkAvailableActing(true)
+    const supabase = createClient()
+
+    for (const { watchId: wId } of bulkAvailableDialog.watchesWithDeals) {
+      const { data: w } = await supabase.from('watches').select('*').eq('id', wId).single()
+      if (!w) continue
+      const { data: newW } = await supabase.from('watches').insert({
+        watch_name:     w.watch_name,
+        reference:      w.reference,
+        serial_number:  w.serial_number,
+        date_on_card:   w.date_on_card,
+        condition:      w.condition,
+        set_details:    w.set_details,
+        purchased_from: w.purchased_from,
+        purchase_cost:  w.purchase_cost,
+        selling_price:  w.selling_price,
+        currency:       w.currency,
+        photos:         w.photos,
+        labels:         w.labels,
+        comments:       w.comments,
+        brand_id:       w.brand_id,
+        is_draft:       true,
+        watch_status:   'Available',
+        status:         'Available',
+      }).select('id').single()
+      if (newW) {
+        const { data: investors } = await supabase.from('watch_investors').select('investor_name, percentage').eq('watch_id', wId)
+        if (investors && investors.length > 0) {
+          await supabase.from('watch_investors').insert(
+            investors.map(inv => ({ watch_id: newW.id, investor_name: inv.investor_name, percentage: inv.percentage }))
+          )
+        }
+      }
+    }
+
+    setBulkAvailableDialog(null)
+    setBulkAvailableActing(false)
+    exitBulkMode()
+    router.refresh()
+  }
+
+  async function handleBulkAvailableRemoveSale() {
+    if (!bulkAvailableDialog || bulkAvailableActing) return
+    setBulkAvailableActing(true)
+    const supabase = createClient()
+    const now = new Date().toISOString()
+
+    for (const { watchId: wId, dealId } of bulkAvailableDialog.watchesWithDeals) {
+      // Delete sale first, then update watch
+      await supabase.from('deals').update({ deleted_at: now }).eq('id', dealId)
+      await supabase.from('watches').update({ watch_status: 'Available', status: 'Available' }).eq('id', wId)
+    }
+
+    const updatedIds = bulkAvailableDialog.watchesWithDeals.map(x => x.watchId)
+    setWatches(v => v.map(w =>
+      updatedIds.includes(w.id) ? { ...w, status: 'Available' as WatchStatus, watch_status: 'Available' } : w
+    ))
+
+    setBulkAvailableDialog(null)
+    setBulkAvailableActing(false)
+    exitBulkMode()
+    showUndo(
+      `${updatedIds.length} ${updatedIds.length === 1 ? 'sale' : 'sales'} removed — watches marked Available`,
+      async () => { /* deals can't easily be un-deleted — skip undo */ }
     )
   }
 
@@ -1254,6 +1384,13 @@ export default function WatchInventory({
           <div className="w-px h-4 bg-white/20 mx-1" />
 
           <button
+            onClick={bulkMarkAvailable}
+            className="px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-xs font-medium whitespace-nowrap text-emerald-300 hover:text-emerald-200"
+          >
+            Mark Available
+          </button>
+
+          <button
             onClick={() => bulkMarkStatus('Sold')}
             className="px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-xs font-medium whitespace-nowrap"
           >
@@ -1276,6 +1413,66 @@ export default function WatchInventory({
           >
             <XSmallIcon />
           </button>
+        </div>
+      )}
+
+      {/* ── Bulk mark-available dialog ────────────────────────── */}
+      {bulkAvailableDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !bulkAvailableActing && setBulkAvailableDialog(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 className="text-base font-bold text-gray-900 mb-1">
+              {bulkAvailableDialog.watchesWithDeals.length === 1
+                ? 'This watch has a completed sale'
+                : `${bulkAvailableDialog.watchesWithDeals.length} watches have linked sales`}
+            </h3>
+            <p className="text-sm text-gray-500 mb-5">Choose how you&apos;d like to proceed:</p>
+
+            {bulkAvailableDialog.watchesWithDeals.length === 1 && (
+              <p className="text-xs text-gray-400 mb-4 font-medium truncate">
+                {bulkAvailableDialog.watchesWithDeals[0].watchName}
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <button
+                onClick={handleBulkAvailableDuplicate}
+                disabled={bulkAvailableActing}
+                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 text-left"
+              >
+                <span className="text-sm font-semibold text-gray-900">Duplicate</span>
+                <span className="text-xs text-gray-400 mt-0.5">
+                  Create draft {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'copy' : 'copies'}. Originals stay as Sold.
+                </span>
+              </button>
+
+              <button
+                onClick={handleBulkAvailableRemoveSale}
+                disabled={bulkAvailableActing}
+                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50 text-left"
+              >
+                <span className="text-sm font-semibold text-gray-900">Remove Sale</span>
+                <span className="text-xs text-gray-400 mt-0.5">
+                  Soft-delete linked {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale' : 'sales'} and mark as Available.
+                </span>
+              </button>
+
+              <button
+                onClick={() => setBulkAvailableDialog(null)}
+                disabled={bulkAvailableActing}
+                className="w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {bulkAvailableActing && (
+              <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
+            )}
+          </div>
         </div>
       )}
 

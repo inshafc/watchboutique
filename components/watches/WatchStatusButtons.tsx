@@ -29,6 +29,7 @@ export default function WatchStatusButtons({
   const [saving,   setSaving]   = useState(false)
   const [dialog,   setDialog]   = useState<DialogState>(null)
   const [acting,   setActing]   = useState(false)
+  const [toast,    setToast]    = useState<string | null>(null)
 
   async function handleSelect(status: WatchStatusNew) {
     if (status === current || saving) return
@@ -64,11 +65,14 @@ export default function WatchStatusButtons({
     if (!dialog || acting) return
     setActing(true)
     const supabase = createClient()
+    // Delete sale first, then update watch status
     await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).eq('id', dialog.linkedDealId)
     await supabase.from('watches').update({ watch_status: 'Available', status: 'Available' }).eq('id', watchId)
     setCurrent('Available')
     setDialog(null)
     setActing(false)
+    setToast('Sale removed — watch is now available')
+    setTimeout(() => setToast(null), 4000)
     router.refresh()
   }
 
@@ -133,6 +137,16 @@ export default function WatchStatusButtons({
 
   return (
     <>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none">
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-sm font-medium">{toast}</span>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {WATCH_STATUS_NEW.map(s => (
           <button
