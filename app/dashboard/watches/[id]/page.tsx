@@ -69,7 +69,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </Link>
 
       {/* Action buttons */}
-      <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} />
+      <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
 
       {/* Photos */}
       {watch.photos && watch.photos.length > 0 ? (
@@ -313,6 +313,10 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       <p className="text-xs text-gray-300 mt-6 pt-6 border-t border-gray-100">
         Added {new Date(watch.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
       </p>
+
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
+      </div>
     </div>
   )
 }

@@ -231,10 +231,10 @@ export default function WatchInventory({
   const processed = useMemo(() => {
     let list = [...watches]
 
-    // Draft/non-draft separation
+    // Draft/non-draft separation — All tab shows everything; specific tabs exclude drafts
     if (statusFilter === 'Drafts') {
       list = list.filter(w => w.is_draft)
-    } else {
+    } else if (statusFilter !== 'All') {
       list = list.filter(w => !w.is_draft)
     }
 
@@ -281,7 +281,7 @@ export default function WatchInventory({
       if (brandId) list = list.filter(w => w.brand_id === brandId)
       return list.length
     }
-    let list = watches.filter(w => !w.is_draft)
+    let list = f === 'All' ? [...watches] : watches.filter(w => !w.is_draft)
     if (brandId) list = list.filter(w => w.brand_id === brandId)
     if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
     if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
@@ -574,6 +574,8 @@ export default function WatchInventory({
     if (!bulkAvailableDialog || bulkAvailableActing) return
     setBulkAvailableActing(true)
     const supabase = createClient()
+    const count = bulkAvailableDialog.watchesWithDeals.length
+    let newWatchId: string | null = null
 
     for (const { watchId: wId } of bulkAvailableDialog.watchesWithDeals) {
       const { data: w } = await supabase.from('watches').select('*').eq('id', wId).single()
@@ -598,6 +600,7 @@ export default function WatchInventory({
         status:         'Available',
       }).select('id').single()
       if (newW) {
+        newWatchId = newW.id
         const { data: investors } = await supabase.from('watch_investors').select('investor_name, percentage').eq('watch_id', wId)
         if (investors && investors.length > 0) {
           await supabase.from('watch_investors').insert(
@@ -610,7 +613,12 @@ export default function WatchInventory({
     setBulkAvailableDialog(null)
     setBulkAvailableActing(false)
     exitBulkMode()
-    router.refresh()
+
+    if (count === 1 && newWatchId) {
+      router.push(`/dashboard/watches/${newWatchId}/edit`)
+    } else {
+      router.refresh()
+    }
   }
 
   async function handleBulkAvailableRemoveSale() {
@@ -1215,8 +1223,10 @@ export default function WatchInventory({
                       )}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{w.watch_name}</p>
-                        {w.is_draft && (
-                          <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
+                        {w.is_draft ? (
+                          <span className="text-[10px] font-medium bg-gray-200 text-gray-500 rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
+                        ) : (
+                          <span className="inline-block w-2 h-2 rounded-full bg-green-400 shrink-0" title="Live" />
                         )}
                         <LabelBadges labels={w.labels} createdAt={w.created_at} />
                       </div>
@@ -1314,8 +1324,10 @@ export default function WatchInventory({
                         <td className="px-4 py-3 max-w-[220px]">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-gray-900 truncate">{w.watch_name}</span>
-                            {w.is_draft && (
-                              <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
+                            {w.is_draft ? (
+                              <span className="text-[10px] font-medium bg-gray-200 text-gray-500 rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
+                            ) : (
+                              <span className="inline-block w-2 h-2 rounded-full bg-green-400 shrink-0" title="Live" />
                             )}
                             <LabelBadges labels={w.labels} createdAt={w.created_at} />
                           </div>
