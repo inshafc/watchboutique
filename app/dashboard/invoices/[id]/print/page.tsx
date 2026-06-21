@@ -1,16 +1,15 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import InvoicePrintLayout from '@/components/invoices/InvoicePrintLayout'
 import type { Invoice, InvoiceItem } from '@/types'
 
-function PrintControls({ invoiceId }: { invoiceId: string }) {
+function PrintControls({ invoiceId, pdfTitle }: { invoiceId: string; pdfTitle: string }) {
   return (
     <>
       <div className="print:hidden fixed top-4 right-4 z-50 flex gap-2">
-        <Link
+        <a
           href={`/dashboard/invoices/${invoiceId}/edit`}
           className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors inline-flex items-center gap-2"
         >
@@ -19,9 +18,10 @@ function PrintControls({ invoiceId }: { invoiceId: string }) {
             <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
           </svg>
           Open Editor
-        </Link>
+        </a>
         <a
-          href="javascript:window.print()"
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          href={"javascript:void((function(){var t=document.title;document.title='" + pdfTitle.replace(/'/g, "\\'") + "';window.print();document.title=t;})())"}
           className="bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors inline-flex items-center gap-2"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
@@ -45,7 +45,6 @@ function PrintControls({ invoiceId }: { invoiceId: string }) {
 export default async function InvoicePrintPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  // Fetch invoice independently — no joins
   const { data: invData, error: invError } = await supabase
     .from('invoices')
     .select('*')
@@ -57,7 +56,6 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
 
   const inv = invData as Invoice
 
-  // Fetch items and logo independently
   const [itemsRes, logoRes] = await Promise.all([
     supabase
       .from('invoice_items')
@@ -71,7 +69,6 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
       .maybeSingle(),
   ])
 
-  // Fetch linked bank for display if show_bank_details is on
   let bank: { bank_name: string; account_name: string | null; account_number: string | null; branch: string | null; swift_code: string | null } | null = null
   if (inv.show_bank_details && inv.bank_id) {
     const { data } = await supabase
@@ -96,9 +93,18 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
 
   const logoUrl = logoRes.data?.value ?? null
 
+  const fieldVisibility = (inv as unknown as Record<string, unknown>).field_visibility as Record<string, boolean> | null ?? {}
+
+  const d  = new Date(inv.date + 'T00:00:00')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yy = String(d.getFullYear()).slice(2)
+  const pdfTitle = `${inv.invoice_number}-${dd}-${mm}-${yy}`
+
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintControls invoiceId={params.id} />
+      <title>{pdfTitle}</title>
+      <PrintControls invoiceId={params.id} pdfTitle={pdfTitle} />
       <div className="mx-auto max-w-[210mm] print:max-w-full bg-white shadow-sm print:shadow-none">
         <InvoicePrintLayout
           invoiceNumber={inv.invoice_number}
@@ -120,6 +126,7 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
           items={items}
           bank={bank}
           logoUrl={logoUrl}
+          fieldVisibility={fieldVisibility}
         />
       </div>
     </div>

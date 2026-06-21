@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import InvoicePrintLayout from './InvoicePrintLayout'
@@ -9,39 +9,77 @@ import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesMana
 const inp      = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl      = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
 const card     = 'bg-white border border-gray-100 rounded-2xl p-5'
-const cardHead = 'text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4'
+const cardHead = 'text-xs font-semibold text-gray-400 uppercase tracking-wider'
 
 const CURRENCIES  = ['LKR', 'USD', 'AED', 'AUD'] as const
 const PAY_METHODS = ['Cash', 'Bank Transfer', 'Cash + Bank', 'Installment']
 const CONDITIONS  = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
 
+interface WatchForInvoice {
+  id:            string
+  watch_name:    string
+  reference:     string | null
+  serial_number: string | null
+  date_on_card:  string | null
+  condition:     string | null
+  set_details:   string | null
+  photos:        string[] | null
+}
+
 interface LineItem {
   _key:          string
+  watch_id:      string
   watch_name:    string
   reference:     string
   serial_number: string
   year:          string
   condition:     string
+  set_details:   string
   photo_url:     string
+  amount_paid:   string
   amount:        string
 }
 
 function emptyItem(): LineItem {
-  return { _key: Math.random().toString(36).slice(2), watch_name: '', reference: '', serial_number: '', year: '', condition: '', photo_url: '', amount: '' }
+  return {
+    _key:          Math.random().toString(36).slice(2),
+    watch_id:      '',
+    watch_name:    '',
+    reference:     '',
+    serial_number: '',
+    year:          '',
+    condition:     '',
+    set_details:   '',
+    photo_url:     '',
+    amount_paid:   '',
+    amount:        '',
+  }
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function EyeIcon() {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="flex items-center gap-3 group"
-    >
-      <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors ${checked ? 'bg-gray-900 border-gray-900' : 'bg-gray-200 border-gray-200'}`}>
-        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
-      </span>
-      <span className="text-sm text-gray-700 select-none">{label}</span>
-    </button>
+    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
+      <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z" />
+      <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z" />
+      <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z" />
+    </svg>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+    </svg>
   )
 }
 
@@ -49,13 +87,29 @@ export default function InvoiceEditorClient({
   invoice,
   salesManagers = [],
   banks = [],
-  initialLogoUrl = null,
+  watches = [],
 }: {
-  invoice:          InvoiceWithItems
-  salesManagers?:   SalesManager[]
-  banks?:           SavedBank[]
-  initialLogoUrl?:  string | null
+  invoice:         InvoiceWithItems
+  salesManagers?:  SalesManager[]
+  banks?:          SavedBank[]
+  watches?:        WatchForInvoice[]
 }) {
+  const [savedOnce, setSavedOnce] = useState(
+    invoice.invoice_items.length > 0 || invoice.status !== 'draft'
+  )
+
+  const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
+    const fv = (invoice as unknown as Record<string, unknown>).field_visibility as Record<string, boolean> | null ?? {}
+    return {
+      phone:         fv.phone         ?? true,
+      address:       fv.address       ?? true,
+      sales_manager: fv.sales_manager ?? true,
+      notes:         fv.notes         ?? true,
+      terms:         fv.terms         ?? true,
+      signatures:    fv.signatures    ?? (invoice.show_signatures ?? false),
+    }
+  })
+
   const [form, setForm] = useState({
     date:                 invoice.date                   ?? new Date().toISOString().split('T')[0],
     currency:             (invoice.currency ?? 'LKR') as typeof CURRENCIES[number],
@@ -68,7 +122,6 @@ export default function InvoiceEditorClient({
     payment_method:       invoice.payment_method         ?? '',
     bank_id:              invoice.bank_id                ?? '',
     show_bank_details:    invoice.show_bank_details      ?? false,
-    show_signatures:      invoice.show_signatures        ?? false,
     status:               invoice.status                 as InvoiceStatus,
     advance_paid:         invoice.advance_paid?.toString() ?? '',
     notes:                invoice.notes                  ?? '',
@@ -81,39 +134,26 @@ export default function InvoiceEditorClient({
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(it => ({
             _key:          it.id,
+            watch_id:      '',
             watch_name:    it.watch_name    ?? '',
             reference:     it.reference     ?? '',
             serial_number: it.serial_number ?? '',
             year:          it.year          ?? '',
             condition:     it.condition     ?? '',
+            set_details:   '',
             photo_url:     it.photo_url     ?? '',
+            amount_paid:   it.amount?.toString() ?? '',
             amount:        it.amount?.toString() ?? '',
           }))
       : [emptyItem()]
   )
 
-  const [logoUrl,       setLogoUrl]       = useState<string | null>(initialLogoUrl)
-  const [logoUploading, setLogoUploading] = useState(false)
-  const logoInputRef = useRef<HTMLInputElement>(null)
-
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
   const [saved,  setSaved]  = useState(false)
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setLogoUploading(true)
-    setError(null)
-    const supabase = createClient()
-    const ext  = file.name.split('.').pop() ?? 'png'
-    const path = `logo/logo_${Date.now()}.${ext}`
-    const { error: upErr } = await supabase.storage.from('invoice-assets').upload(path, file)
-    if (upErr) { setError(`Logo upload failed: ${upErr.message}`); setLogoUploading(false); return }
-    const { data: { publicUrl } } = supabase.storage.from('invoice-assets').getPublicUrl(path)
-    await supabase.from('app_settings').upsert({ key: 'invoice_logo_url', value: publicUrl }, { onConflict: 'key' })
-    setLogoUrl(publicUrl)
-    setLogoUploading(false)
+  function toggleVisibility(key: string) {
+    setFieldVisibility(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   function f(key: keyof typeof form) {
@@ -125,7 +165,27 @@ export default function InvoiceEditorClient({
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [key]: value } : it))
   }
 
-  const selectedBank = banks.find(b => b.id === form.bank_id) ?? null
+  function selectWatch(idx: number, watchId: string) {
+    const w = watches.find(w => w.id === watchId)
+    if (!w) {
+      updateItem(idx, 'watch_id', '')
+      return
+    }
+    const year = w.date_on_card ? new Date(w.date_on_card + 'T00:00:00').getFullYear().toString() : ''
+    setItems(prev => prev.map((it, i) => i === idx ? {
+      ...it,
+      watch_id:      w.id,
+      watch_name:    w.watch_name,
+      reference:     w.reference     ?? '',
+      serial_number: w.serial_number ?? '',
+      year,
+      condition:     w.condition     ?? '',
+      set_details:   w.set_details   ?? '',
+      photo_url:     w.photos?.[0]   ?? '',
+    } : it))
+  }
+
+  const selectedBank   = banks.find(b => b.id === form.bank_id) ?? null
   const showBankPicker = form.payment_method === 'Bank Transfer' || form.payment_method === 'Cash + Bank'
 
   const num = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
@@ -138,28 +198,28 @@ export default function InvoiceEditorClient({
     const { error: invErr } = await supabase
       .from('invoices')
       .update({
-        date:              form.date,
-        currency:          form.currency,
-        exchange_rate:     num(form.exchange_rate),
-        type:              form.type,
-        client_name:       form.client_name.trim()    || null,
-        client_address:    form.client_address.trim() || null,
-        client_phone:      form.client_phone.trim()   || null,
-        sales_manager:     form.sales_manager.trim()  || null,
-        payment_method:    form.payment_method        || null,
-        bank_id:           showBankPicker && form.bank_id ? form.bank_id : null,
-        show_bank_details: form.show_bank_details,
-        show_signatures:   form.show_signatures,
-        status:            form.status,
-        advance_paid:          form.type === 'sourcing' ? num(form.advance_paid) : null,
-        notes:                 form.notes.trim() || null,
-        terms_and_conditions:  form.terms_and_conditions.trim() || null,
+        date:                 form.date,
+        currency:             form.currency,
+        exchange_rate:        num(form.exchange_rate),
+        type:                 form.type,
+        client_name:          form.client_name.trim()    || null,
+        client_address:       form.client_address.trim() || null,
+        client_phone:         form.client_phone.trim()   || null,
+        sales_manager:        form.sales_manager.trim()  || null,
+        payment_method:       form.payment_method        || null,
+        bank_id:              showBankPicker && form.bank_id ? form.bank_id : null,
+        show_bank_details:    form.show_bank_details,
+        show_signatures:      fieldVisibility.signatures,
+        status:               form.status,
+        advance_paid:         form.type === 'sourcing' ? num(form.advance_paid) : null,
+        notes:                form.notes.trim()                 || null,
+        terms_and_conditions: form.terms_and_conditions.trim() || null,
+        field_visibility:     fieldVisibility,
       })
       .eq('id', invoice.id)
 
     if (invErr) { setError(invErr.message); setSaving(false); return }
 
-    // Replace all items
     await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
 
     const validItems = items.filter(it => it.watch_name.trim())
@@ -181,10 +241,10 @@ export default function InvoiceEditorClient({
 
     setSaving(false)
     setSaved(true)
+    setSavedOnce(true)
     setTimeout(() => setSaved(false), 2000)
-  }, [form, items, invoice.id, showBankPicker])
+  }, [form, items, invoice.id, showBankPicker, fieldVisibility])
 
-  // Build preview props from current form state
   const previewItems = items.map(it => ({
     watch_name:    it.watch_name,
     reference:     it.reference     || null,
@@ -193,11 +253,22 @@ export default function InvoiceEditorClient({
     condition:     it.condition     || null,
     photo_url:     it.photo_url     || null,
     amount:        num(it.amount),
+    amount_paid:   it.amount_paid.trim() ? num(it.amount_paid) : (num(it.amount) ?? null),
   }))
 
   const previewBank = showBankPicker && form.show_bank_details && selectedBank
     ? { bank_name: selectedBank.bank_name, account_name: selectedBank.account_name, account_number: selectedBank.account_number, branch: selectedBank.branch, swift_code: selectedBank.swift_code }
     : null
+
+  const saveBtn = (
+    <button
+      onClick={handleSave}
+      disabled={saving}
+      className="w-full bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+    >
+      {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Invoice'}
+    </button>
+  )
 
   return (
     <div className="flex min-h-full">
@@ -214,23 +285,26 @@ export default function InvoiceEditorClient({
             <span className="text-gray-200">/</span>
             <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/dashboard/invoices/${invoice.id}/print`}
-              target="_blank"
-              className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
-              Print
-            </Link>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-gray-900 text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-black transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
+          {savedOnce && (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/invoices/${invoice.id}/print`}
+                target="_blank"
+                className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
+                Print
+              </Link>
+              <Link
+                href={`/dashboard/invoices/${invoice.id}/print`}
+                target="_blank"
+                className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                Download
+              </Link>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -241,7 +315,7 @@ export default function InvoiceEditorClient({
 
           {/* ── Invoice Info ──────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Invoice</p>
+            <p className={cardHead + ' mb-4'}>Invoice</p>
             <div className="space-y-4">
               <div>
                 <label className={lbl}>Invoice Number</label>
@@ -250,24 +324,12 @@ export default function InvoiceEditorClient({
                 </div>
               </div>
               <div>
-                <label className={lbl}>Logo</label>
-                <div className="flex items-center gap-3">
-                  {logoUrl && (
-                    <div className="h-9 w-24 shrink-0 bg-gray-50 rounded-lg overflow-hidden flex items-center p-1">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={logoUrl} alt="logo" className="h-full w-full object-contain object-left" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={logoUploading}
-                    className="text-xs text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {logoUploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload Logo'}
-                  </button>
-                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                </div>
+                <label className={lbl}>Type</label>
+                <select value={form.type} onChange={f('type')} className={inp}>
+                  <option value="sale">Sale</option>
+                  <option value="general">General</option>
+                  <option value="sourcing">Sourcing</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -275,55 +337,69 @@ export default function InvoiceEditorClient({
                   <input type="date" value={form.date} onChange={f('date')} className={inp} />
                 </div>
                 <div>
-                  <label className={lbl}>Type</label>
-                  <select value={form.type} onChange={f('type')} className={inp}>
-                    <option value="sale">Sale</option>
-                    <option value="general">General</option>
-                    <option value="sourcing">Sourcing</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
                   <label className={lbl}>Currency</label>
                   <select value={form.currency} onChange={f('currency')} className={inp}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                {form.currency !== 'LKR' && (
-                  <div>
-                    <label className={lbl}>Exchange Rate (1 {form.currency} = LKR)</label>
-                    <input type="number" value={form.exchange_rate} onChange={f('exchange_rate')} placeholder="e.g. 320" className={inp} />
-                  </div>
-                )}
               </div>
+              {form.currency !== 'LKR' && (
+                <div>
+                  <label className={lbl}>Exchange Rate (1 {form.currency} = LKR)</label>
+                  <input type="number" value={form.exchange_rate} onChange={f('exchange_rate')} placeholder="e.g. 320" className={inp} />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ── Billing Details ───────────────────────────── */}
+          {/* ── Billing Details (locked) ──────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Billing Details</p>
+            <p className={cardHead + ' mb-4'}>Billing Details</p>
             <div className="space-y-3">
               <div>
                 <label className={lbl}>Client Name</label>
-                <input type="text" value={form.client_name} onChange={f('client_name')} placeholder="Client name" className={inp} />
+                <div className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5 text-sm">
+                  <span className="flex-1 text-gray-700 truncate">{form.client_name || <span className="text-gray-300">—</span>}</span>
+                  <LockIcon />
+                </div>
               </div>
               <div>
-                <label className={lbl}>Phone</label>
-                <input type="text" value={form.client_phone} onChange={f('client_phone')} placeholder="+94 77 xxx xxxx" className={inp} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={lbl} style={{ marginBottom: 0 }}>Phone</span>
+                  <button type="button" onClick={() => toggleVisibility('phone')} title={fieldVisibility.phone ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.phone ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                    {fieldVisibility.phone ? <EyeIcon /> : <EyeOffIcon />}
+                  </button>
+                </div>
+                <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.phone ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
+                  <span className="flex-1 truncate">{form.client_phone || '—'}</span>
+                  <LockIcon />
+                </div>
               </div>
               <div>
-                <label className={lbl}>Address</label>
-                <input type="text" value={form.client_address} onChange={f('client_address')} placeholder="Address" className={inp} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={lbl} style={{ marginBottom: 0 }}>Address</span>
+                  <button type="button" onClick={() => toggleVisibility('address')} title={fieldVisibility.address ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.address ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                    {fieldVisibility.address ? <EyeIcon /> : <EyeOffIcon />}
+                  </button>
+                </div>
+                <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.address ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
+                  <span className="flex-1 truncate">{form.client_address || '—'}</span>
+                  <LockIcon />
+                </div>
               </div>
             </div>
           </div>
 
           {/* ── Sale Details ──────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Sale Details</p>
+            <p className={cardHead + ' mb-4'}>Sale Details</p>
             <div>
-              <label className={lbl}>Sales Manager</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className={lbl} style={{ marginBottom: 0 }}>Sales Manager</span>
+                <button type="button" onClick={() => toggleVisibility('sales_manager')} title={fieldVisibility.sales_manager ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.sales_manager ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  {fieldVisibility.sales_manager ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              </div>
               <select value={form.sales_manager} onChange={f('sales_manager')} className={inp}>
                 <option value="">— Select —</option>
                 {salesManagers.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
@@ -336,10 +412,10 @@ export default function InvoiceEditorClient({
 
           {/* ── Line Items ────────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Line Items</p>
+            <p className={cardHead + ' mb-4'}>Line Items</p>
             <div className="space-y-4">
               {items.map((item, idx) => (
-                <div key={item._key} className="border border-gray-100 rounded-xl p-4 space-y-3 relative">
+                <div key={item._key} className="border border-gray-100 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-500">Item {idx + 1}</p>
                     {items.length > 1 && (
@@ -352,10 +428,44 @@ export default function InvoiceEditorClient({
                       </button>
                     )}
                   </div>
-                  <div>
-                    <label className={lbl}>Photo URL</label>
-                    <input type="url" value={item.photo_url} onChange={e => updateItem(idx, 'photo_url', e.target.value)} placeholder="https://…" className={inp} />
+
+                  {/* Watch selector */}
+                  {watches.length > 0 && (
+                    <div>
+                      <label className={lbl}>Select Watch</label>
+                      <select
+                        value={item.watch_id}
+                        onChange={e => selectWatch(idx, e.target.value)}
+                        className={inp}
+                      >
+                        <option value="">— Pick from inventory —</option>
+                        {watches.map(w => (
+                          <option key={w.id} value={w.id}>
+                            {w.watch_name}{w.reference ? ` · ${w.reference}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Photo thumbnail */}
+                  <div className="flex items-start gap-3">
+                    {item.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Photo URL</label>
+                      <input type="url" value={item.photo_url} onChange={e => updateItem(idx, 'photo_url', e.target.value)} placeholder="https://…" className={inp + ' text-xs'} />
+                    </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={lbl}>Watch Name *</label>
@@ -390,7 +500,7 @@ export default function InvoiceEditorClient({
                 </div>
               ))}
 
-              {items.length < 2 && (
+              {items.length < 3 && (
                 <button
                   type="button"
                   onClick={() => setItems(prev => [...prev, emptyItem()])}
@@ -400,13 +510,40 @@ export default function InvoiceEditorClient({
                   Add Line Item
                 </button>
               )}
+              {items.length >= 3 && (
+                <p className="text-xs text-gray-300">Maximum 3 line items</p>
+              )}
             </div>
           </div>
 
-          {/* ── Sourcing Totals ───────────────────────────── */}
+          {/* ── Amount Paid ───────────────────────────────── */}
+          {items.some(it => it.watch_name.trim()) && (
+            <div className={card}>
+              <p className={cardHead + ' mb-4'}>Amount Paid</p>
+              <div className="space-y-3">
+                {items.filter(it => it.watch_name.trim()).map((item) => {
+                  const realIdx = items.indexOf(item)
+                  return (
+                    <div key={item._key} className="flex items-center gap-3">
+                      <span className="text-sm text-gray-600 truncate flex-1 min-w-0">{item.watch_name}</span>
+                      <input
+                        type="text"
+                        value={item.amount_paid}
+                        onChange={e => updateItem(realIdx, 'amount_paid', e.target.value)}
+                        placeholder={item.amount || '0'}
+                        className="w-36 shrink-0 bg-white border border-gray-200 text-gray-900 rounded-xl px-3 py-2 text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Sourcing Advance Payment ──────────────────── */}
           {form.type === 'sourcing' && (
             <div className={card}>
-              <p className={cardHead}>Advance Payment</p>
+              <p className={cardHead + ' mb-4'}>Advance Payment</p>
               <div>
                 <label className={lbl}>Advance Paid</label>
                 <input type="text" value={form.advance_paid} onChange={f('advance_paid')} placeholder="0" className={inp} />
@@ -416,7 +553,7 @@ export default function InvoiceEditorClient({
 
           {/* ── Payment ───────────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Payment</p>
+            <p className={cardHead + ' mb-4'}>Payment</p>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -450,38 +587,60 @@ export default function InvoiceEditorClient({
               )}
 
               {showBankPicker && (
-                <Toggle
-                  label="Show bank details on invoice"
-                  checked={form.show_bank_details}
-                  onChange={v => setForm(p => ({ ...p, show_bank_details: v }))}
-                />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Show bank details on invoice</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, show_bank_details: !p.show_bank_details }))}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors ${form.show_bank_details ? 'bg-gray-900 border-gray-900' : 'bg-gray-200 border-gray-200'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${form.show_bank_details ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
           {/* ── Notes ────────────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Notes</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className={cardHead}>Notes</p>
+              <button type="button" onClick={() => toggleVisibility('notes')} title={fieldVisibility.notes ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.notes ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                {fieldVisibility.notes ? <EyeIcon /> : <EyeOffIcon />}
+              </button>
+            </div>
             <textarea value={form.notes} onChange={f('notes')} rows={3} placeholder="Optional notes…" className={inp} />
           </div>
 
           {/* ── Terms & Conditions ───────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Terms &amp; Conditions</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className={cardHead}>Terms &amp; Conditions</p>
+              <button type="button" onClick={() => toggleVisibility('terms')} title={fieldVisibility.terms ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.terms ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                {fieldVisibility.terms ? <EyeIcon /> : <EyeOffIcon />}
+              </button>
+            </div>
             <textarea value={form.terms_and_conditions} onChange={f('terms_and_conditions')} rows={4} placeholder="e.g. All sales are final. No returns accepted…" className={inp} />
           </div>
 
-          {/* ── Options ──────────────────────────────────── */}
+          {/* ── Signatures ───────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead}>Options</p>
-            <Toggle
-              label="Show signature lines (Authorized By / Accepted By)"
-              checked={form.show_signatures}
-              onChange={v => setForm(p => ({ ...p, show_signatures: v }))}
-            />
+            <div className="flex items-center justify-between">
+              <p className={cardHead}>Signatures</p>
+              <button type="button" onClick={() => toggleVisibility('signatures')} title={fieldVisibility.signatures ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.signatures ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                {fieldVisibility.signatures ? <EyeIcon /> : <EyeOffIcon />}
+              </button>
+            </div>
+            {fieldVisibility.signatures && (
+              <p className="text-xs text-gray-400 mt-2">Authorised By / Customer Signature lines will appear on the invoice.</p>
+            )}
           </div>
 
-          <div className="pb-8" />
+          {/* ── Save ──────────────────────────────────────── */}
+          <div className="pt-2 pb-8">
+            {saveBtn}
+          </div>
+
         </div>
       </div>
 
@@ -503,13 +662,14 @@ export default function InvoiceEditorClient({
               salesManager={form.sales_manager || null}
               paymentMethod={form.payment_method || null}
               showBankDetails={form.show_bank_details}
-              showSignatures={form.show_signatures}
+              showSignatures={fieldVisibility.signatures}
               advancePaid={num(form.advance_paid)}
               notes={form.notes || null}
               termsAndConditions={form.terms_and_conditions || null}
               items={previewItems}
               bank={previewBank}
-              logoUrl={logoUrl}
+              logoUrl={null}
+              fieldVisibility={fieldVisibility}
             />
           </div>
         </div>

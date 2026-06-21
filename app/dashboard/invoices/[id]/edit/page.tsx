@@ -8,7 +8,6 @@ import type { Invoice, InvoiceItem, InvoiceWithItems, SavedBank, SalesManager } 
 export default async function InvoiceEditPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  // Fetch invoice on its own — no joins so a missing related table can't 404 this
   const { data: invData, error: invError } = await supabase
     .from('invoices')
     .select('*')
@@ -20,8 +19,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
 
   const inv = invData as Invoice
 
-  // Fetch related data independently — each falls back to empty if table missing
-  const [itemsRes, banksRes, smRes, logoRes] = await Promise.all([
+  const [itemsRes, banksRes, smRes, watchesRes] = await Promise.all([
     supabase
       .from('invoice_items')
       .select('*')
@@ -37,13 +35,12 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .select('*')
       .order('name'),
     supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'invoice_logo_url')
-      .maybeSingle(),
+      .from('watches')
+      .select('id, watch_name, reference, serial_number, date_on_card, condition, set_details, photos')
+      .is('deleted_at', null)
+      .order('watch_name'),
   ])
 
-  // Fetch the specific bank linked to this invoice (for the preview)
   let linkedBank: InvoiceWithItems['saved_banks'] = null
   if (inv.bank_id) {
     const { data } = await supabase
@@ -60,16 +57,25 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
     saved_banks:   linkedBank,
   }
 
-  const banks         = (banksRes.data ?? []) as SavedBank[]
-  const salesManagers = (smRes.data    ?? []) as SalesManager[]
-  const logoUrl       = logoRes.data?.value ?? null
+  const banks         = (banksRes.data   ?? []) as SavedBank[]
+  const salesManagers = (smRes.data      ?? []) as SalesManager[]
+  const watches       = (watchesRes.data ?? []) as {
+    id:            string
+    watch_name:    string
+    reference:     string | null
+    serial_number: string | null
+    date_on_card:  string | null
+    condition:     string | null
+    set_details:   string | null
+    photos:        string[] | null
+  }[]
 
   return (
     <InvoiceEditorClient
       invoice={invoice}
       banks={banks}
       salesManagers={salesManagers}
-      initialLogoUrl={logoUrl}
+      watches={watches}
     />
   )
 }
