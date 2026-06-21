@@ -34,7 +34,8 @@ function FunnelIcon()  { return <svg className="w-4 h-4" viewBox="0 0 16 16" fil
 function XSmallIcon()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg> }
 function DotsIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg> }
 function CheckIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
-function RestoreIcon() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+
 
 // ── Types & constants ─────────────────────────────────────────
 
@@ -285,6 +286,30 @@ export default function WatchInventory({
     () => watches.filter(w => !w.is_draft).reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
     [watches]
   )
+
+  // ── Filtered deleted (applies same search/brand/condition to the lazy-loaded deleted list) ──
+  const filteredDeleted = useMemo(() => {
+    if (!deletedWatches) return []
+    let list = [...deletedWatches]
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(w =>
+        w.watch_name.toLowerCase().includes(q) ||
+        (w.reference ?? '').toLowerCase().includes(q) ||
+        (w.serial_number ?? '').toLowerCase().includes(q)
+      )
+    }
+    if (brandId) list = list.filter(w => w.brand_id === brandId)
+    if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
+    if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
+    switch (sort) {
+      case 'sell_desc': return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
+      case 'sell_asc':  return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
+      case 'name_asc':  return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
+      case 'name_desc': return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
+      default:          return [...list].sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime())
+    }
+  }, [deletedWatches, search, brandId, conditionFilter, sort])
 
   // ── Bulk helpers ──────────────────────────────────────────
 
@@ -566,7 +591,7 @@ export default function WatchInventory({
           )}
 
           {/* Sort / filter */}
-          {!bulkMode && !showingDeleted && !showingDrafts && (
+          {!bulkMode && (
             <div className="flex items-center gap-1" ref={sortMenuRef}>
               <div className="relative">
                 <button
@@ -629,7 +654,7 @@ export default function WatchInventory({
       </div>
 
       {/* ── Search ───────────────────────────────────────────── */}
-      {!bulkMode && !showingDeleted && !showingDrafts && (
+      {!bulkMode && (
         <div className="relative mb-4" ref={searchRef}>
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
             <SearchIcon />
@@ -668,7 +693,7 @@ export default function WatchInventory({
       )}
 
       {/* ── Brand filter pills ────────────────────────────────── */}
-      {!bulkMode && !showingDeleted && !showingDrafts && brands.length > 0 && (
+      {!bulkMode && brands.length > 0 && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {brands.map(b => {
             const active = brandId === b.id
@@ -692,7 +717,7 @@ export default function WatchInventory({
       )}
 
       {/* ── Condition filter pills ────────────────────────────── */}
-      {!bulkMode && !showingDeleted && !showingDrafts && (
+      {!bulkMode && (
         <div className="flex items-center gap-1.5 mb-4 flex-wrap">
           {(['All', 'Brand New', 'Pre-Owned'] as ConditionFilter[]).map(c => (
             <button
@@ -781,7 +806,7 @@ export default function WatchInventory({
               Loading deleted watches…
             </div>
           )}
-          {!loadingDeleted && (deletedWatches === null || deletedWatches.length === 0) && (
+          {!loadingDeleted && (deletedWatches === null || filteredDeleted.length === 0) && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
                 <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -791,7 +816,7 @@ export default function WatchInventory({
               <p className="text-gray-400 text-sm">No deleted watches</p>
             </div>
           )}
-          {!loadingDeleted && deletedWatches && deletedWatches.length > 0 && (
+          {!loadingDeleted && filteredDeleted.length > 0 && (
             <div className="overflow-x-auto -mx-4 md:mx-0">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
@@ -807,7 +832,7 @@ export default function WatchInventory({
                   </tr>
                 </thead>
                 <tbody>
-                  {deletedWatches.map(w => {
+                  {filteredDeleted.map(w => {
                     const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                     const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                     return (
@@ -1142,7 +1167,7 @@ export default function WatchInventory({
                       >
                         {/* Bulk checkbox */}
                         {bulkMode && (
-                          <td className="px-3 py-3 sticky left-0 transition-colors" onClick={e => { e.stopPropagation(); toggleSelect(w.id) }}>
+                          <td className="px-3 py-3 sticky left-0 transition-colors" onClick={e => e.stopPropagation()}>
                             <Checkbox checked={isSelected} onChange={() => toggleSelect(w.id)} />
                           </td>
                         )}

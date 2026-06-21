@@ -113,25 +113,37 @@ function WatchPicker({
             {filtered.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-6">No watches found</p>
             ) : (
-              filtered.map(w => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => { onChange(w.id); setOpen(false) }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-gray-50 transition-colors text-left ${value === w.id ? 'bg-gray-50' : ''}`}
-                >
-                  {w.photos && w.photos.length > 0 ? (
-                    <Image src={w.photos[0]} alt="" width={36} height={36} className="rounded-lg object-cover shrink-0" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{w.watch_name}</p>
-                    {w.reference && <p className="text-xs text-gray-400">Ref: {w.reference}</p>}
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">{w.status}</span>
-                </button>
-              ))
+              filtered.map(w => {
+                const isSold = w.status === 'Sold'
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    disabled={isSold}
+                    onClick={() => { if (!isSold) { onChange(w.id); setOpen(false) } }}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors ${
+                      isSold
+                        ? 'opacity-50 cursor-not-allowed'
+                        : `hover:bg-gray-50 ${value === w.id ? 'bg-gray-50' : ''}`
+                    }`}
+                  >
+                    {w.photos && w.photos.length > 0 ? (
+                      <Image src={w.photos[0]} alt="" width={36} height={36} className={`rounded-lg object-cover shrink-0 ${isSold ? 'grayscale' : ''}`} />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium truncate ${isSold ? 'text-gray-400' : 'text-gray-900'}`}>{w.watch_name}</p>
+                      {w.reference && <p className="text-xs text-gray-400">Ref: {w.reference}</p>}
+                    </div>
+                    {isSold ? (
+                      <span className="text-[10px] font-bold bg-gray-300 text-white rounded px-1.5 py-0.5 shrink-0">SOLD</span>
+                    ) : (
+                      <span className="text-xs text-gray-400 shrink-0">{w.status}</span>
+                    )}
+                  </button>
+                )
+              })
             )}
           </div>
         </div>
