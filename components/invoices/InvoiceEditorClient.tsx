@@ -361,12 +361,21 @@ export default function InvoiceEditorClient({
               <button
                 type="button"
                 onClick={() => {
+                  const _inv = invoice as unknown as Record<string, unknown>
+                  const derivedStatus: string =
+                    form.status === 'paid_in_full' ||
+                    _inv.stage === 'Delivered' ||
+                    _inv.payment_status === 'paid'
+                      ? 'paid_in_full'
+                      : form.status === 'advance_paid'
+                      ? 'advance_paid'
+                      : form.status
                   const html = generateInvoiceHTML({
                     invoiceNumber:      invoice.invoice_number,
                     date:               form.date,
                     currency:           form.currency,
                     type:               form.type,
-                    status:             form.status,
+                    status:             derivedStatus,
                     clientName:         form.client_name    || null,
                     clientPhone:        form.client_phone   || null,
                     clientAddress:      form.client_address || null,

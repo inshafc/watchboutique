@@ -136,7 +136,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
     ].filter(Boolean)
 
     const thumbHTML = item.photo_url
-      ? `<img src="${esc(item.photo_url)}" alt="" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;" />`
+      ? `<img src="${esc(item.photo_url)}" alt="" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0;">`
       : `<div style="width:48px;height:48px;border-radius:6px;background:#f9fafb;flex-shrink:0;display:flex;align-items:center;justify-content:center;">${PLACEHOLDER_WATCH_SVG}</div>`
 
     return `<div style="display:grid;grid-template-columns:1fr 60px 140px;gap:16px;align-items:center;min-height:72px;padding:12px 16px;border-left:1px solid #f3f4f6;border-right:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;${radius}">
@@ -223,7 +223,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <title>${esc(pdfTitle)}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     @page { size: A4 portrait; margin: 0; }
     body { width: 210mm; min-height: 297mm; background: white; }
   </style>
