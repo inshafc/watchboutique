@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+// invoice-photos bucket must exist in Supabase storage with public access
 import InvoicePrintLayout from './InvoicePrintLayout'
 import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
 
@@ -148,9 +149,25 @@ export default function InvoiceEditorClient({
       : [emptyItem()]
   )
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState<string | null>(null)
-  const [saved,  setSaved]  = useState(false)
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [saved,        setSaved]        = useState(false)
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
+
+  async function handlePhotoReplace(itemKey: string, idx: number, file: File) {
+    setUploadingIdx(idx)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${invoice.id}/${itemKey}.${ext}`
+    const { data, error: upErr } = await supabase.storage
+      .from('invoice-photos')
+      .upload(path, file, { upsert: true })
+    if (!upErr && data) {
+      const { data: urlData } = supabase.storage.from('invoice-photos').getPublicUrl(data.path)
+      updateItem(idx, 'photo_url', urlData.publicUrl)
+    }
+    setUploadingIdx(null)
+  }
 
   function toggleVisibility(key: string) {
     setFieldVisibility(prev => ({ ...prev, [key]: !prev[key] }))
@@ -295,14 +312,14 @@ export default function InvoiceEditorClient({
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
                 Print
               </Link>
-              <Link
-                href={`/dashboard/invoices/${invoice.id}/print`}
-                target="_blank"
+              <button
+                type="button"
+                onClick={() => window.open(`/dashboard/invoices/${invoice.id}/print?download=1`, '_blank')}
                 className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
                 Download
-              </Link>
+              </button>
             </div>
           )}
         </div>
@@ -449,7 +466,7 @@ export default function InvoiceEditorClient({
                   )}
 
                   {/* Photo thumbnail */}
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     {item.photo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 shrink-0" />
@@ -460,9 +477,26 @@ export default function InvoiceEditorClient({
                         </svg>
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">Photo URL</label>
-                      <input type="url" value={item.photo_url} onChange={e => updateItem(idx, 'photo_url', e.target.value)} placeholder="https://…" className={inp + ' text-xs'} />
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id={`photo-upload-${item._key}`}
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (file) handlePhotoReplace(item._key, idx, file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={uploadingIdx === idx}
+                        onClick={() => document.getElementById(`photo-upload-${item._key}`)?.click()}
+                        className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                      >
+                        {uploadingIdx === idx ? 'Uploading…' : 'Replace'}
+                      </button>
                     </div>
                   </div>
 

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import InvoicePrintLayout from '@/components/invoices/InvoicePrintLayout'
+import PrintAutoTrigger from '@/components/invoices/PrintAutoTrigger'
 import type { Invoice, InvoiceItem } from '@/types'
 
 function PrintControls({ invoiceId, pdfTitle }: { invoiceId: string; pdfTitle: string }) {
@@ -42,7 +43,13 @@ function PrintControls({ invoiceId, pdfTitle }: { invoiceId: string; pdfTitle: s
   )
 }
 
-export default async function InvoicePrintPage({ params }: { params: { id: string } }) {
+export default async function InvoicePrintPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { download?: string }
+}) {
   const supabase = createClient()
 
   const { data: invData, error: invError } = await supabase
@@ -89,6 +96,8 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
       condition:     it.condition,
       photo_url:     it.photo_url,
       amount:        it.amount,
+      // Default amount_paid to amount so the Amount Paid section always renders
+      amount_paid:   (it as InvoiceItem & { amount_paid?: number | null }).amount_paid ?? it.amount,
     }))
 
   const logoUrl = logoRes.data?.value ?? null
@@ -101,9 +110,12 @@ export default async function InvoicePrintPage({ params }: { params: { id: strin
   const yy = String(d.getFullYear()).slice(2)
   const pdfTitle = `${inv.invoice_number}-${dd}-${mm}-${yy}`
 
+  const autoDownload = searchParams.download === '1'
+
   return (
     <div className="min-h-screen bg-gray-100">
       <title>{pdfTitle}</title>
+      {autoDownload && <PrintAutoTrigger />}
       <PrintControls invoiceId={params.id} pdfTitle={pdfTitle} />
       <div className="mx-auto max-w-[210mm] print:max-w-full bg-white shadow-sm print:shadow-none">
         <InvoicePrintLayout
