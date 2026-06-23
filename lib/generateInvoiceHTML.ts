@@ -86,8 +86,9 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string }
   draft:        { label: 'Draft',        dot: '#9ca3af', text: '#6b7280' },
 }
 
+// FIX 7: font-family added to LABEL_STYLE so every label inherits it explicitly
 const LABEL_STYLE =
-  'font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;'
+  "font-family:'Poppins',sans-serif;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;"
 
 const PLACEHOLDER_WATCH_SVG = `
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5">
@@ -101,12 +102,14 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   const MIN_ROWS      = 3
 
   // Filter to named items only (mirrors handleSave's validItems filter)
-  const items         = p.items.filter(it => it.watch_name.trim())
-  const subtotal      = items.reduce((s, it) => s + (it.amount ?? 0), 0)
-  const balanceDue    = p.type === 'sourcing' && p.advancePaid != null
+  const items           = p.items.filter(it => it.watch_name.trim())
+  const subtotal        = items.reduce((s, it) => s + (it.amount ?? 0), 0)
+  const balanceDue      = p.type === 'sourcing' && p.advancePaid != null
     ? subtotal - p.advancePaid
     : null
-  const hasAmountPaid = items.some(it => it.amount_paid != null)
+  const hasAmountPaid   = items.some(it => it.amount_paid != null)
+  // FIX 5: single total for amount paid
+  const totalAmountPaid = items.reduce((s, it) => s + (it.amount_paid ?? 0), 0)
 
   // PDF title: INVNO-DD-MM-YY
   const dateObj = new Date(p.date + 'T00:00:00')
@@ -143,29 +146,25 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
       <div style="display:flex;align-items:center;gap:10px;min-width:0;">
         ${thumbHTML}
         <div style="min-width:0;">
-          <p style="font-size:13px;font-weight:600;color:#111111;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(item.watch_name) || '—'}</p>
+          <p style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#111111;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase;">${esc(item.watch_name) || '—'}</p>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:3px;">
-            ${details.map(d => `<span style="font-size:11px;font-weight:400;color:#9ca3af;">${d}</span>`).join('')}
+            ${details.map(d => `<span style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#9ca3af;">${d}</span>`).join('')}
           </div>
         </div>
       </div>
-      <span style="font-size:13px;font-weight:400;color:#6b7280;text-align:center;">1</span>
-      <span style="font-size:13px;font-weight:600;color:#111111;text-align:right;font-variant-numeric:tabular-nums;">${fmt(item.amount, p.currency)}</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:400;color:#6b7280;text-align:center;">1</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#111111;text-align:right;font-variant-numeric:tabular-nums;">${fmt(item.amount, p.currency)}</span>
     </div>`
   }).join('\n')
 
-  // ── AMOUNT PAID ────────────────────────────────────────────
+  // ── AMOUNT PAID (FIX 5: single total row, no per-item breakdown) ────────
   const amountPaidHTML = hasAmountPaid ? `
     <div style="padding:10px 48px 0;">
       <div style="border:1px solid #f3f4f6;border-radius:8px;overflow:hidden;">
-        <div style="background:#f9fafb;padding:8px 16px;">
-          <span style="${LABEL_STYLE}margin-bottom:0;">Amount Paid</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;">
+          <span style="${LABEL_STYLE}margin-bottom:0;">AMOUNT PAID</span>
+          <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#111111;font-variant-numeric:tabular-nums;">${fmt(totalAmountPaid, p.currency)}</span>
         </div>
-        ${items.filter(it => it.amount_paid != null).map((it, idx) => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;${idx > 0 ? 'border-top:1px solid #f3f4f6;' : ''}">
-            <span style="font-size:12px;font-weight:500;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;">${esc(it.watch_name) || '—'}</span>
-            <span style="font-size:12px;font-weight:600;color:#111111;font-variant-numeric:tabular-nums;">${fmt(it.amount_paid, p.currency)}</span>
-          </div>`).join('')}
       </div>
     </div>` : ''
 
@@ -173,12 +172,12 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   const sourcingHTML = p.type === 'sourcing' && p.advancePaid != null ? `
     <div style="margin-top:8px;">
       <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:4px;">
-        <span style="font-size:12px;font-weight:400;color:#6b7280;">Advance Paid</span>
-        <span style="font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.advancePaid, p.currency)}</span>
+        <span style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:400;color:#6b7280;">Advance Paid</span>
+        <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.advancePaid, p.currency)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;padding:8px 16px;border:1px solid #e5e7eb;border-radius:6px;">
-        <span style="font-size:12px;font-weight:600;color:#111111;">Balance Due</span>
-        <span style="font-size:13px;font-weight:700;color:#111111;font-variant-numeric:tabular-nums;">${fmt(balanceDue, p.currency)}</span>
+        <span style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;color:#111111;">Balance Due</span>
+        <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:700;color:#111111;font-variant-numeric:tabular-nums;">${fmt(balanceDue, p.currency)}</span>
       </div>
     </div>` : ''
 
@@ -186,11 +185,11 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   const bankHTML = p.showBankDetails && p.bank ? `
     <div style="flex:1;min-width:180px;">
       <p style="${LABEL_STYLE}">Bank Details</p>
-      <p style="font-size:12px;font-weight:600;color:#111111;margin-bottom:2px;">${esc(p.bank.bank_name)}</p>
-      ${p.bank.account_name   ? `<p style="font-size:11px;font-weight:400;color:#6b7280;">Account Name: ${esc(p.bank.account_name)}</p>`   : ''}
-      ${p.bank.account_number ? `<p style="font-size:11px;font-weight:400;color:#6b7280;">Account No: ${esc(p.bank.account_number)}</p>`   : ''}
-      ${p.bank.branch         ? `<p style="font-size:11px;font-weight:400;color:#6b7280;">Branch: ${esc(p.bank.branch)}</p>`               : ''}
-      ${p.bank.swift_code     ? `<p style="font-size:11px;font-weight:400;color:#6b7280;">SWIFT: ${esc(p.bank.swift_code)}</p>`            : ''}
+      <p style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;color:#111111;margin-bottom:2px;">${esc(p.bank.bank_name)}</p>
+      ${p.bank.account_name   ? `<p style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#6b7280;">Account Name: ${esc(p.bank.account_name)}</p>`   : ''}
+      ${p.bank.account_number ? `<p style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#6b7280;">Account No: ${esc(p.bank.account_number)}</p>`   : ''}
+      ${p.bank.branch         ? `<p style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#6b7280;">Branch: ${esc(p.bank.branch)}</p>`               : ''}
+      ${p.bank.swift_code     ? `<p style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#6b7280;">SWIFT: ${esc(p.bank.swift_code)}</p>`            : ''}
     </div>` : ''
 
   // ── META ROWS ──────────────────────────────────────────────
@@ -210,7 +209,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
           <div style="flex:1;">
             <div style="height:60px;"></div>
             <div style="height:1px;background:#374151;margin-bottom:10px;width:100%;"></div>
-            <p style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.14em;">${label}</p>
+            <p style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.14em;">${label}</p>
           </div>`).join('')}
       </div>
     </div>` : ''
@@ -234,28 +233,28 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
 
   <!-- HEADER -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:40px 48px 28px;">
-    <h1 style="font-weight:700;font-size:48px;letter-spacing:0.28em;text-transform:uppercase;color:#111111;line-height:1;">INVOICE</h1>
+    <h1 style="font-family:'Poppins',sans-serif;font-weight:700;font-size:48px;letter-spacing:0.28em;text-transform:uppercase;color:#111111;line-height:1;">INVOICE</h1>
     <img src="${TWB_LOGO_URL}" alt="The Watch Boutique" style="max-height:80px;object-fit:contain;display:block;margin-left:auto;" />
   </div>
 
   <!-- DIVIDER -->
   <div style="height:1px;background:#e5e7eb;margin:0 48px;"></div>
 
-  <!-- META ROW: billing left, invoice meta right -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:24px 48px;">
-    <div>
+  <!-- META ROW: billing left, invoice meta right (FIX 2: flex row, align-items:flex-start) -->
+  <div style="display:flex;align-items:flex-start;gap:32px;padding:24px 48px;">
+    <div style="flex:1;">
       <p style="${LABEL_STYLE}">Billing Details</p>
       ${p.clientName
-        ? `<p style="font-size:16px;font-weight:700;color:#111111;margin-bottom:4px;">${esc(p.clientName)}</p>`
-        : `<p style="font-size:14px;font-weight:400;color:#d1d5db;margin-bottom:4px;">—</p>`}
-      ${fv.phone   && p.clientPhone   ? `<p style="font-size:12px;font-weight:400;color:#6b7280;margin-top:2px;">${esc(p.clientPhone)}</p>`                              : ''}
-      ${fv.address && p.clientAddress ? `<p style="font-size:12px;font-weight:400;color:#6b7280;margin-top:2px;line-height:1.5;">${esc(p.clientAddress)}</p>` : ''}
+        ? `<p style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#111111;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.1em;">${esc(p.clientName)}</p>`
+        : `<p style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:400;color:#d1d5db;margin-bottom:4px;">—</p>`}
+      ${fv.phone   && p.clientPhone   ? `<p style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:400;color:#6b7280;margin-top:2px;">${esc(p.clientPhone)}</p>`                              : ''}
+      ${fv.address && p.clientAddress ? `<p style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:400;color:#6b7280;margin-top:2px;line-height:1.5;">${esc(p.clientAddress)}</p>` : ''}
     </div>
-    <div style="text-align:right;">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;">
       ${metaRows.map(row => `
-        <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
-          <span style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;min-width:100px;text-align:right;">${esc(row.label)}</span>
-          <span style="font-size:12px;font-weight:${row.label === 'Invoice #' ? '600' : '400'};color:#111111;min-width:120px;text-align:right;">${esc(row.value)}</span>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:6px;min-width:260px;">
+          <span style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;white-space:nowrap;">${esc(row.label)}</span>
+          <span style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;color:#111111;font-variant-numeric:tabular-nums;white-space:nowrap;">${esc(row.value)}</span>
         </div>`).join('')}
     </div>
   </div>
@@ -266,9 +265,9 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <!-- LINE ITEMS TABLE -->
   <div style="padding:24px 48px 0;">
     <div style="background:#1a1a1a;color:#ffffff;display:grid;grid-template-columns:1fr 60px 140px;padding:10px 16px;border-radius:8px 8px 0 0;">
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;">Item</span>
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;text-align:center;">Qty</span>
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;text-align:right;">Amount</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;">Item</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;text-align:center;">Qty</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;text-align:right;">Amount</span>
     </div>
     ${itemRowsHTML}
   </div>
@@ -279,12 +278,12 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <!-- SUBTOTAL + TOTAL -->
   <div style="padding:12px 48px 0;">
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:24px;padding:8px 16px;margin-bottom:6px;">
-      <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;">Subtotal</span>
-      <span style="font-size:13px;font-weight:400;color:#6b7280;min-width:140px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;">Subtotal</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:400;color:#6b7280;min-width:140px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
     </div>
     <div style="background:#1a1a1a;color:#ffffff;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-radius:8px;">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;">Total</span>
-      <span style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;">Total</span>
+      <span style="font-family:'Poppins',sans-serif;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
     </div>
     ${sourcingHTML}
   </div>
@@ -295,13 +294,13 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
       ${p.paymentMethod ? `
         <div>
           <p style="${LABEL_STYLE}">Payment Method</p>
-          <p style="font-size:13px;font-weight:400;color:#111111;">${esc(p.paymentMethod)}</p>
+          <p style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:400;color:#111111;">${esc(p.paymentMethod)}</p>
         </div>` : ''}
       <div>
         <p style="${LABEL_STYLE}">Status</p>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="width:8px;height:8px;border-radius:50%;background:${sc.dot};display:inline-block;flex-shrink:0;"></span>
-          <span style="font-size:13px;font-weight:600;color:${sc.text};">${sc.label}</span>
+          <span style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:${sc.text};">${sc.label}</span>
         </div>
       </div>
       ${bankHTML}
@@ -313,7 +312,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <div style="padding:16px 48px 0;">
     <p style="${LABEL_STYLE}">Notes</p>
     ${p.notes
-      ? `<p style="font-size:12px;font-weight:400;color:#6b7280;line-height:1.6;white-space:pre-wrap;">${esc(p.notes)}</p>`
+      ? `<p style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:400;color:#6b7280;line-height:1.6;white-space:pre-wrap;">${esc(p.notes)}</p>`
       : `<div style="height:1px;background:#d1d5db;width:240px;"></div>`}
   </div>` : ''}
 
@@ -321,7 +320,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   ${fv.terms && p.termsAndConditions ? `
   <div style="padding:14px 48px 0;">
     <p style="${LABEL_STYLE}">Terms &amp; Conditions</p>
-    <p style="font-size:11px;font-weight:400;color:#9ca3af;line-height:1.6;white-space:pre-wrap;">${esc(p.termsAndConditions)}</p>
+    <p style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;color:#9ca3af;line-height:1.6;white-space:pre-wrap;">${esc(p.termsAndConditions)}</p>
   </div>` : ''}
 
   <!-- SIGNATURES -->
@@ -330,11 +329,11 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <!-- SPACER -->
   <div style="flex:1;"></div>
 
-  <!-- FOOTER -->
+  <!-- FOOTER (FIX 6: 0.15em on brand name, 0.08em on address/website) -->
   <div style="background:#1a1a1a;padding:14px 48px;margin-top:24px;">
-    <p style="font-size:10px;font-weight:500;color:#d1d5db;text-align:center;letter-spacing:0.08em;margin:0 0 2px;">THE WATCH BOUTIQUE SRI LANKA</p>
-    <p style="font-size:10px;font-weight:400;color:#9ca3af;text-align:center;letter-spacing:0.08em;margin:0 0 2px;">66, KYNSEY ROAD, COLOMBO 8</p>
-    <p style="font-size:10px;font-weight:400;color:#9ca3af;text-align:center;letter-spacing:0.08em;margin:0;">www.thewatchboutiquesl.com</p>
+    <p style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:500;color:#d1d5db;text-align:center;letter-spacing:0.15em;margin:0 0 2px;">THE WATCH BOUTIQUE SRI LANKA</p>
+    <p style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:400;color:#9ca3af;text-align:center;letter-spacing:0.08em;margin:0 0 2px;">66, KYNSEY ROAD, COLOMBO 8</p>
+    <p style="font-family:'Poppins',sans-serif;font-size:10px;font-weight:400;color:#9ca3af;text-align:center;letter-spacing:0.08em;margin:0;">www.thewatchboutiquesl.com</p>
   </div>
 
 </div>
