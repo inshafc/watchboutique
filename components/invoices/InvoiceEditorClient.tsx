@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { generateInvoiceHTML } from '@/lib/generateInvoiceHTML'
 // invoice-photos bucket must exist in Supabase storage with public access
 import InvoicePrintLayout from './InvoicePrintLayout'
 import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
@@ -359,7 +360,37 @@ export default function InvoiceEditorClient({
               </Link>
               <button
                 type="button"
-                onClick={() => window.open(`/dashboard/invoices/${invoice.id}/print?auto=1`, '_blank')}
+                onClick={() => {
+                  const html = generateInvoiceHTML({
+                    invoiceNumber:      invoice.invoice_number,
+                    date:               form.date,
+                    currency:           form.currency,
+                    type:               form.type,
+                    status:             form.status,
+                    clientName:         form.client_name    || null,
+                    clientPhone:        form.client_phone   || null,
+                    clientAddress:      form.client_address || null,
+                    salesManager:       form.sales_manager  || null,
+                    paymentMethod:      form.payment_method || null,
+                    showBankDetails:    form.show_bank_details,
+                    bank:               previewBank,
+                    advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
+                    notes:              form.notes              || null,
+                    termsAndConditions: form.terms_and_conditions || null,
+                    fieldVisibility: {
+                      phone:         fieldVisibility.phone         ?? true,
+                      address:       fieldVisibility.address       ?? true,
+                      sales_manager: fieldVisibility.sales_manager ?? true,
+                      notes:         fieldVisibility.notes         ?? true,
+                      terms:         fieldVisibility.terms         ?? true,
+                      signatures:    fieldVisibility.signatures    ?? false,
+                    },
+                    items:              previewItems,
+                  })
+                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+                  const url  = URL.createObjectURL(blob)
+                  window.open(url, '_blank')
+                }}
                 className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
