@@ -57,6 +57,13 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
     saved_banks:   linkedBank,
   }
 
+  // line_items JSONB column on invoices — primary source of truth for line items
+  const lineItemsJson = (invData as Record<string, unknown>).line_items as Array<{
+    watch_name: string; reference: string | null; serial_number: string | null;
+    year: string | null; condition: string | null; photo_url: string | null;
+    amount: number | null; amount_paid?: number | null; sort_order: number;
+  }> | null
+
   const banks         = (banksRes.data   ?? []) as SavedBank[]
   const salesManagers = (smRes.data      ?? []) as SalesManager[]
   const watches       = (watchesRes.data ?? []) as {
@@ -76,6 +83,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       banks={banks}
       salesManagers={salesManagers}
       watches={watches}
+      lineItemsJson={lineItemsJson}
     />
   )
 }

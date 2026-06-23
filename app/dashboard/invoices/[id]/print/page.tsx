@@ -6,6 +6,18 @@ import InvoicePrintLayout from '@/components/invoices/InvoicePrintLayout'
 import PrintAutoTrigger from '@/components/invoices/PrintAutoTrigger'
 import type { Invoice, InvoiceItem } from '@/types'
 
+interface LineItemJson {
+  watch_name:    string
+  reference:     string | null
+  serial_number: string | null
+  year:          string | null
+  condition:     string | null
+  photo_url:     string | null
+  amount:        number | null
+  amount_paid?:  number | null
+  sort_order:    number
+}
+
 function PrintControls({ invoiceId, pdfTitle }: { invoiceId: string; pdfTitle: string }) {
   return (
     <>
@@ -48,7 +60,7 @@ export default async function InvoicePrintPage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { download?: string }
+  searchParams: { auto?: string }
 }) {
   const supabase = createClient()
 
@@ -62,6 +74,11 @@ export default async function InvoicePrintPage({
   if (invError || !invData) notFound()
 
   const inv = invData as Invoice
+
+  // Primary source: line_items JSONB on the invoice row
+  const rawLineItems = (invData as Record<string, unknown>).line_items
+  console.log('[InvoicePrint] line_items from DB:', rawLineItems)
+  const lineItemsJson = rawLineItems as LineItemJson[] | null
 
   const [itemsRes, logoRes] = await Promise.all([
     supabase
@@ -86,19 +103,40 @@ export default async function InvoicePrintPage({
     bank = data ?? null
   }
 
-  const items = ((itemsRes.data ?? []) as InvoiceItem[])
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(it => ({
-      watch_name:    it.watch_name,
-      reference:     it.reference,
-      serial_number: it.serial_number,
-      year:          it.year,
-      condition:     it.condition,
-      photo_url:     it.photo_url,
-      amount:        it.amount,
-      // Default amount_paid to amount so the Amount Paid section always renders
-      amount_paid:   (it as InvoiceItem & { amount_paid?: number | null }).amount_paid ?? it.amount,
-    }))
+  // Prefer line_items JSONB; fall back to invoice_items table
+  let items: {
+    watch_name: string; reference: string | null; serial_number: string | null;
+    year: string | null; condition: string | null; photo_url: string | null;
+    amount: number | null; amount_paid: number | null;
+  }[]
+
+  if (lineItemsJson && lineItemsJson.length > 0) {
+    items = [...lineItemsJson]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(it => ({
+        watch_name:    it.watch_name,
+        reference:     it.reference,
+        serial_number: it.serial_number,
+        year:          it.year,
+        condition:     it.condition,
+        photo_url:     it.photo_url,
+        amount:        it.amount,
+        amount_paid:   it.amount_paid ?? it.amount,
+      }))
+  } else {
+    items = ((itemsRes.data ?? []) as InvoiceItem[])
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map(it => ({
+        watch_name:    it.watch_name,
+        reference:     it.reference,
+        serial_number: it.serial_number,
+        year:          it.year,
+        condition:     it.condition,
+        photo_url:     it.photo_url,
+        amount:        it.amount,
+        amount_paid:   (it as InvoiceItem & { amount_paid?: number | null }).amount_paid ?? it.amount,
+      }))
+  }
 
   const logoUrl = logoRes.data?.value ?? null
 
@@ -110,7 +148,7 @@ export default async function InvoicePrintPage({
   const yy = String(d.getFullYear()).slice(2)
   const pdfTitle = `${inv.invoice_number}-${dd}-${mm}-${yy}`
 
-  const autoDownload = searchParams.download === '1'
+  const autoDownload = searchParams.auto === '1'
 
   return (
     <div className="min-h-screen bg-gray-100">

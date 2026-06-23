@@ -16,6 +16,18 @@ const CURRENCIES  = ['LKR', 'USD', 'AED', 'AUD'] as const
 const PAY_METHODS = ['Cash', 'Bank Transfer', 'Cash + Bank', 'Installment']
 const CONDITIONS  = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
 
+interface LineItemJson {
+  watch_name:    string
+  reference:     string | null
+  serial_number: string | null
+  year:          string | null
+  condition:     string | null
+  photo_url:     string | null
+  amount:        number | null
+  amount_paid?:  number | null
+  sort_order:    number
+}
+
 interface WatchForInvoice {
   id:            string
   watch_name:    string
@@ -89,11 +101,13 @@ export default function InvoiceEditorClient({
   salesManagers = [],
   banks = [],
   watches = [],
+  lineItemsJson = null,
 }: {
   invoice:         InvoiceWithItems
   salesManagers?:  SalesManager[]
   banks?:          SavedBank[]
   watches?:        WatchForInvoice[]
+  lineItemsJson?:  LineItemJson[] | null
 }) {
   const [savedOnce, setSavedOnce] = useState(
     invoice.invoice_items.length > 0 || invoice.status !== 'draft'
@@ -129,25 +143,43 @@ export default function InvoiceEditorClient({
     terms_and_conditions: ((invoice as unknown as Record<string, unknown>).terms_and_conditions as string) ?? '',
   })
 
-  const [items, setItems] = useState<LineItem[]>(() =>
-    invoice.invoice_items.length > 0
-      ? invoice.invoice_items
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map(it => ({
-            _key:          it.id,
-            watch_id:      '',
-            watch_name:    it.watch_name    ?? '',
-            reference:     it.reference     ?? '',
-            serial_number: it.serial_number ?? '',
-            year:          it.year          ?? '',
-            condition:     it.condition     ?? '',
-            set_details:   '',
-            photo_url:     it.photo_url     ?? '',
-            amount_paid:   it.amount?.toString() ?? '',
-            amount:        it.amount?.toString() ?? '',
-          }))
-      : [emptyItem()]
-  )
+  const [items, setItems] = useState<LineItem[]>(() => {
+    if (invoice.invoice_items.length > 0) {
+      return invoice.invoice_items
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(it => ({
+          _key:          it.id,
+          watch_id:      '',
+          watch_name:    it.watch_name    ?? '',
+          reference:     it.reference     ?? '',
+          serial_number: it.serial_number ?? '',
+          year:          it.year          ?? '',
+          condition:     it.condition     ?? '',
+          set_details:   '',
+          photo_url:     it.photo_url     ?? '',
+          amount_paid:   it.amount?.toString() ?? '',
+          amount:        it.amount?.toString() ?? '',
+        }))
+    }
+    if (lineItemsJson && lineItemsJson.length > 0) {
+      return [...lineItemsJson]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(it => ({
+          _key:          Math.random().toString(36).slice(2),
+          watch_id:      '',
+          watch_name:    it.watch_name    ?? '',
+          reference:     it.reference     ?? '',
+          serial_number: it.serial_number ?? '',
+          year:          it.year          ?? '',
+          condition:     it.condition     ?? '',
+          set_details:   '',
+          photo_url:     it.photo_url     ?? '',
+          amount_paid:   (it.amount_paid ?? it.amount)?.toString() ?? '',
+          amount:        it.amount?.toString() ?? '',
+        }))
+    }
+    return [emptyItem()]
+  })
 
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
@@ -212,6 +244,19 @@ export default function InvoiceEditorClient({
     setError(null)
     const supabase = createClient()
 
+    const validItems = items.filter(it => it.watch_name.trim())
+    const lineItemsPayload: LineItemJson[] = validItems.map((it, i) => ({
+      watch_name:    it.watch_name.trim(),
+      reference:     it.reference.trim()     || null,
+      serial_number: it.serial_number.trim() || null,
+      year:          it.year.trim()           || null,
+      condition:     it.condition             || null,
+      photo_url:     it.photo_url.trim()      || null,
+      amount:        num(it.amount),
+      amount_paid:   it.amount_paid.trim() ? num(it.amount_paid) : null,
+      sort_order:    i,
+    }))
+
     const { error: invErr } = await supabase
       .from('invoices')
       .update({
@@ -232,14 +277,14 @@ export default function InvoiceEditorClient({
         notes:                form.notes.trim()                 || null,
         terms_and_conditions: form.terms_and_conditions.trim() || null,
         field_visibility:     fieldVisibility,
+        line_items:           lineItemsPayload,
       })
       .eq('id', invoice.id)
 
     if (invErr) { setError(invErr.message); setSaving(false); return }
 
+    // Also keep invoice_items table in sync for backward compatibility
     await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
-
-    const validItems = items.filter(it => it.watch_name.trim())
     if (validItems.length > 0) {
       await supabase.from('invoice_items').insert(
         validItems.map((it, i) => ({
@@ -314,7 +359,7 @@ export default function InvoiceEditorClient({
               </Link>
               <button
                 type="button"
-                onClick={() => window.open(`/dashboard/invoices/${invoice.id}/print?download=1`, '_blank')}
+                onClick={() => window.open(`/dashboard/invoices/${invoice.id}/print?auto=1`, '_blank')}
                 className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
