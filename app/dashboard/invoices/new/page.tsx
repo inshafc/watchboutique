@@ -71,7 +71,31 @@ export default async function NewInvoicePage({
     .like('invoice_number', `${prefix}%`)
   const invoice_number = `${prefix}${String((count ?? 0) + 1).padStart(4, '0')}`
 
-  // Create the invoice record
+  // Build line items from the watch + deal data
+  const w          = deal?.watches ?? null
+  const salePrice  = deal?.sale_price ?? 0
+  const watchYear  = w?.date_on_card
+    ? String(new Date(w.date_on_card).getFullYear())
+    : null
+
+  const lineItemsArray = w?.watch_name
+    ? [{
+        watch_id:      deal?.watch_id      ?? null,
+        watch_name:    w.watch_name,
+        reference:     w.reference         ?? null,
+        serial_number: w.serial_number     ?? null,
+        year:          watchYear,
+        condition:     w.condition         ?? null,
+        set_details:   w.set_details       ?? null,
+        photo_url:     w.photos?.[0]       ?? null,
+        quantity:      1,
+        amount:        salePrice,
+        amount_paid:   salePrice,
+        sort_order:    0,
+      }]
+    : []
+
+  // Create the invoice record with line_items, total, and subtotal
   const { data: inv, error } = await supabase
     .from('invoices')
     .insert({
@@ -79,12 +103,15 @@ export default async function NewInvoicePage({
       deal_id:        dealId,
       type:           dealId ? 'sale' : 'general',
       status:         'draft',
-      currency:       deal?.currency        ?? 'LKR',
-      sales_manager:  deal?.sales_manager   ?? null,
-      payment_method: deal?.payment_method  ?? null,
-      client_name:    deal?.clients?.name   ?? null,
-      client_phone:   deal?.clients?.phone  ?? null,
+      currency:       deal?.currency         ?? 'LKR',
+      sales_manager:  deal?.sales_manager    ?? null,
+      payment_method: deal?.payment_method   ?? null,
+      client_name:    deal?.clients?.name    ?? null,
+      client_phone:   deal?.clients?.phone   ?? null,
       client_address: deal?.clients?.address ?? null,
+      line_items:     lineItemsArray,
+      subtotal:       salePrice,
+      total:          salePrice,
     })
     .select('id')
     .single()
@@ -95,38 +122,30 @@ export default async function NewInvoicePage({
         <div className="text-center">
           <p className="text-sm font-semibold text-red-500 mb-1">Failed to create invoice</p>
           <p className="text-xs text-gray-400">
-            {error?.message ?? 'Unknown error — check that sprint10.sql has been run in Supabase'}
+            {error?.message ?? 'Unknown error — check that the invoices table has line_items, total, and subtotal columns'}
           </p>
         </div>
       </div>
     )
   }
 
-  // Add watch as line item, populated with all available fields
-  if (deal?.watches?.watch_name) {
-    const w = deal.watches
-
-    // Extract year from date_on_card (stored as a date string)
-    const watchYear = w.date_on_card
-      ? String(new Date(w.date_on_card).getFullYear())
-      : null
-
+  // Also write to invoice_items table for backward compatibility
+  if (lineItemsArray.length > 0 && w) {
     const { error: itemError } = await supabase.from('invoice_items').insert({
       invoice_id:    inv.id,
-      watch_id:      deal.watch_id          ?? null,
+      watch_id:      deal?.watch_id    ?? null,
       watch_name:    w.watch_name,
-      reference:     w.reference            ?? null,
-      serial_number: w.serial_number        ?? null,
+      reference:     w.reference       ?? null,
+      serial_number: w.serial_number   ?? null,
       year:          watchYear,
-      condition:     w.condition            ?? null,
-      photo_url:     w.photos?.[0]          ?? null,
-      amount:        deal.sale_price        ?? null,
+      condition:     w.condition       ?? null,
+      photo_url:     w.photos?.[0]     ?? null,
+      amount:        deal?.sale_price  ?? null,
+      sort_order:    0,
     })
 
     if (itemError) {
-      // Line item failed — the invoice still exists so we continue.
-      // Most likely cause: invoice_items table not yet created (run sprint10.sql).
-      console.error('[invoice/new] line item insert failed:', itemError.message)
+      console.error('[invoice/new] invoice_items insert failed:', itemError.message)
     }
   }
 
