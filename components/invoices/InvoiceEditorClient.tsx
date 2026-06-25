@@ -38,6 +38,7 @@ interface WatchForInvoice {
   condition:     string | null
   set_details:   string | null
   photos:        string[] | null
+  selling_price: number | null
 }
 
 interface LineItem {
@@ -185,7 +186,8 @@ export default function InvoiceEditorClient({
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [saved,        setSaved]        = useState(false)
-  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
+  const [uploadingIdx,   setUploadingIdx]   = useState<number | null>(null)
+  const [photoDialogIdx, setPhotoDialogIdx] = useState<number | null>(null)
 
   async function handlePhotoReplace(itemKey: string, idx: number, file: File) {
     setUploadingIdx(idx)
@@ -232,6 +234,7 @@ export default function InvoiceEditorClient({
       condition:     w.condition     ?? '',
       set_details:   w.set_details   ?? '',
       photo_url:     w.photos?.[0]   ?? '',
+      amount:        w.selling_price != null ? String(w.selling_price) : it.amount,
     } : it))
   }
 
@@ -540,7 +543,7 @@ export default function InvoiceEditorClient({
                         onChange={e => selectWatch(idx, e.target.value)}
                         className={inp}
                       >
-                        <option value="">— Pick from inventory —</option>
+                        <option value="">Select watch…</option>
                         {watches.map(w => (
                           <option key={w.id} value={w.id}>
                             {w.watch_name}{w.reference ? ` · ${w.reference}` : ''}
@@ -552,37 +555,33 @@ export default function InvoiceEditorClient({
 
                   {/* Photo thumbnail */}
                   <div className="flex items-center gap-3">
-                    {item.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
-                        <svg className="w-5 h-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
-                        </svg>
-                      </div>
-                    )}
-                    <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        id={`photo-upload-${item._key}`}
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0]
-                          if (file) handlePhotoReplace(item._key, idx, file)
-                          e.target.value = ''
-                        }}
-                      />
-                      <button
-                        type="button"
-                        disabled={uploadingIdx === idx}
-                        onClick={() => document.getElementById(`photo-upload-${item._key}`)?.click()}
-                        className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
-                      >
-                        {uploadingIdx === idx ? 'Uploading…' : 'Replace'}
-                      </button>
+                    <div className="relative w-12 h-12 shrink-0">
+                      {item.photo_url ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100" />
+                          <button
+                            type="button"
+                            onClick={() => updateItem(idx, 'photo_url', '')}
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
+                            title="Remove photo"
+                          >×</button>
+                        </>
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
+                      )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoDialogIdx(idx)}
+                      className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors"
+                    >
+                      Replace
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -793,6 +792,78 @@ export default function InvoiceEditorClient({
           </div>
         </div>
       </div>
+
+      {/* ── PHOTO DIALOG ─────────────────────────────────── */}
+      {photoDialogIdx !== null && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setPhotoDialogIdx(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-semibold text-gray-900">Choose Photo</h3>
+              <button type="button" onClick={() => setPhotoDialogIdx(null)} className="text-gray-400 hover:text-gray-700 transition-colors">
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+              </button>
+            </div>
+
+            {/* Section 1: Watch Photos */}
+            {(watches.find(w => w.id === items[photoDialogIdx].watch_id)?.photos ?? []).length > 0 && (
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Watch Photos</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {(watches.find(w => w.id === items[photoDialogIdx].watch_id)?.photos ?? []).map((url, pi) => (
+                    <button
+                      key={pi}
+                      type="button"
+                      onClick={() => { updateItem(photoDialogIdx, 'photo_url', url); setPhotoDialogIdx(null) }}
+                      className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-gray-900 transition-all"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section 2: Upload New */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Upload New</p>
+              <label className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-gray-400 transition-colors">
+                <span className="text-xs text-gray-400 pointer-events-none">
+                  {uploadingIdx === photoDialogIdx ? 'Uploading…' : 'Click or drag to upload'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    const capturedIdx = photoDialogIdx
+                    if (file && capturedIdx !== null) {
+                      await handlePhotoReplace(items[capturedIdx]._key, capturedIdx, file)
+                      setPhotoDialogIdx(null)
+                    }
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPhotoDialogIdx(null)}
+              className="w-full text-sm text-gray-500 hover:text-gray-900 py-2 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -403,13 +403,10 @@ export default function InvoicePrintLayout({
         </div>
 
         {/* ── NOTES ───────────────────────────────────────────────── */}
-        {fv.notes && (
+        {fv.notes && notes?.trim() && (
           <div style={{ padding: '16px 48px 0' }}>
             <p style={labelStyle}>Notes</p>
-            {notes
-              ? <p style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{notes}</p>
-              : <div style={{ height: '1px', background: '#d1d5db', width: '240px' }} />
-            }
+            <p style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{notes}</p>
           </div>
         )}
 

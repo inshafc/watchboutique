@@ -36,7 +36,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .order('name'),
     supabase
       .from('watches')
-      .select('id, watch_name, reference, serial_number, date_on_card, condition, set_details, photos')
+      .select('id, watch_name, reference, serial_number, date_on_card, condition, set_details, photos, selling_price')
       .is('deleted_at', null)
       .order('watch_name'),
   ])
@@ -75,6 +75,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
     condition:     string | null
     set_details:   string | null
     photos:        string[] | null
+    selling_price: number | null
   }[]
 
   return (

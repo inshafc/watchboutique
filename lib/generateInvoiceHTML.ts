@@ -297,12 +297,10 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   </div>
 
   <!-- NOTES -->
-  ${fv.notes ? `
+  ${fv.notes && p.notes?.trim() ? `
   <div style="margin-top:20px;">
     <div style="${F}font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Notes</div>
-    ${p.notes
-      ? `<div style="${F}font-size:12px;color:#6b7280;line-height:1.6;white-space:pre-wrap;">${esc(p.notes)}</div>`
-      : `<div style="height:1px;background:#e5e7eb;width:200px;"></div>`}
+    <div style="${F}font-size:12px;color:#6b7280;line-height:1.6;white-space:pre-wrap;">${esc(p.notes)}</div>
   </div>` : ''}
 
   <!-- TERMS & CONDITIONS -->
