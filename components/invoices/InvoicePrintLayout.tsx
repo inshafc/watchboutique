@@ -126,7 +126,8 @@ export default function InvoicePrintLayout({
     ...Array(Math.max(0, MIN_ROWS - items.length)).fill(null),
   ]
 
-  const hasAmountPaid = items.some(it => it.amount_paid != null)
+  const hasAmountPaid   = items.some(it => it.amount_paid != null)
+  const totalAmountPaid = items.reduce((s, it) => s + (it.amount_paid ?? 0), 0)
 
   const poppins = "'Poppins', sans-serif"
 
@@ -206,7 +207,7 @@ export default function InvoicePrintLayout({
           <div>
             <p style={labelStyle}>Billing Details</p>
             {clientName
-              ? <p style={{ fontFamily: poppins, fontSize: '16px', fontWeight: 700, color: '#111111', marginBottom: '4px' }}>{clientName}</p>
+              ? <p style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#111111', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{clientName}</p>
               : <p style={{ fontFamily: poppins, fontSize: '14px', fontWeight: 400, color: '#d1d5db', marginBottom: '4px' }}>—</p>
             }
             {fv.phone   && clientPhone   && <p style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280', marginTop: '2px' }}>{clientPhone}</p>}
@@ -322,25 +323,13 @@ export default function InvoicePrintLayout({
         {/* ── AMOUNT PAID ─────────────────────────────────────────── */}
         {hasAmountPaid && (
           <div style={{ padding: '10px 48px 0' }}>
-            <div style={{ border: '1px solid #f3f4f6', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ background: '#f9fafb', padding: '8px 16px' }}>
-                <span style={{ fontFamily: poppins, fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                  Amount Paid
-                </span>
-              </div>
-              {items.filter(it => it.amount_paid != null).map((item, i) => (
-                <div
-                  key={i}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', borderTop: i === 0 ? undefined : '1px solid #f3f4f6' }}
-                >
-                  <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
-                    {item.watch_name || '—'}
-                  </span>
-                  <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 600, color: '#111111', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmt(item.amount_paid, currency)}
-                  </span>
-                </div>
-              ))}
+            <div style={{ border: '1px solid #f3f4f6', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
+              <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Amount Paid
+              </span>
+              <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#111111', fontVariantNumeric: 'tabular-nums' }}>
+                {fmt(totalAmountPaid, currency)}
+              </span>
             </div>
           </div>
         )}
