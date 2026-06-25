@@ -294,7 +294,7 @@ export default function InvoicePrintLayout({
                         </div>
                       )}
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                           {item.watch_name || '—'}
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '3px' }}>
