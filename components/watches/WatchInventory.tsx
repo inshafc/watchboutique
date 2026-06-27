@@ -41,7 +41,7 @@ function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 1
 
 type SortOption      = 'last_added' | 'sell_desc' | 'sell_asc' | 'buy_desc' | 'name_asc' | 'name_desc'
 type ConditionFilter = 'All' | 'Brand New' | 'Pre-Owned'
-type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts'
+type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced'
 type ViewMode        = 'list' | 'tile'
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -235,11 +235,16 @@ export default function WatchInventory({
   const processed = useMemo(() => {
     let list = [...watches]
 
-    // Draft/non-draft separation — All tab shows everything; specific tabs exclude drafts
-    if (statusFilter === 'Drafts') {
-      list = list.filter(w => w.is_draft)
-    } else if (statusFilter !== 'All') {
-      list = list.filter(w => !w.is_draft)
+    // Sourced watches live in a separate bucket — exclude from all tabs except 'Sourced'
+    if (statusFilter === 'Sourced') {
+      list = list.filter(w => w.watch_status === 'sourced')
+    } else if (statusFilter === 'Drafts') {
+      list = list.filter(w => w.is_draft && w.watch_status !== 'sourced')
+    } else {
+      list = list.filter(w => w.watch_status !== 'sourced')
+      if (statusFilter !== 'All') {
+        list = list.filter(w => !w.is_draft)
+      }
     }
 
     if (search.trim()) {
@@ -253,7 +258,7 @@ export default function WatchInventory({
     }
 
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (statusFilter !== 'All' && statusFilter !== 'Deleted' && statusFilter !== 'Drafts') {
+    if (statusFilter !== 'All' && statusFilter !== 'Deleted' && statusFilter !== 'Drafts' && statusFilter !== 'Sourced') {
       list = list.filter(w => w.status === statusFilter)
     }
 
@@ -280,12 +285,14 @@ export default function WatchInventory({
 
   function countByStatus(f: StatusFilter) {
     if (f === 'Deleted') return deletedWatches?.length ?? 0
+    if (f === 'Sourced') return watches.filter(w => w.watch_status === 'sourced').length
     if (f === 'Drafts') {
-      let list = watches.filter(w => w.is_draft)
+      let list = watches.filter(w => w.is_draft && w.watch_status !== 'sourced')
       if (brandId) list = list.filter(w => w.brand_id === brandId)
       return list.length
     }
-    let list = f === 'All' ? [...watches] : watches.filter(w => !w.is_draft)
+    let list = watches.filter(w => w.watch_status !== 'sourced')
+    list = f === 'All' ? list : list.filter(w => !w.is_draft)
     if (brandId) list = list.filter(w => w.brand_id === brandId)
     if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
     if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
@@ -293,7 +300,7 @@ export default function WatchInventory({
   }
 
   const totalSellingValue = useMemo(
-    () => watches.filter(w => !w.is_draft).reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
+    () => watches.filter(w => !w.is_draft && w.watch_status !== 'sourced').reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
     [watches]
   )
 
@@ -704,6 +711,7 @@ export default function WatchInventory({
   const someProcessedSelected = selectedIds.size > 0 && selectedIds.size < processed.length
   const showingDeleted        = statusFilter === 'Deleted'
   const showingDrafts         = statusFilter === 'Drafts'
+  const showingSourced        = statusFilter === 'Sourced'
 
   return (
     <div className="p-4 md:p-8">
@@ -791,7 +799,7 @@ export default function WatchInventory({
             </button>
           )}
 
-          {!bulkMode && !showingDeleted && !showingDrafts && (
+          {!bulkMode && !showingDeleted && !showingDrafts && !showingSourced && (
             <Link href="/dashboard/watches/new" className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-black transition-colors">
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
               Add Watch
@@ -882,7 +890,7 @@ export default function WatchInventory({
       {!bulkMode && (
         <div className="flex items-center justify-between mb-5 gap-4">
           <div className="flex items-center gap-1 overflow-x-auto pb-px">
-            {(['All', ...WATCH_STATUSES, 'Drafts', 'Deleted'] as StatusFilter[]).map(f => (
+            {(['All', ...WATCH_STATUSES, 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => (
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
@@ -892,11 +900,15 @@ export default function WatchInventory({
                       ? 'bg-red-50 text-red-600 font-medium'
                       : f === 'Drafts'
                       ? 'bg-amber-50 text-amber-700 font-medium'
+                      : f === 'Sourced'
+                      ? 'bg-indigo-50 text-indigo-700 font-medium'
                       : 'bg-gray-900 text-white font-medium'
                     : f === 'Deleted'
                     ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
                     : f === 'Drafts'
                     ? 'text-gray-400 hover:text-amber-700 hover:bg-amber-50'
+                    : f === 'Sourced'
+                    ? 'text-gray-400 hover:text-indigo-700 hover:bg-indigo-50'
                     : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                 }`}
               >
@@ -904,7 +916,10 @@ export default function WatchInventory({
                 {(f !== 'Deleted' || deletedWatches !== null) && (
                   <span className={`text-xs tabular-nums ${
                     statusFilter === f
-                      ? f === 'Deleted' ? 'text-red-400' : f === 'Drafts' ? 'text-amber-500' : 'text-gray-300'
+                      ? f === 'Deleted' ? 'text-red-400'
+                        : f === 'Drafts' ? 'text-amber-500'
+                        : f === 'Sourced' ? 'text-indigo-500'
+                        : 'text-gray-300'
                       : 'text-gray-400'
                   }`}>
                     {countByStatus(f)}

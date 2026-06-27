@@ -52,6 +52,20 @@ export default function WatchDetailActions({
     router.refresh()
   }
 
+  async function handleMarkArrived() {
+    setBusy(true)
+    const supabase = createClient()
+    await supabase.from('watches').update({
+      watch_status: 'Available',
+      status:       'Available',
+      is_draft:     false,
+    }).eq('id', watchId)
+    setBusy(false)
+    setToast('Watch is now available in inventory')
+    setTimeout(() => setToast(null), 4000)
+    router.refresh()
+  }
+
   async function handleMarkAvailable() {
     setBusy(true)
     const supabase = createClient()
@@ -147,6 +161,15 @@ export default function WatchDetailActions({
       )}
 
       <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {watchStatus === 'sourced' && (
+          <button
+            onClick={handleMarkArrived}
+            disabled={busy}
+            className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          >
+            <CheckIcon /> Mark as Arrived
+          </button>
+        )}
         {watchStatus === 'Sold' && (
           <button
             onClick={handleMarkAvailable}

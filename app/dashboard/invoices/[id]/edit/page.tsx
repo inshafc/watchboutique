@@ -19,7 +19,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
 
   const inv = invData as Invoice
 
-  const [itemsRes, banksRes, smRes, watchesRes] = await Promise.all([
+  const [itemsRes, banksRes, smRes, watchesRes, clientsRes] = await Promise.all([
     supabase
       .from('invoice_items')
       .select('*')
@@ -39,6 +39,11 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .select('id, watch_name, reference, serial_number, date_on_card, condition, set_details, photos, selling_price')
       .is('deleted_at', null)
       .order('watch_name'),
+    supabase
+      .from('clients')
+      .select('id, name, phone, address, club_twb, avatar_color')
+      .is('deleted_at', null)
+      .order('name'),
   ])
 
   let linkedBank: InvoiceWithItems['saved_banks'] = null
@@ -64,9 +69,12 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
     amount: number | null; amount_paid?: number | null; sort_order: number;
   }> | null
 
-  const banks         = (banksRes.data   ?? []) as SavedBank[]
-  const salesManagers = (smRes.data      ?? []) as SalesManager[]
-  const watches       = (watchesRes.data ?? []) as {
+  const banks         = (banksRes.data    ?? []) as SavedBank[]
+  const salesManagers = (smRes.data       ?? []) as SalesManager[]
+  const clients       = (clientsRes.data  ?? []) as {
+    id: string; name: string; phone: string | null; address: string | null; club_twb: boolean; avatar_color: string | null
+  }[]
+  const watches       = (watchesRes.data  ?? []) as {
     id:            string
     watch_name:    string
     reference:     string | null
@@ -84,6 +92,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       banks={banks}
       salesManagers={salesManagers}
       watches={watches}
+      clients={clients}
       lineItemsJson={lineItemsJson}
     />
   )

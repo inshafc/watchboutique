@@ -156,7 +156,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Record Sale */}
-      {watch.watch_status !== 'Sold' && (
+      {watch.watch_status !== 'Sold' && watch.watch_status !== 'sourced' && (
         <Link
           href={`/dashboard/deals/new?watch_id=${watch.id}`}
           className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white text-sm font-semibold px-4 py-3 rounded-xl hover:bg-black transition-colors mb-4"

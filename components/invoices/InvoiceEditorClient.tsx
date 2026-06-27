@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { generateInvoiceHTML } from '@/lib/generateInvoiceHTML'
+import { avatarColor, getInitials } from '@/lib/client-utils'
 // invoice-photos bucket must exist in Supabase storage with public access
 import InvoicePrintLayout from './InvoicePrintLayout'
 import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
@@ -41,6 +42,15 @@ interface WatchForInvoice {
   set_details:   string | null
   photos:        string[] | null
   selling_price: number | null
+}
+
+interface ClientForInvoice {
+  id:           string
+  name:         string
+  phone:        string | null
+  address:      string | null
+  club_twb:     boolean
+  avatar_color: string | null
 }
 
 interface LineItem {
@@ -106,12 +116,14 @@ export default function InvoiceEditorClient({
   banks = [],
   watches = [],
   lineItemsJson = null,
+  clients = [],
 }: {
   invoice:         InvoiceWithItems
   salesManagers?:  SalesManager[]
   banks?:          SavedBank[]
   watches?:        WatchForInvoice[]
   lineItemsJson?:  LineItemJson[] | null
+  clients?:        ClientForInvoice[]
 }) {
   const [savedOnce, setSavedOnce] = useState(
     invoice.invoice_items.length > 0 || invoice.status !== 'draft'
@@ -134,6 +146,7 @@ export default function InvoiceEditorClient({
     currency:             (invoice.currency ?? 'LKR') as typeof CURRENCIES[number],
     exchange_rate:        invoice.exchange_rate?.toString() ?? '',
     type:                 invoice.type                   as InvoiceType,
+    client_id:            invoice.client_id              ?? '',
     client_name:          invoice.client_name            ?? '',
     client_address:       invoice.client_address         ?? '',
     client_phone:         invoice.client_phone           ?? '',
@@ -194,7 +207,17 @@ export default function InvoiceEditorClient({
   const [loadingPhotos,     setLoadingPhotos]     = useState(false)
   const [sourcingPromptOpen, setSourcingPromptOpen] = useState(false)
   const [sourcingAdding,     setSourcingAdding]     = useState(false)
+  const [sourcingToast,      setSourcingToast]      = useState(false)
   const sourcingPromptedRef = useRef(false)
+
+  // Client dropdown
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
+  const [clientSearch,       setClientSearch]       = useState('')
+  const [extraClients,       setExtraClients]       = useState<ClientForInvoice[]>([])
+  const [newClientOpen,      setNewClientOpen]      = useState(false)
+  const [newClientForm,      setNewClientForm]      = useState({ name: '', phone: '', address: '' })
+  const [newClientSaving,    setNewClientSaving]    = useState(false)
+  const clientDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (photoDialogIdx === null) { setDialogWatchPhotos([]); return }
@@ -265,6 +288,59 @@ export default function InvoiceEditorClient({
   const selectedBank   = banks.find(b => b.id === form.bank_id) ?? null
   const showBankPicker = form.payment_method === 'Bank Transfer' || form.payment_method === 'Cash + Bank'
 
+  const allClients = useMemo(() => [...extraClients, ...clients], [clients, extraClients])
+  const selectedClient = allClients.find(c => c.id === form.client_id) ?? null
+
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.toLowerCase()
+    if (!q) return allClients
+    return allClients.filter(c =>
+      c.name.toLowerCase().includes(q) || (c.phone ?? '').includes(q)
+    )
+  }, [allClients, clientSearch])
+
+  function selectClient(c: ClientForInvoice | null) {
+    setForm(prev => ({
+      ...prev,
+      client_id:      c?.id      ?? '',
+      client_name:    c?.name    ?? '',
+      client_phone:   c?.phone   ?? '',
+      client_address: c?.address ?? '',
+    }))
+    setClientDropdownOpen(false)
+    setClientSearch('')
+  }
+
+  useEffect(() => {
+    if (!clientDropdownOpen) return
+    function onMouseDown(e: MouseEvent) {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setClientDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [clientDropdownOpen])
+
+  async function handleCreateNewClient() {
+    if (!newClientForm.name.trim()) return
+    setNewClientSaving(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('clients')
+      .insert({ name: newClientForm.name.trim(), phone: newClientForm.phone.trim() || null, address: newClientForm.address.trim() || null })
+      .select('id, name, phone, address, club_twb, avatar_color')
+      .single()
+    if (data) {
+      const newC = data as ClientForInvoice
+      setExtraClients(prev => [newC, ...prev])
+      selectClient(newC)
+    }
+    setNewClientSaving(false)
+    setNewClientOpen(false)
+    setNewClientForm({ name: '', phone: '', address: '' })
+  }
+
   const num = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
 
   const handleSave = useCallback(async () => {
@@ -308,6 +384,7 @@ export default function InvoiceEditorClient({
         terms_and_conditions: form.terms_and_conditions.trim() || null,
         field_visibility:     fieldVisibility,
         line_items:           lineItemsPayload,
+        client_id:            form.client_id || null,
       })
       .eq('id', invoice.id)
 
@@ -346,18 +423,29 @@ export default function InvoiceEditorClient({
     const supabase = createClient()
     const firstItem = items.find(it => it.watch_name.trim())
     const parseAmt = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
-    await supabase.from('sourced_orders').insert({
-      invoice_id:    invoice.id,
+    const year = firstItem?.year.trim()
+    const dateOnCard = year && /^\d{4}$/.test(year) ? `${year}-01-01` : null
+    const { data: watchData } = await supabase.from('watches').insert({
       watch_name:    firstItem?.watch_name.trim() || 'Unknown',
       reference:     firstItem?.reference.trim()     || null,
       serial_number: firstItem?.serial_number.trim() || null,
-      year:          firstItem?.year.trim()           || null,
-      condition:     firstItem?.condition             || null,
-      set_details:   firstItem?.set_details.trim()   || null,
+      date_on_card:  dateOnCard,
+      condition:     firstItem?.condition            || 'Good',
+      set_details:   'Watch Only',
       purchase_cost: firstItem ? parseAmt(firstItem.amount) : null,
-    })
+      currency:      'LKR',
+      status:        'Available',
+      watch_status:  'sourced',
+      photos:        [],
+      is_draft:      true,
+    }).select('id').single()
+    if (watchData) {
+      await supabase.from('invoices').update({ sourced_watch_id: watchData.id }).eq('id', invoice.id)
+    }
     setSourcingAdding(false)
     setSourcingPromptOpen(false)
+    setSourcingToast(true)
+    setTimeout(() => setSourcingToast(false), 4000)
   }, [invoice.id, items])
 
   const previewItems = items.map(it => ({
@@ -520,6 +608,83 @@ export default function InvoiceEditorClient({
           <div className={card}>
             <p className={cardHead + ' mb-4'}>Billing Details</p>
             <div className="space-y-3">
+              {/* Client selector */}
+              <div ref={clientDropdownRef} className="relative">
+                <label className={lbl}>Client</label>
+                <button
+                  type="button"
+                  onClick={() => setClientDropdownOpen(o => !o)}
+                  className="w-full flex items-center gap-2.5 bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-left hover:border-gray-400 transition-colors"
+                >
+                  {selectedClient ? (
+                    <>
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${avatarColor(selectedClient.name, selectedClient.avatar_color)}`}>
+                        {getInitials(selectedClient.name)}
+                      </div>
+                      <span className="flex-1 font-medium text-gray-900 truncate">{selectedClient.name}</span>
+                      {selectedClient.club_twb && (
+                        <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">Club TWB</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="flex-1 text-gray-400">Select a client…</span>
+                  )}
+                  <svg className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {clientDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden">
+                    <div className="p-2 border-b border-gray-100">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={clientSearch}
+                        onChange={e => setClientSearch(e.target.value)}
+                        placeholder="Search clients…"
+                        className="w-full text-sm px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                      />
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                      {filteredClients.length === 0 && (
+                        <p className="text-sm text-gray-400 px-3 py-2.5">No clients found</p>
+                      )}
+                      {filteredClients.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectClient(c)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                            {getInitials(c.name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
+                              {c.club_twb && <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5 shrink-0">Club TWB</span>}
+                            </div>
+                            {c.phone && <p className="text-xs text-gray-400 truncate">{c.phone}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => { setClientDropdownOpen(false); setNewClientOpen(true) }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M8 3v10M3 8h10" strokeLinecap="round"/>
+                        </svg>
+                        New client
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className={lbl}>Client Name</label>
                 {form.type === 'sale' ? (
@@ -988,6 +1153,77 @@ export default function InvoiceEditorClient({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {/* New Client Modal */}
+      {newClientOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !newClientSaving && setNewClientOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 className="text-base font-bold text-gray-900 mb-4">New Client</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Name *</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newClientForm.name}
+                  onChange={e => setNewClientForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Full name"
+                  className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
+                <input
+                  type="tel"
+                  value={newClientForm.phone}
+                  onChange={e => setNewClientForm(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="Phone number"
+                  className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
+                <input
+                  type="text"
+                  value={newClientForm.address}
+                  onChange={e => setNewClientForm(p => ({ ...p, address: e.target.value }))}
+                  placeholder="Address"
+                  className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setNewClientOpen(false)}
+                disabled={newClientSaving}
+                className="flex-1 py-2.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateNewClient}
+                disabled={newClientSaving || !newClientForm.name.trim()}
+                className="flex-1 py-2.5 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+              >
+                {newClientSaving ? 'Saving…' : 'Save Client'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sourcing toast */}
+      {sourcingToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none">
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-sm font-medium">Watch added to sourced inventory</span>
         </div>
       )}
 
