@@ -221,22 +221,23 @@ export interface InvestorRecord {
 }
 
 export interface KPITarget {
-  id:                 string
-  year:               number
-  month:              number
-  gross_profit_value: number | null
-  gross_profit_pct:   number | null
-  net_profit_value:   number | null
-  net_profit_pct:     number | null
-  total_revenue:      number | null
-  club_twb_watches:   number | null
-  club_twb_revenue:   number | null
+  id:                    string
+  year:                  number | null
+  month:                 number | null
+  gross_profit_value:    number | null
+  gross_profit_pct:      number | null
+  net_profit_value:      number | null
+  net_profit_pct:        number | null
+  total_revenue:         number | null
+  club_twb_watches:      number | null
+  club_twb_revenue:      number | null
+  annual_revenue_target: number | null
 }
 
 export interface SalesManagerTarget {
   id:                 string
-  year:               number
-  month:              number
+  year:               number | null
+  month:              number | null
   sales_manager_id:   string
   watch_count_target: number | null
   revenue_target:     number | null
