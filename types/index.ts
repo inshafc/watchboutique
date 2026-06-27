@@ -207,8 +207,39 @@ export interface TradeIn {
 // ── Sales Managers ───────────────────────────────────────────
 
 export interface SalesManager {
-  id:   string
-  name: string
+  id:        string
+  name:      string
+  email:     string | null
+  is_active: boolean
+}
+
+export interface InvestorRecord {
+  id:           string
+  key:          string
+  display_name: string
+  is_default:   boolean
+}
+
+export interface KPITarget {
+  id:                 string
+  year:               number
+  month:              number
+  gross_profit_value: number | null
+  gross_profit_pct:   number | null
+  net_profit_value:   number | null
+  net_profit_pct:     number | null
+  total_revenue:      number | null
+  club_twb_watches:   number | null
+  club_twb_revenue:   number | null
+}
+
+export interface SalesManagerTarget {
+  id:                 string
+  year:               number
+  month:              number
+  sales_manager_id:   string
+  watch_count_target: number | null
+  revenue_target:     number | null
 }
 
 export interface DealWithRelations extends Deal {
