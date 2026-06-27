@@ -124,6 +124,7 @@ export default function DealList({
   const [sort,         setSort]         = useState<SortKey>('recent')
   const [view,         setView]         = useState<'list' | 'tile'>('list')
   const [gridCols,     setGridCols]     = useState<3 | 4 | 5>(3)
+  const [managerFilter, setManagerFilter] = useState<string | null>(null)
   const [showFilters,  setShowFilters]  = useState(false)
   const [selectMode,   setSelectMode]   = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
@@ -131,6 +132,10 @@ export default function DealList({
   // Undo
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+
+  // Inline confirm for permanent delete
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Deleted deals (lazy-loaded)
   const [deletedDeals,   setDeletedDeals]   = useState<DealWithRelations[] | null>(null)
@@ -144,9 +149,10 @@ export default function DealList({
 
   const filtered = deals.filter(d => {
     if (stage !== 'All' && stage !== 'Deleted' && d.stage !== stage) return false
-    if (brandFilter && d.watches?.brands?.id !== brandFilter) return false
-    if (vipFilter   && !d.clients?.is_vip)   return false
-    if (clubFilter  && !d.clients?.club_twb) return false
+    if (brandFilter   && d.watches?.brands?.id !== brandFilter)          return false
+    if (vipFilter     && !d.clients?.is_vip)                              return false
+    if (clubFilter    && !d.clients?.club_twb)                            return false
+    if (managerFilter && d.sales_manager !== managerFilter)               return false
     if (search) {
       const q = search.toLowerCase()
       const watchMatch  = d.watches?.watch_name.toLowerCase().includes(q) || d.watches?.reference?.toLowerCase().includes(q)
@@ -207,7 +213,14 @@ export default function DealList({
   }
 
   async function handlePermanentDeleteDeal(id: string) {
-    if (!confirm('Permanently delete this sale? This cannot be undone.')) return
+    if (confirmDeleteId !== id) {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+      setConfirmDeleteId(id)
+      confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 5000)
+      return
+    }
+    if (confirmTimerRef.current) { clearTimeout(confirmTimerRef.current); confirmTimerRef.current = null }
+    setConfirmDeleteId(null)
     const supabase = createClient()
     await supabase.from('deals').delete().eq('id', id)
     setDeletedDeals(v => v?.filter(d => d.id !== id) ?? null)
@@ -273,7 +286,6 @@ export default function DealList({
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selectedIds.size} sale${selectedIds.size !== 1 ? 's' : ''}?`)) return
     const ids = Array.from(selectedIds)
     const affected = deals.filter(d => ids.includes(d.id))
     const supabase = createClient()
@@ -287,7 +299,7 @@ export default function DealList({
     })
   }
 
-  const filtersActive   = brandFilter !== null || vipFilter || clubFilter
+  const filtersActive   = brandFilter !== null || vipFilter || clubFilter || managerFilter !== null
   const showingDeleted  = stage === 'Deleted'
 
   const gridColsClass = gridCols === 4
@@ -420,11 +432,8 @@ export default function DealList({
             {/* Sales manager filter */}
             {salesManagers.length > 0 && (
               <select
-                onChange={e => {
-                  const v = e.target.value
-                  // handled inline via separate state if needed — for now drive a local filtered approach
-                  void v
-                }}
+                value={managerFilter ?? ''}
+                onChange={e => setManagerFilter(e.target.value || null)}
                 className="bg-white border border-gray-200 text-gray-600 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
               >
                 <option value="">All Managers</option>
@@ -445,7 +454,7 @@ export default function DealList({
             </select>
             {filtersActive && (
               <button
-                onClick={() => { setBrandFilter(null); setVipFilter(false); setClubFilter(false) }}
+                onClick={() => { setBrandFilter(null); setVipFilter(false); setClubFilter(false); setManagerFilter(null) }}
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-400 hover:text-red-500 hover:border-red-200 transition-colors"
               >
                 Clear filters
@@ -528,8 +537,15 @@ export default function DealList({
                           <button onClick={() => handleRestoreDeal(deal.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                             <RestoreIcon /> Restore
                           </button>
-                          <button onClick={() => handlePermanentDeleteDeal(deal.id)} className="px-3 py-1.5 text-xs font-medium text-red-400 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors">
-                            Delete forever
+                          <button
+                            onClick={() => handlePermanentDeleteDeal(deal.id)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                              confirmDeleteId === deal.id
+                                ? 'text-white bg-red-500 border border-red-500'
+                                : 'text-red-400 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200'
+                            }`}
+                          >
+                            {confirmDeleteId === deal.id ? 'Confirm delete?' : 'Delete forever'}
                           </button>
                         </div>
                       </td>

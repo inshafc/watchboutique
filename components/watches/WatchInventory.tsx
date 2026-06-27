@@ -156,6 +156,10 @@ export default function WatchInventory({
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [undoState,   setUndoState]   = useState<{ message: string; restore: () => Promise<void> } | null>(null)
 
+  // Inline confirm for permanent delete
+  const [confirmDeleteId,  setConfirmDeleteId]  = useState<string | null>(null)
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Deleted watches (lazy-loaded when Deleted tab is opened)
   const [deletedWatches, setDeletedWatches] = useState<WatchWithBrand[] | null>(null)
   const [loadingDeleted, setLoadingDeleted] = useState(false)
@@ -380,7 +384,14 @@ export default function WatchInventory({
   }
 
   async function handlePermanentDelete(watchId: string) {
-    if (!confirm('Permanently delete this watch? This cannot be undone.')) return
+    if (confirmDeleteId !== watchId) {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+      setConfirmDeleteId(watchId)
+      confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 5000)
+      return
+    }
+    if (confirmTimerRef.current) { clearTimeout(confirmTimerRef.current); confirmTimerRef.current = null }
+    setConfirmDeleteId(null)
     const supabase = createClient()
     await supabase.from('watches').delete().eq('id', watchId)
     setDeletedWatches(v => v?.filter(w => w.id !== watchId) ?? null)
@@ -535,7 +546,6 @@ export default function WatchInventory({
       return
     }
 
-    console.log('[bulkMarkAvailable] checking', soldWatches.length, 'sold watches for linked deals')
     const watchesWithDeals: Array<{ watchId: string; watchName: string; dealId: string }> = []
     const soldWithoutDeal: typeof soldWatches = []
 
@@ -547,7 +557,6 @@ export default function WatchInventory({
         .is('deleted_at', null)
         .limit(1)
         .maybeSingle()
-      console.log('[bulkMarkAvailable]', w.watch_name, '→ deal:', data)
       if (data) {
         watchesWithDeals.push({ watchId: w.id, watchName: w.watch_name, dealId: data.id })
       } else {
@@ -1008,9 +1017,13 @@ export default function WatchInventory({
                             </button>
                             <button
                               onClick={() => handlePermanentDelete(w.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-red-400 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors"
+                              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                confirmDeleteId === w.id
+                                  ? 'text-white bg-red-500 border border-red-500'
+                                  : 'text-red-400 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200'
+                              }`}
                             >
-                              Delete forever
+                              {confirmDeleteId === w.id ? 'Confirm delete?' : 'Delete forever'}
                             </button>
                           </div>
                         </td>

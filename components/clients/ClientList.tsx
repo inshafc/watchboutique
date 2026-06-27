@@ -151,6 +151,10 @@ export default function ClientList({
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
 
+  // Inline confirm for permanent delete
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Deleted clients (lazy-loaded)
   const [deletedClients, setDeletedClients] = useState<Client[] | null>(null)
   const [loadingDeleted, setLoadingDeleted] = useState(false)
@@ -269,7 +273,14 @@ export default function ClientList({
   }
 
   async function handlePermanentDeleteClient(id: string) {
-    if (!confirm('Permanently delete this client? This cannot be undone.')) return
+    if (confirmDeleteId !== id) {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+      setConfirmDeleteId(id)
+      confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 5000)
+      return
+    }
+    if (confirmTimerRef.current) { clearTimeout(confirmTimerRef.current); confirmTimerRef.current = null }
+    setConfirmDeleteId(null)
     const db = supabase()
     await db.from('clients').delete().eq('id', id)
     setDeletedClients(v => v?.filter(c => c.id !== id) ?? null)
@@ -308,7 +319,6 @@ export default function ClientList({
   // ── Bulk actions ─────────────────────────────────────────
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selectedIds.size} client${selectedIds.size !== 1 ? 's' : ''}?`)) return
     const ids = Array.from(selectedIds)
     const affected = clients.filter(c => ids.includes(c.id))
     const db = supabase()
@@ -537,8 +547,15 @@ export default function ClientList({
                           <button onClick={() => handleRestoreClient(c.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                             <RestoreIcon /> Restore
                           </button>
-                          <button onClick={() => handlePermanentDeleteClient(c.id)} className="px-3 py-1.5 text-xs font-medium text-red-400 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors">
-                            Delete forever
+                          <button
+                            onClick={() => handlePermanentDeleteClient(c.id)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                              confirmDeleteId === c.id
+                                ? 'text-white bg-red-500 border border-red-500'
+                                : 'text-red-400 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200'
+                            }`}
+                          >
+                            {confirmDeleteId === c.id ? 'Confirm delete?' : 'Delete forever'}
                           </button>
                         </div>
                       </td>

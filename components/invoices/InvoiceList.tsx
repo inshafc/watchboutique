@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { InvoiceWithItems, InvoiceStatus, InvoiceType } from '@/types'
@@ -46,7 +46,8 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
   const [tab, setTab]           = useState<Tab>('all')
   const [typeFilter, setTypeFilter] = useState<InvoiceType | ''>('')
   const [search, setSearch]     = useState('')
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
 
   const counts = useMemo(() => {
     const all     = invoices.filter(i => !i.deleted_at).length
@@ -82,13 +83,30 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
     return list
   }, [invoices, tab, typeFilter, search])
 
+  function showUndo(message: string, restore: () => Promise<void>) {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    setUndoState({ message, restore })
+    undoTimerRef.current = setTimeout(() => { setUndoState(null); undoTimerRef.current = null }, 6000)
+  }
+
+  async function handleUndo() {
+    if (!undoState) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    undoTimerRef.current = null
+    const restore = undoState.restore
+    setUndoState(null)
+    await restore()
+  }
+
   async function handleDelete(inv: InvoiceWithItems) {
-    if (!confirm(`Delete invoice ${inv.invoice_number}?`)) return
-    setDeleting(inv.id)
+    const deletedAt = new Date().toISOString()
     const supabase = createClient()
-    await supabase.from('invoices').update({ deleted_at: new Date().toISOString() }).eq('id', inv.id)
-    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: new Date().toISOString() } : i))
-    setDeleting(null)
+    await supabase.from('invoices').update({ deleted_at: deletedAt }).eq('id', inv.id)
+    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: deletedAt } : i))
+    showUndo(`Invoice ${inv.invoice_number} deleted`, async () => {
+      await createClient().from('invoices').update({ deleted_at: null }).eq('id', inv.id)
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: null } : i))
+    })
   }
 
   async function handleRestore(inv: InvoiceWithItems) {
@@ -266,8 +284,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                         ) : (
                           <button
                             onClick={() => handleDelete(inv)}
-                            disabled={deleting === inv.id}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete"
                           >
                             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
@@ -285,6 +302,21 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
           </table>
         )}
       </div>
+
+      {/* Undo toast */}
+      {undoState && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+          <span className="text-sm">{undoState.message}</span>
+          <button onClick={handleUndo} className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors">Undo</button>
+          <button
+            onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); undoTimerRef.current = null; setUndoState(null) }}
+            className="text-white/40 hover:text-white/80 transition-colors ml-1"
+            aria-label="Dismiss"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

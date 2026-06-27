@@ -77,7 +77,6 @@ export default async function InvoicePrintPage({
 
   // Primary source: line_items JSONB on the invoice row
   const rawLineItems = (invData as Record<string, unknown>).line_items
-  console.log('[InvoicePrint] line_items from DB:', rawLineItems)
   const lineItemsJson = rawLineItems as LineItemJson[] | null
 
   const [itemsRes, logoRes] = await Promise.all([
