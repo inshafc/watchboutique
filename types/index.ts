@@ -1,12 +1,4 @@
-export type UserRole = 'admin' | 'staff'
-
-export interface Profile {
-  id: string
-  email: string
-  full_name: string
-  role: UserRole
-  created_at: string
-}
+export type { UserRole, Profile } from '@/lib/auth'
 
 // ── Brands ───────────────────────────────────────────────────
 

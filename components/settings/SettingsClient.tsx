@@ -19,7 +19,7 @@ const NAV_ITEMS: { id: Section; label: string; soon?: boolean }[] = [
   { id: 'brands',   label: 'Brands'           },
   { id: 'investors',label: 'Investors'        },
   { id: 'kpi',      label: 'KPI Targets'      },
-  { id: 'users',    label: 'User Management', soon: true },
+  { id: 'users',    label: 'User Management' },
 ]
 
 export default function SettingsClient({
