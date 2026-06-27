@@ -36,6 +36,7 @@ export interface InvoiceHTMLParams {
   amountPaid:         number | null
   notes:              string | null
   termsAndConditions: string | null
+  logoUrl?:           string | null
   fieldVisibility: {
     phone:         boolean
     address:       boolean
@@ -208,7 +209,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   <!-- HEADER -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:24px;">
     <h1 style="${F}font-size:48px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#111111;line-height:1;">INVOICE</h1>
-    <img src="${TWB_LOGO_URL}" alt="The Watch Boutique" style="max-height:70px;object-fit:contain;display:block;">
+    <img src="${p.logoUrl || TWB_LOGO_URL}" alt="The Watch Boutique" style="max-height:70px;object-fit:contain;display:block;">
   </div>
 
   <!-- DIVIDER -->

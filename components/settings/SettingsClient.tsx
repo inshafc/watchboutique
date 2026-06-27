@@ -38,8 +38,8 @@ export default function SettingsClient({
   const [active, setActive] = useState<Section>('invoice')
 
   return (
-    <div className="flex min-h-full">
-      {/* Sub-nav */}
+    <div className="flex w-full min-h-full">
+      {/* Desktop sub-nav */}
       <aside className="w-44 shrink-0 border-r border-gray-100 py-6 px-3 hidden md:block">
         <nav className="space-y-0.5">
           {NAV_ITEMS.map(item => (
@@ -63,9 +63,10 @@ export default function SettingsClient({
         </nav>
       </aside>
 
-      {/* Mobile sub-nav (scrollable row) */}
-      <div className="md:hidden w-full">
-        <div className="flex gap-1 overflow-x-auto px-4 py-3 border-b border-gray-100 no-scrollbar">
+      {/* Right column: mobile nav (stacked above) + content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile sub-nav (scrollable row) */}
+        <div className="md:hidden flex gap-1 overflow-x-auto px-4 py-3 border-b border-gray-100 no-scrollbar shrink-0">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
@@ -79,17 +80,17 @@ export default function SettingsClient({
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 py-6 px-6 md:px-8">
-        {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
-        {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
-        {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
-        {active === 'brands'   && <BrandsSection        initialBrands={brands} />}
-        {active === 'investors'&& <InvestorsSection     initialInvestors={investors} />}
-        {active === 'kpi'      && <KPITargetsSection    salesManagers={salesManagers} />}
-        {active === 'users'    && <UserManagementSection />}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto py-6 px-6 md:px-8">
+          {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
+          {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
+          {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
+          {active === 'brands'   && <BrandsSection        initialBrands={brands} />}
+          {active === 'investors'&& <InvestorsSection     initialInvestors={investors} />}
+          {active === 'kpi'      && <KPITargetsSection    salesManagers={salesManagers} />}
+          {active === 'users'    && <UserManagementSection />}
+        </div>
       </div>
     </div>
   )

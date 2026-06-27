@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { SalesManager, KPITarget, SalesManagerTarget } from '@/types'
 
-const inp      = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all'
-const lbl      = 'block text-xs font-medium text-gray-500 mb-1'
-const cardCls  = 'bg-gray-50 border border-gray-100 rounded-2xl p-5'
-const headCls  = 'text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4'
+const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all'
+const lbl = 'block text-xs font-medium text-gray-500 mb-1'
 
 const MONTHS = ['January','February','March','April','May','June','July',
                 'August','September','October','November','December']
@@ -83,6 +81,16 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
   const [overExists,  setOverExists]  = useState(false)
   const [overKpiId,   setOverKpiId]   = useState<string | null>(null)
   const [loadingOver, setLoadingOver] = useState(false)
+
+  // ── Accordion ────────────────────────────────────────────────
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set())
+  function toggleSection(id: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   // ── Shared ───────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
@@ -280,63 +288,77 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
   }
   const selectedMonthKey = `${overYear}-${overMonth}`
 
-  // ── Shared sub-sections ──────────────────────────────────────
-  function renderSMTargets(
-    bundle: Bundle,
-    setSM: (id: string, key: keyof SMForm, val: string) => void,
-  ) {
-    if (activeManagers.length === 0) return null
+  // ── Accordion helper ─────────────────────────────────────────
+  function Accordion({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+    const isOpen = openSections.has(id)
     return (
-      <div className={cardCls}>
-        <p className={headCls}>Sales Manager Targets</p>
-        <div className="space-y-5">
-          {activeManagers.map(m => {
-            const t = bundle.sm[m.id] ?? { watchCount: '', revenue: '' }
-            return (
-              <div key={m.id} className="border-b border-gray-100 last:border-0 pb-5 last:pb-0">
-                <p className="text-sm font-semibold text-gray-800 mb-3">{m.name}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={lbl}># of Watches Target</label>
-                    <input type="number" min="0" value={t.watchCount}
-                      onChange={e => setSM(m.id, 'watchCount', e.target.value)}
-                      placeholder="0" className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Revenue Target (LKR)</label>
-                    <input type="text" value={t.revenue}
-                      onChange={e => setSM(m.id, 'revenue', e.target.value)}
-                      placeholder="0" className={inp} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+      <div className="border border-gray-100 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggleSection(id)}
+          className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
+        >
+          <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.1em]">{label}</span>
+          <svg
+            className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+            viewBox="0 0 16 16" fill="currentColor"
+          >
+            <path d="M6.293 2.293a1 1 0 0 1 1.414 0l5 5a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414-1.414L10.586 8 6.293 3.707a1 1 0 0 1 0-1.414z"/>
+          </svg>
+        </button>
+        <div style={{ maxHeight: isOpen ? '3000px' : '0', overflow: 'hidden', transition: 'max-height 0.25s ease' }}>
+          <div className="px-5 pb-5 pt-1">
+            {children}
+          </div>
         </div>
       </div>
     )
   }
 
-  function renderClubTwb(
-    bundle: Bundle,
-    setClub: (key: keyof ClubForm, val: string) => void,
-  ) {
+  // ── Shared sub-section content (no card wrapper — lives inside accordion) ──
+  function smTargetContent(bundle: Bundle, setSM: (id: string, key: keyof SMForm, val: string) => void) {
     return (
-      <div className={cardCls}>
-        <p className={headCls}>Club TWB Target</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={lbl}># of Watches Target</label>
-            <input type="number" min="0" value={bundle.clubTwb.watchCount}
-              onChange={e => setClub('watchCount', e.target.value)}
-              placeholder="0" className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>Revenue Target (LKR)</label>
-            <input type="text" value={bundle.clubTwb.revenue}
-              onChange={e => setClub('revenue', e.target.value)}
-              placeholder="0" className={inp} />
-          </div>
+      <div className="space-y-5">
+        {activeManagers.map(m => {
+          const t = bundle.sm[m.id] ?? { watchCount: '', revenue: '' }
+          return (
+            <div key={m.id} className="border-b border-gray-100 last:border-0 pb-5 last:pb-0">
+              <p className="text-sm font-semibold text-gray-800 mb-3">{m.name}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lbl}># of Watches Target</label>
+                  <input type="number" min="0" value={t.watchCount}
+                    onChange={e => setSM(m.id, 'watchCount', e.target.value)}
+                    placeholder="0" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Revenue Target (LKR)</label>
+                  <input type="text" value={t.revenue}
+                    onChange={e => setSM(m.id, 'revenue', e.target.value)}
+                    placeholder="0" className={inp} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function clubTwbContent(bundle: Bundle, setClub: (key: keyof ClubForm, val: string) => void) {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={lbl}># of Watches Target</label>
+          <input type="number" min="0" value={bundle.clubTwb.watchCount}
+            onChange={e => setClub('watchCount', e.target.value)}
+            placeholder="0" className={inp} />
+        </div>
+        <div>
+          <label className={lbl}>Revenue Target (LKR)</label>
+          <input type="text" value={bundle.clubTwb.revenue}
+            onChange={e => setClub('revenue', e.target.value)}
+            placeholder="0" className={inp} />
         </div>
       </div>
     )
@@ -352,7 +374,7 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-100 mb-6">
+      <div className="flex gap-1 border-b border-gray-100 mb-5">
         {(['default', 'override'] as const).map(t => (
           <button key={t}
             onClick={() => { setTab(t); setSaved(false); setError(null) }}
@@ -371,12 +393,11 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
         loadingDef ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
         ) : (
-          <div className="space-y-5">
+          <>
+            <div className="space-y-2 mb-5">
 
-            {/* Annual target + suggestion banner */}
-            <div className={cardCls}>
-              <p className={headCls}>Annual Target</p>
-              <div>
+              {/* Annual Target */}
+              <Accordion id="annual" label="Annual Target">
                 <label className={lbl}>Annual Revenue Target (LKR)</label>
                 <input type="text" value={annualRevenue}
                   onChange={e => handleAnnualChange(e.target.value)}
@@ -403,70 +424,77 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
                     </div>
                   </div>
                 )}
-              </div>
+              </Accordion>
+
+              {/* Monthly Targets */}
+              <Accordion id="monthly" label="Monthly Targets">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={lbl}>Gross Profit Value (LKR)</label>
+                    <input type="text"
+                      value={defBundle.kpi.gross_profit_value?.toString() ?? ''}
+                      onChange={e => setDefKpi('gross_profit_value', e.target.value)}
+                      placeholder="0" className={inp} />
+                    {defBundle.kpi.gross_profit_value != null && (
+                      <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.gross_profit_value * 12)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className={lbl}>Gross Profit %</label>
+                    <input type="text"
+                      value={defBundle.kpi.gross_profit_pct?.toString() ?? ''}
+                      onChange={e => setDefKpi('gross_profit_pct', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Net Profit Value (LKR)</label>
+                    <input type="text"
+                      value={defBundle.kpi.net_profit_value?.toString() ?? ''}
+                      onChange={e => setDefKpi('net_profit_value', e.target.value)}
+                      placeholder="0" className={inp} />
+                    {defBundle.kpi.net_profit_value != null && (
+                      <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.net_profit_value * 12)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className={lbl}>Net Profit %</label>
+                    <input type="text"
+                      value={defBundle.kpi.net_profit_pct?.toString() ?? ''}
+                      onChange={e => setDefKpi('net_profit_pct', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={lbl}>Total Revenue (LKR)</label>
+                    <input type="text"
+                      value={defBundle.kpi.total_revenue?.toString() ?? ''}
+                      onChange={e => setDefKpi('total_revenue', e.target.value)}
+                      placeholder="0" className={inp} />
+                    {defBundle.kpi.total_revenue != null && (
+                      <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.total_revenue * 12)}</p>
+                    )}
+                  </div>
+                </div>
+              </Accordion>
+
+              {/* Sales Manager Targets */}
+              {activeManagers.length > 0 && (
+                <Accordion id="managers" label="Sales Manager Targets">
+                  {smTargetContent(defBundle, setDefSM)}
+                </Accordion>
+              )}
+
+              {/* Club TWB */}
+              <Accordion id="club" label="Club TWB Target">
+                {clubTwbContent(defBundle, setDefClub)}
+              </Accordion>
             </div>
 
-            {/* Monthly KPI fields */}
-            <div className={cardCls}>
-              <p className={headCls}>Monthly Targets</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={lbl}>Gross Profit Value (LKR)</label>
-                  <input type="text"
-                    value={defBundle.kpi.gross_profit_value?.toString() ?? ''}
-                    onChange={e => setDefKpi('gross_profit_value', e.target.value)}
-                    placeholder="0" className={inp} />
-                  {defBundle.kpi.gross_profit_value != null && (
-                    <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.gross_profit_value * 12)}</p>
-                  )}
-                </div>
-                <div>
-                  <label className={lbl}>Gross Profit %</label>
-                  <input type="text"
-                    value={defBundle.kpi.gross_profit_pct?.toString() ?? ''}
-                    onChange={e => setDefKpi('gross_profit_pct', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-                <div>
-                  <label className={lbl}>Net Profit Value (LKR)</label>
-                  <input type="text"
-                    value={defBundle.kpi.net_profit_value?.toString() ?? ''}
-                    onChange={e => setDefKpi('net_profit_value', e.target.value)}
-                    placeholder="0" className={inp} />
-                  {defBundle.kpi.net_profit_value != null && (
-                    <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.net_profit_value * 12)}</p>
-                  )}
-                </div>
-                <div>
-                  <label className={lbl}>Net Profit %</label>
-                  <input type="text"
-                    value={defBundle.kpi.net_profit_pct?.toString() ?? ''}
-                    onChange={e => setDefKpi('net_profit_pct', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-                <div className="col-span-2">
-                  <label className={lbl}>Total Revenue (LKR)</label>
-                  <input type="text"
-                    value={defBundle.kpi.total_revenue?.toString() ?? ''}
-                    onChange={e => setDefKpi('total_revenue', e.target.value)}
-                    placeholder="0" className={inp} />
-                  {defBundle.kpi.total_revenue != null && (
-                    <p className="text-[11px] text-gray-400 mt-1">Annual: {fmtLKR(defBundle.kpi.total_revenue * 12)}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {renderSMTargets(defBundle, setDefSM)}
-            {renderClubTwb(defBundle, setDefClub)}
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
-
+            {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
             <button onClick={saveDefault} disabled={saving}
               className="bg-gray-900 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
               {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save as Monthly Default'}
             </button>
-          </div>
+          </>
         )
       )}
 
@@ -475,10 +503,9 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
         loadingOver ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
         ) : (
-          <div className="space-y-5">
-
+          <>
             {/* Month selector + status badge */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap mb-4">
               <select
                 value={selectedMonthKey}
                 onChange={e => {
@@ -502,60 +529,69 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
             </div>
 
             {!overExists && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4">
                 <p className="text-xs text-blue-700">
                   Using monthly default — edit any field to create an override for this month.
                 </p>
               </div>
             )}
 
-            {/* Monthly KPI fields */}
-            <div className={cardCls}>
-              <p className={headCls}>Monthly Targets</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={lbl}>Gross Profit Value (LKR)</label>
-                  <input type="text"
-                    value={overBundle.kpi.gross_profit_value?.toString() ?? ''}
-                    onChange={e => setOverKpi('gross_profit_value', e.target.value)}
-                    placeholder="0" className={inp} />
+            <div className="space-y-2 mb-5">
+              {/* Monthly Targets */}
+              <Accordion id="monthly" label="Monthly Targets">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={lbl}>Gross Profit Value (LKR)</label>
+                    <input type="text"
+                      value={overBundle.kpi.gross_profit_value?.toString() ?? ''}
+                      onChange={e => setOverKpi('gross_profit_value', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Gross Profit %</label>
+                    <input type="text"
+                      value={overBundle.kpi.gross_profit_pct?.toString() ?? ''}
+                      onChange={e => setOverKpi('gross_profit_pct', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Net Profit Value (LKR)</label>
+                    <input type="text"
+                      value={overBundle.kpi.net_profit_value?.toString() ?? ''}
+                      onChange={e => setOverKpi('net_profit_value', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Net Profit %</label>
+                    <input type="text"
+                      value={overBundle.kpi.net_profit_pct?.toString() ?? ''}
+                      onChange={e => setOverKpi('net_profit_pct', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={lbl}>Total Revenue (LKR)</label>
+                    <input type="text"
+                      value={overBundle.kpi.total_revenue?.toString() ?? ''}
+                      onChange={e => setOverKpi('total_revenue', e.target.value)}
+                      placeholder="0" className={inp} />
+                  </div>
                 </div>
-                <div>
-                  <label className={lbl}>Gross Profit %</label>
-                  <input type="text"
-                    value={overBundle.kpi.gross_profit_pct?.toString() ?? ''}
-                    onChange={e => setOverKpi('gross_profit_pct', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-                <div>
-                  <label className={lbl}>Net Profit Value (LKR)</label>
-                  <input type="text"
-                    value={overBundle.kpi.net_profit_value?.toString() ?? ''}
-                    onChange={e => setOverKpi('net_profit_value', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-                <div>
-                  <label className={lbl}>Net Profit %</label>
-                  <input type="text"
-                    value={overBundle.kpi.net_profit_pct?.toString() ?? ''}
-                    onChange={e => setOverKpi('net_profit_pct', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-                <div className="col-span-2">
-                  <label className={lbl}>Total Revenue (LKR)</label>
-                  <input type="text"
-                    value={overBundle.kpi.total_revenue?.toString() ?? ''}
-                    onChange={e => setOverKpi('total_revenue', e.target.value)}
-                    placeholder="0" className={inp} />
-                </div>
-              </div>
+              </Accordion>
+
+              {/* Sales Manager Targets */}
+              {activeManagers.length > 0 && (
+                <Accordion id="managers" label="Sales Manager Targets">
+                  {smTargetContent(overBundle, setOverSM)}
+                </Accordion>
+              )}
+
+              {/* Club TWB */}
+              <Accordion id="club" label="Club TWB Target">
+                {clubTwbContent(overBundle, setOverClub)}
+              </Accordion>
             </div>
 
-            {renderSMTargets(overBundle, setOverSM)}
-            {renderClubTwb(overBundle, setOverClub)}
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
-
+            {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
             <div className="flex items-center gap-3 flex-wrap">
               <button onClick={saveOverride} disabled={saving}
                 className="bg-gray-900 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
@@ -568,7 +604,7 @@ export default function KPITargetsSection({ salesManagers }: { salesManagers: Sa
                 </button>
               )}
             </div>
-          </div>
+          </>
         )
       )}
     </div>

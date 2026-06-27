@@ -126,6 +126,7 @@ export default function InvoiceEditorClient({
   watches = [],
   lineItemsJson = null,
   clients = [],
+  logoUrl = null,
 }: {
   invoice:         InvoiceWithItems
   salesManagers?:  SalesManager[]
@@ -133,6 +134,7 @@ export default function InvoiceEditorClient({
   watches?:        WatchForInvoice[]
   lineItemsJson?:  LineItemJson[] | null
   clients?:        ClientForInvoice[]
+  logoUrl?:        string | null
 }) {
   const [savedOnce, setSavedOnce] = useState(
     invoice.invoice_items.length > 0 || invoice.status !== 'draft'
@@ -532,6 +534,7 @@ export default function InvoiceEditorClient({
                       amountPaid:         invoiceAmtPaid,
                       notes:              form.notes              || null,
                       termsAndConditions: form.terms_and_conditions || null,
+                      logoUrl:            logoUrl,
                       fieldVisibility: {
                         phone:         fieldVisibility.phone         ?? true,
                         address:       fieldVisibility.address       ?? true,
@@ -1049,7 +1052,7 @@ export default function InvoiceEditorClient({
               termsAndConditions={form.terms_and_conditions || null}
               items={previewItems}
               bank={previewBank}
-              logoUrl={null}
+              logoUrl={logoUrl}
               fieldVisibility={fieldVisibility}
             />
           </div>

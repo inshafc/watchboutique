@@ -1,13 +1,44 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+// Bucket names to check in priority order (first match wins)
+const LOGO_BUCKETS = ['TWB Logo', 'twb logo', 'twb-logo']
+
 export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: string | null }) {
-  const [logoUrl,   setLogoUrl]   = useState(initialLogoUrl)
-  const [uploading, setUploading] = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
+  const [logoUrl,      setLogoUrl]      = useState(initialLogoUrl)
+  const [activeBucket, setActiveBucket] = useState(LOGO_BUCKETS[0])
+  const [uploading,    setUploading]    = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // On mount: if no logo in settings yet, scan storage buckets for existing logo
+  useEffect(() => {
+    if (initialLogoUrl) return
+    async function fetchFromBucket() {
+      const supabase = createClient()
+      for (const bucket of LOGO_BUCKETS) {
+        const { data, error: listErr } = await supabase.storage.from(bucket).list('', {
+          limit: 50,
+          sortBy: { column: 'created_at', order: 'desc' },
+        })
+        if (listErr || !data || data.length === 0) continue
+        const files = data.filter(f => f.id && !f.name.startsWith('.'))
+        if (files.length === 0) continue
+
+        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(files[0].name)
+        setLogoUrl(publicUrl)
+        setActiveBucket(bucket)
+        // Persist to settings so invoices pick it up
+        await supabase
+          .from('app_settings')
+          .upsert({ key: 'invoice_logo_url', value: publicUrl }, { onConflict: 'key' })
+        return
+      }
+    }
+    fetchFromBucket()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -17,12 +48,12 @@ export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: 
 
     const supabase = createClient()
     const ext  = file.name.split('.').pop() ?? 'png'
-    const path = `logo/logo_${Date.now()}.${ext}`
+    const path = `logo_${Date.now()}.${ext}`
 
-    const { error: upErr } = await supabase.storage.from('invoice-assets').upload(path, file)
+    const { error: upErr } = await supabase.storage.from(activeBucket).upload(path, file)
     if (upErr) { setError(upErr.message); setUploading(false); return }
 
-    const { data: { publicUrl } } = supabase.storage.from('invoice-assets').getPublicUrl(path)
+    const { data: { publicUrl } } = supabase.storage.from(activeBucket).getPublicUrl(path)
 
     await supabase
       .from('app_settings')
@@ -30,7 +61,6 @@ export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: 
 
     setLogoUrl(publicUrl)
     setUploading(false)
-    // Reset input so the same file can be re-selected
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -79,7 +109,7 @@ export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: 
       {logoUrl ? (
         <div className="bg-gray-50 border border-gray-100 rounded-2xl p-8 flex justify-center items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="Invoice logo" className="max-h-24 max-w-xs object-contain" />
+          <img src={logoUrl} alt="Invoice logo" className="max-h-20 max-w-xs object-contain" />
         </div>
       ) : (
         <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-12 text-center">
@@ -87,7 +117,7 @@ export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: 
             <rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 15 5-5 4 4 3-3 4 4"/>
             <circle cx="8.5" cy="8.5" r="1.5"/>
           </svg>
-          <p className="text-sm text-gray-400">No logo uploaded</p>
+          <p className="text-sm text-gray-400">No logo found</p>
           <p className="text-xs text-gray-300 mt-1">PNG, JPG, WebP, or SVG — displayed next to invoice header</p>
         </div>
       )}

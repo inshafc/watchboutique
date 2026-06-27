@@ -19,7 +19,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
 
   const inv = invData as Invoice
 
-  const [itemsRes, banksRes, smRes, watchesRes, clientsRes] = await Promise.all([
+  const [itemsRes, banksRes, smRes, watchesRes, clientsRes, logoRes] = await Promise.all([
     supabase
       .from('invoice_items')
       .select('*')
@@ -44,6 +44,11 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .select('id, name, phone, address, club_twb, avatar_color')
       .is('deleted_at', null)
       .order('name'),
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'invoice_logo_url')
+      .maybeSingle(),
   ])
 
   let linkedBank: InvoiceWithItems['saved_banks'] = null
@@ -71,6 +76,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
 
   const banks         = (banksRes.data    ?? []) as SavedBank[]
   const salesManagers = (smRes.data       ?? []) as SalesManager[]
+  const logoUrl       = logoRes.data?.value ?? null
   const clients       = (clientsRes.data  ?? []) as {
     id: string; name: string; phone: string | null; address: string | null; club_twb: boolean; avatar_color: string | null
   }[]
@@ -94,6 +100,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       watches={watches}
       clients={clients}
       lineItemsJson={lineItemsJson}
+      logoUrl={logoUrl}
     />
   )
 }
