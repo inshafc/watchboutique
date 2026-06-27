@@ -24,6 +24,7 @@ interface LineItemJson {
   serial_number: string | null
   year:          string | null
   condition:     string | null
+  set_details?:  string | null
   photo_url:     string | null
   amount:        number | null
   amount_paid?:  number | null
@@ -175,7 +176,7 @@ export default function InvoiceEditorClient({
           serial_number: it.serial_number ?? '',
           year:          it.year          ?? '',
           condition:     it.condition     ?? '',
-          set_details:   '',
+          set_details:   it.set_details   ?? '',
           photo_url:     it.photo_url     ?? '',
           amount_paid:   (it.amount_paid ?? it.amount)?.toString() ?? '',
           amount:        it.amount?.toString() ?? '',
@@ -270,12 +271,13 @@ export default function InvoiceEditorClient({
 
     const validItems = items.filter(it => it.watch_name.trim())
     const lineItemsPayload: LineItemJson[] = validItems.map((it, i) => ({
-      watch_id:      it.watch_id.trim()  || null,
+      watch_id:      it.watch_id.trim()     || null,
       watch_name:    it.watch_name.trim(),
       reference:     it.reference.trim()     || null,
       serial_number: it.serial_number.trim() || null,
       year:          it.year.trim()           || null,
       condition:     it.condition             || null,
+      set_details:   it.set_details.trim()   || null,
       photo_url:     it.photo_url.trim()      || null,
       amount:        num(it.amount),
       amount_paid:   it.amount_paid.trim() ? num(it.amount_paid) : null,
@@ -488,16 +490,20 @@ export default function InvoiceEditorClient({
             </div>
           </div>
 
-          {/* ── Billing Details (locked) ──────────────────── */}
+          {/* ── Billing Details ──────────────────────────── */}
           <div className={card}>
             <p className={cardHead + ' mb-4'}>Billing Details</p>
             <div className="space-y-3">
               <div>
                 <label className={lbl}>Client Name</label>
-                <div className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5 text-sm">
-                  <span className="flex-1 text-gray-700 truncate">{form.client_name || <span className="text-gray-300">—</span>}</span>
-                  <LockIcon />
-                </div>
+                {form.type === 'sale' ? (
+                  <div className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5 text-sm">
+                    <span className="flex-1 text-gray-700 truncate">{form.client_name || <span className="text-gray-300">—</span>}</span>
+                    <LockIcon />
+                  </div>
+                ) : (
+                  <input type="text" value={form.client_name} onChange={f('client_name')} placeholder="Client name" className={inp} />
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -506,10 +512,14 @@ export default function InvoiceEditorClient({
                     {fieldVisibility.phone ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
                 </div>
-                <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.phone ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
-                  <span className="flex-1 truncate">{form.client_phone || '—'}</span>
-                  <LockIcon />
-                </div>
+                {form.type === 'sale' ? (
+                  <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.phone ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
+                    <span className="flex-1 truncate">{form.client_phone || '—'}</span>
+                    <LockIcon />
+                  </div>
+                ) : (
+                  <input type="text" value={form.client_phone} onChange={f('client_phone')} placeholder="Phone number" className={`${inp} ${!fieldVisibility.phone ? 'opacity-50' : ''}`} />
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -518,10 +528,14 @@ export default function InvoiceEditorClient({
                     {fieldVisibility.address ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
                 </div>
-                <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.address ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
-                  <span className="flex-1 truncate">{form.client_address || '—'}</span>
-                  <LockIcon />
-                </div>
+                {form.type === 'sale' ? (
+                  <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.address ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
+                    <span className="flex-1 truncate">{form.client_address || '—'}</span>
+                    <LockIcon />
+                  </div>
+                ) : (
+                  <input type="text" value={form.client_address} onChange={f('client_address')} placeholder="Address" className={`${inp} ${!fieldVisibility.address ? 'opacity-50' : ''}`} />
+                )}
               </div>
             </div>
           </div>
@@ -566,8 +580,8 @@ export default function InvoiceEditorClient({
                     )}
                   </div>
 
-                  {/* Watch selector */}
-                  {watches.length > 0 && (
+                  {/* Watch selector — Sale invoices only */}
+                  {form.type === 'sale' && watches.length > 0 && (
                     <div>
                       <label className={lbl}>Select Watch</label>
                       <select
@@ -643,6 +657,10 @@ export default function InvoiceEditorClient({
                         {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className={lbl}>Set Details</label>
+                    <input type="text" value={item.set_details} onChange={e => updateItem(idx, 'set_details', e.target.value)} placeholder="Box, papers, etc." className={inp} />
                   </div>
                   <div>
                     <label className={lbl}>Amount</label>
@@ -846,36 +864,39 @@ export default function InvoiceEditorClient({
               </button>
             </div>
 
-            {/* Section 1: Watch Photos */}
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Watch Photos</p>
-              {loadingPhotos ? (
-                <div className="flex items-center justify-center h-16">
-                  <svg className="w-5 h-5 text-gray-300 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
+            {/* Section 1: Watch Photos — Sale invoices only */}
+            {form.type === 'sale' && (
+              <>
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Watch Photos</p>
+                  {loadingPhotos ? (
+                    <div className="flex items-center justify-center h-16">
+                      <svg className="w-5 h-5 text-gray-300 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                    </div>
+                  ) : dialogWatchPhotos.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {dialogWatchPhotos.map((url, pi) => (
+                        <button
+                          key={pi}
+                          type="button"
+                          onClick={() => { updateItem(photoDialogIdx, 'photo_url', url); setPhotoDialogIdx(null) }}
+                          className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-gray-900 transition-all"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">{items[photoDialogIdx]?.watch_id ? 'No photos found for this watch' : 'No watch selected'}</p>
+                  )}
                 </div>
-              ) : dialogWatchPhotos.length > 0 ? (
-                <div className="grid grid-cols-4 gap-2">
-                  {dialogWatchPhotos.map((url, pi) => (
-                    <button
-                      key={pi}
-                      type="button"
-                      onClick={() => { updateItem(photoDialogIdx, 'photo_url', url); setPhotoDialogIdx(null) }}
-                      className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-gray-900 transition-all"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">{items[photoDialogIdx]?.watch_id ? 'No photos found for this watch' : 'No watch selected'}</p>
-              )}
-            </div>
-
-            <div className="h-px bg-gray-100 mb-4" />
+                <div className="h-px bg-gray-100 mb-4" />
+              </>
+            )}
 
             {/* Section 2: Upload New */}
             <div className="mb-4">
