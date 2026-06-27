@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { generateInvoiceHTML } from '@/lib/generateInvoiceHTML'
@@ -192,6 +192,9 @@ export default function InvoiceEditorClient({
   const [photoDialogIdx,    setPhotoDialogIdx]    = useState<number | null>(null)
   const [dialogWatchPhotos, setDialogWatchPhotos] = useState<string[]>([])
   const [loadingPhotos,     setLoadingPhotos]     = useState(false)
+  const [sourcingPromptOpen, setSourcingPromptOpen] = useState(false)
+  const [sourcingAdding,     setSourcingAdding]     = useState(false)
+  const sourcingPromptedRef = useRef(false)
 
   useEffect(() => {
     if (photoDialogIdx === null) { setDialogWatchPhotos([]); return }
@@ -332,7 +335,30 @@ export default function InvoiceEditorClient({
     setSaved(true)
     setSavedOnce(true)
     setTimeout(() => setSaved(false), 2000)
+    if (form.type === 'sourcing' && !sourcingPromptedRef.current) {
+      sourcingPromptedRef.current = true
+      setSourcingPromptOpen(true)
+    }
   }, [form, items, invoice.id, showBankPicker, fieldVisibility])
+
+  const handleAddToSourcedOrders = useCallback(async () => {
+    setSourcingAdding(true)
+    const supabase = createClient()
+    const firstItem = items.find(it => it.watch_name.trim())
+    const parseAmt = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
+    await supabase.from('sourced_orders').insert({
+      invoice_id:    invoice.id,
+      watch_name:    firstItem?.watch_name.trim() || 'Unknown',
+      reference:     firstItem?.reference.trim()     || null,
+      serial_number: firstItem?.serial_number.trim() || null,
+      year:          firstItem?.year.trim()           || null,
+      condition:     firstItem?.condition             || null,
+      set_details:   firstItem?.set_details.trim()   || null,
+      purchase_cost: firstItem ? parseAmt(firstItem.amount) : null,
+    })
+    setSourcingAdding(false)
+    setSourcingPromptOpen(false)
+  }, [invoice.id, items])
 
   const previewItems = items.map(it => ({
     watch_name:    it.watch_name,
@@ -843,6 +869,38 @@ export default function InvoiceEditorClient({
           </div>
         </div>
       </div>
+
+      {/* ── SOURCING PROMPT DIALOG ───────────────────────── */}
+      {sourcingPromptOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add to Sourced Orders"
+          >
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Add to Sourced Orders?</h3>
+            <p className="text-sm text-gray-500 mb-6">Would you like to track this watch in Sourced Orders until it arrives in stock?</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleAddToSourcedOrders}
+                disabled={sourcingAdding}
+                className="w-full bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+              >
+                {sourcingAdding ? 'Adding…' : 'Yes, Add to Sourced Orders'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourcingPromptOpen(false)}
+                className="w-full text-sm text-gray-500 hover:text-gray-900 py-2.5 transition-colors"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PHOTO DIALOG ─────────────────────────────────── */}
       {photoDialogIdx !== null && (

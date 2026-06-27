@@ -61,6 +61,14 @@ function TrendingUpIcon() {
   )
 }
 
+function PackageIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm4.5 0a.5.5 0 0 0-.5.5V5H1V2a1 1 0 0 1 1-1h2.5v1zM5 5V1h6v4H5zM11 1h2.5A1 1 0 0 1 15 2v3h-4V1zM1 6h14v4a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6zm6 2.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0-.5.5z"/>
+    </svg>
+  )
+}
+
 function GearIcon() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
@@ -91,8 +99,9 @@ const NAV = [
   { label: 'Inventory', href: '/dashboard/inventory',  Icon: GridIcon,    exact: false },
   { label: 'Clients',   href: '/dashboard/clients',    Icon: PeopleIcon,  exact: false },
   { label: 'Sales',     href: '/dashboard/deals',      Icon: TagIcon,     exact: false },
-  { label: 'Invoices',  href: '/dashboard/invoices',   Icon: ReceiptIcon, exact: false },
-  { label: 'Analytics', href: '/dashboard/analytics',  Icon: ChartIcon,       exact: false },
+  { label: 'Invoices',       href: '/dashboard/invoices',        Icon: ReceiptIcon,    exact: false },
+  { label: 'Sourced Orders', href: '/dashboard/sourced-orders', Icon: PackageIcon,    exact: false },
+  { label: 'Analytics',      href: '/dashboard/analytics',      Icon: ChartIcon,      exact: false },
   { label: 'Investors', href: '/dashboard/investors',  Icon: TrendingUpIcon,  exact: false },
 ]
 

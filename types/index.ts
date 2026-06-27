@@ -301,3 +301,29 @@ export interface InvoiceWithItems extends Invoice {
     swift_code:     string | null
   } | null
 }
+
+// ── Sourced Orders ───────────────────────────────────────────
+
+export type SourcedOrderStatus = 'ordered' | 'arrived' | 'added_to_inventory'
+
+export interface SourcedOrder {
+  id:                    string
+  invoice_id:            string | null
+  watch_name:            string
+  reference:             string | null
+  serial_number:         string | null
+  year:                  string | null
+  condition:             string | null
+  set_details:           string | null
+  purchase_cost:         number | null
+  selling_price:         number | null
+  supplier:              string | null
+  notes:                 string | null
+  status:                SourcedOrderStatus
+  expected_date:         string | null
+  arrived_at:            string | null
+  added_to_inventory_at: string | null
+  watch_id:              string | null
+  created_at:            string
+  updated_at:            string
+}
