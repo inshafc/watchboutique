@@ -372,65 +372,75 @@ export default function InvoiceEditorClient({
             <span className="text-gray-200">/</span>
             <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number}</span>
           </div>
-          {savedOnce && (
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/dashboard/invoices/${invoice.id}/print`}
-                target="_blank"
-                className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
-                Print
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  const _inv = invoice as unknown as Record<string, unknown>
-                  const derivedStatus: string =
-                    form.status === 'paid_in_full' ||
-                    _inv.stage === 'Delivered' ||
-                    _inv.payment_status === 'paid'
-                      ? 'paid_in_full'
-                      : form.status === 'advance_paid'
-                      ? 'advance_paid'
-                      : form.status
-                  const html = generateInvoiceHTML({
-                    invoiceNumber:      invoice.invoice_number,
-                    date:               form.date,
-                    currency:           form.currency,
-                    type:               form.type,
-                    status:             derivedStatus,
-                    clientName:         form.client_name    || null,
-                    clientPhone:        form.client_phone   || null,
-                    clientAddress:      form.client_address || null,
-                    salesManager:       form.sales_manager  || null,
-                    paymentMethod:      form.payment_method || null,
-                    showBankDetails:    form.show_bank_details,
-                    bank:               previewBank,
-                    advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
-                    notes:              form.notes              || null,
-                    termsAndConditions: form.terms_and_conditions || null,
-                    fieldVisibility: {
-                      phone:         fieldVisibility.phone         ?? true,
-                      address:       fieldVisibility.address       ?? true,
-                      sales_manager: fieldVisibility.sales_manager ?? true,
-                      notes:         fieldVisibility.notes         ?? true,
-                      terms:         fieldVisibility.terms         ?? true,
-                      signatures:    fieldVisibility.signatures    ?? false,
-                    },
-                    items:              previewItems,
-                  })
-                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-                  const url  = URL.createObjectURL(blob)
-                  window.open(url, '_blank')
-                }}
-                className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-                Download
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {savedOnce && (
+              <>
+                <Link
+                  href={`/dashboard/invoices/${invoice.id}/print`}
+                  target="_blank"
+                  className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
+                  Print
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const _inv = invoice as unknown as Record<string, unknown>
+                    const derivedStatus: string =
+                      form.status === 'paid_in_full' ||
+                      _inv.stage === 'Delivered' ||
+                      _inv.payment_status === 'paid'
+                        ? 'paid_in_full'
+                        : form.status === 'advance_paid'
+                        ? 'advance_paid'
+                        : form.status
+                    const html = generateInvoiceHTML({
+                      invoiceNumber:      invoice.invoice_number,
+                      date:               form.date,
+                      currency:           form.currency,
+                      type:               form.type,
+                      status:             derivedStatus,
+                      clientName:         form.client_name    || null,
+                      clientPhone:        form.client_phone   || null,
+                      clientAddress:      form.client_address || null,
+                      salesManager:       form.sales_manager  || null,
+                      paymentMethod:      form.payment_method || null,
+                      showBankDetails:    form.show_bank_details,
+                      bank:               previewBank,
+                      advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
+                      notes:              form.notes              || null,
+                      termsAndConditions: form.terms_and_conditions || null,
+                      fieldVisibility: {
+                        phone:         fieldVisibility.phone         ?? true,
+                        address:       fieldVisibility.address       ?? true,
+                        sales_manager: fieldVisibility.sales_manager ?? true,
+                        notes:         fieldVisibility.notes         ?? true,
+                        terms:         fieldVisibility.terms         ?? true,
+                        signatures:    fieldVisibility.signatures    ?? false,
+                      },
+                      items:              previewItems,
+                    })
+                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+                    const url  = URL.createObjectURL(blob)
+                    window.open(url, '_blank')
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                  Download
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -492,7 +502,7 @@ export default function InvoiceEditorClient({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={lbl} style={{ marginBottom: 0 }}>Phone</span>
-                  <button type="button" onClick={() => toggleVisibility('phone')} title={fieldVisibility.phone ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.phone ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  <button type="button" onClick={() => toggleVisibility('phone')} aria-label={fieldVisibility.phone ? 'Hide phone from invoice' : 'Show phone on invoice'} title={fieldVisibility.phone ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.phone ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                     {fieldVisibility.phone ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
                 </div>
@@ -504,7 +514,7 @@ export default function InvoiceEditorClient({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={lbl} style={{ marginBottom: 0 }}>Address</span>
-                  <button type="button" onClick={() => toggleVisibility('address')} title={fieldVisibility.address ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.address ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  <button type="button" onClick={() => toggleVisibility('address')} aria-label={fieldVisibility.address ? 'Hide address from invoice' : 'Show address on invoice'} title={fieldVisibility.address ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.address ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                     {fieldVisibility.address ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
                 </div>
@@ -522,7 +532,7 @@ export default function InvoiceEditorClient({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className={lbl} style={{ marginBottom: 0 }}>Sales Manager</span>
-                <button type="button" onClick={() => toggleVisibility('sales_manager')} title={fieldVisibility.sales_manager ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.sales_manager ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                <button type="button" onClick={() => toggleVisibility('sales_manager')} aria-label={fieldVisibility.sales_manager ? 'Hide sales manager from invoice' : 'Show sales manager on invoice'} title={fieldVisibility.sales_manager ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.sales_manager ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                   {fieldVisibility.sales_manager ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
@@ -547,6 +557,7 @@ export default function InvoiceEditorClient({
                     {items.length > 1 && (
                       <button
                         type="button"
+                        aria-label="Remove item"
                         onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}
                         className="text-gray-300 hover:text-red-500 transition-colors"
                       >
@@ -583,6 +594,7 @@ export default function InvoiceEditorClient({
                           <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100" />
                           <button
                             type="button"
+                            aria-label="Remove photo"
                             onClick={() => updateItem(idx, 'photo_url', '')}
                             className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
                             title="Remove photo"
@@ -598,13 +610,10 @@ export default function InvoiceEditorClient({
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        console.log('photo dialog watch_id:', item.watch_id)
-                        setPhotoDialogIdx(idx)
-                      }}
+                      onClick={() => setPhotoDialogIdx(idx)}
                       className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors"
                     >
-                      Replace
+                      {item.photo_url ? 'Replace' : 'Add Photo'}
                     </button>
                   </div>
 
@@ -747,7 +756,7 @@ export default function InvoiceEditorClient({
           <div className={card}>
             <div className="flex items-center justify-between mb-4">
               <p className={cardHead}>Notes</p>
-              <button type="button" onClick={() => toggleVisibility('notes')} title={fieldVisibility.notes ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.notes ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+              <button type="button" onClick={() => toggleVisibility('notes')} aria-label={fieldVisibility.notes ? 'Hide notes from invoice' : 'Show notes on invoice'} title={fieldVisibility.notes ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.notes ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                 {fieldVisibility.notes ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
@@ -758,7 +767,7 @@ export default function InvoiceEditorClient({
           <div className={card}>
             <div className="flex items-center justify-between mb-4">
               <p className={cardHead}>Terms &amp; Conditions</p>
-              <button type="button" onClick={() => toggleVisibility('terms')} title={fieldVisibility.terms ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.terms ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+              <button type="button" onClick={() => toggleVisibility('terms')} aria-label={fieldVisibility.terms ? 'Hide terms from invoice' : 'Show terms on invoice'} title={fieldVisibility.terms ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.terms ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                 {fieldVisibility.terms ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
@@ -769,7 +778,7 @@ export default function InvoiceEditorClient({
           <div className={card}>
             <div className="flex items-center justify-between">
               <p className={cardHead}>Signatures</p>
-              <button type="button" onClick={() => toggleVisibility('signatures')} title={fieldVisibility.signatures ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.signatures ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+              <button type="button" onClick={() => toggleVisibility('signatures')} aria-label={fieldVisibility.signatures ? 'Hide signatures from invoice' : 'Show signatures on invoice'} title={fieldVisibility.signatures ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.signatures ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
                 {fieldVisibility.signatures ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
@@ -826,10 +835,13 @@ export default function InvoiceEditorClient({
           <div
             className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
             onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose Photo"
           >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-semibold text-gray-900">Choose Photo</h3>
-              <button type="button" onClick={() => setPhotoDialogIdx(null)} className="text-gray-400 hover:text-gray-700 transition-colors">
+              <button type="button" aria-label="Close dialog" onClick={() => setPhotoDialogIdx(null)} className="text-gray-400 hover:text-gray-700 transition-colors">
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
               </button>
             </div>

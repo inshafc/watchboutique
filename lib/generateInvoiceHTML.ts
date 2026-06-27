@@ -191,7 +191,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; margin: 0; padding: 0; }
     @page { size: A4 portrait; margin: 15mm; }
-    body { font-family: 'Poppins', sans-serif; width: 210mm; margin: 0 auto; background: #fff; }
+    body { font-family: 'Poppins', sans-serif; background: #fff; }
   </style>
   <script>window.onload=function(){setTimeout(function(){window.print();},500);};</script>
 </head>
