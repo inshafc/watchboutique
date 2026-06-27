@@ -12,10 +12,11 @@
  *   NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx ts-node --project tsconfig.json scripts/seed-users.ts
  */
 
-import { loadEnvConfig } from '@next/env'
+import { config } from 'dotenv'
+import { resolve } from 'path'
 import { createClient } from '@supabase/supabase-js'
 
-loadEnvConfig(process.cwd())
+config({ path: resolve(process.cwd(), '.env.local') })
 
 const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_ROLE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY!
