@@ -170,6 +170,7 @@ export default async function InvoicePrintPage({
           showBankDetails={inv.show_bank_details}
           showSignatures={inv.show_signatures}
           advancePaid={inv.advance_paid}
+          amountPaid={inv.amount_paid}
           notes={inv.notes}
           termsAndConditions={(inv as unknown as Record<string, unknown>).terms_and_conditions as string ?? null}
           items={items}

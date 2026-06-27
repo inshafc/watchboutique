@@ -18,6 +18,15 @@ const CURRENCIES  = ['LKR', 'USD', 'AED', 'AUD'] as const
 const PAY_METHODS = ['Cash', 'Bank Transfer', 'Cash + Bank', 'Installment']
 const CONDITIONS  = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
 
+function fmtAmt(amount: number, currency: string): string {
+  const opts: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+  if (currency === 'LKR') return 'LKR ' + amount.toLocaleString('en-LK', opts)
+  if (currency === 'USD') return '$ '   + amount.toLocaleString('en-US', opts)
+  if (currency === 'AED') return 'AED ' + amount.toLocaleString('en-US', opts)
+  if (currency === 'AUD') return 'A$ '  + amount.toLocaleString('en-US', opts)
+  return currency + ' ' + amount.toLocaleString('en-US', opts)
+}
+
 interface LineItemJson {
   watch_id?:     string | null
   watch_name:    string
@@ -155,8 +164,9 @@ export default function InvoiceEditorClient({
     bank_id:              invoice.bank_id                ?? '',
     show_bank_details:    invoice.show_bank_details      ?? false,
     status:               invoice.status                 as InvoiceStatus,
-    advance_paid:         invoice.advance_paid?.toString() ?? '',
-    notes:                invoice.notes                  ?? '',
+    advance_paid:         invoice.advance_paid?.toString()  ?? '',
+    amount_paid:          invoice.amount_paid?.toString()   ?? '',
+    notes:                invoice.notes                     ?? '',
     terms_and_conditions: ((invoice as unknown as Record<string, unknown>).terms_and_conditions as string) ?? '',
   })
 
@@ -359,7 +369,7 @@ export default function InvoiceEditorClient({
       set_details:   it.set_details.trim()   || null,
       photo_url:     it.photo_url.trim()      || null,
       amount:        num(it.amount),
-      amount_paid:   it.amount_paid.trim() ? num(it.amount_paid) : null,
+      amount_paid:   null,
       sort_order:    i,
     }))
 
@@ -384,7 +394,8 @@ export default function InvoiceEditorClient({
         terms_and_conditions: form.terms_and_conditions.trim() || null,
         field_visibility:     fieldVisibility,
         line_items:           lineItemsPayload,
-        client_id:            form.client_id || null,
+        client_id:            form.client_id   || null,
+        amount_paid:          num(form.amount_paid) ?? null,
       })
       .eq('id', invoice.id)
 
@@ -456,8 +467,10 @@ export default function InvoiceEditorClient({
     condition:     it.condition     || null,
     photo_url:     it.photo_url     || null,
     amount:        num(it.amount),
-    amount_paid:   it.amount_paid.trim() ? num(it.amount_paid) : (num(it.amount) ?? null),
   }))
+
+  const invoiceSubtotal = items.reduce((s, it) => s + (num(it.amount) ?? 0), 0)
+  const invoiceAmtPaid  = num(form.amount_paid)
 
   const previewBank = showBankPicker && form.show_bank_details && selectedBank
     ? { bank_name: selectedBank.bank_name, account_name: selectedBank.account_name, account_number: selectedBank.account_number, branch: selectedBank.branch, swift_code: selectedBank.swift_code }
@@ -502,21 +515,12 @@ export default function InvoiceEditorClient({
                 <button
                   type="button"
                   onClick={() => {
-                    const _inv = invoice as unknown as Record<string, unknown>
-                    const derivedStatus: string =
-                      form.status === 'paid_in_full' ||
-                      _inv.stage === 'Delivered' ||
-                      _inv.payment_status === 'paid'
-                        ? 'paid_in_full'
-                        : form.status === 'advance_paid'
-                        ? 'advance_paid'
-                        : form.status
                     const html = generateInvoiceHTML({
                       invoiceNumber:      invoice.invoice_number,
                       date:               form.date,
                       currency:           form.currency,
                       type:               form.type,
-                      status:             derivedStatus,
+                      status:             form.status,
                       clientName:         form.client_name    || null,
                       clientPhone:        form.client_phone   || null,
                       clientAddress:      form.client_address || null,
@@ -525,6 +529,7 @@ export default function InvoiceEditorClient({
                       showBankDetails:    form.show_bank_details,
                       bank:               previewBank,
                       advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
+                      amountPaid:         invoiceAmtPaid,
                       notes:              form.notes              || null,
                       termsAndConditions: form.terms_and_conditions || null,
                       fieldVisibility: {
@@ -876,40 +881,55 @@ export default function InvoiceEditorClient({
             </div>
           </div>
 
-          {/* ── Amount Paid ───────────────────────────────── */}
-          {items.some(it => it.watch_name.trim()) && (
-            <div className={card}>
-              <p className={cardHead + ' mb-4'}>Amount Paid</p>
-              <div className="space-y-3">
-                {items.filter(it => it.watch_name.trim()).map((item) => {
-                  const realIdx = items.indexOf(item)
-                  return (
-                    <div key={item._key} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-600 truncate flex-1 min-w-0">{item.watch_name}</span>
-                      <input
-                        type="text"
-                        value={item.amount_paid}
-                        onChange={e => updateItem(realIdx, 'amount_paid', e.target.value)}
-                        placeholder={item.amount || '0'}
-                        className="w-36 shrink-0 bg-white border border-gray-200 text-gray-900 rounded-xl px-3 py-2 text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                      />
+          {/* ── Payment Summary ──────────────────────────── */}
+          {items.some(it => it.watch_name.trim()) && (() => {
+            const amtPaid   = num(form.amount_paid)
+            const balance   = amtPaid != null && amtPaid < invoiceSubtotal ? invoiceSubtotal - amtPaid : 0
+            const paidFull  = amtPaid != null && invoiceSubtotal > 0 && amtPaid >= invoiceSubtotal
+            return (
+              <div className={card}>
+                <p className={cardHead + ' mb-4'}>Payment Summary</p>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className={cardHead}>Subtotal</span>
+                    <span className="text-sm font-medium text-gray-700 tabular-nums">{fmtAmt(invoiceSubtotal, form.currency)}</span>
+                  </div>
+                  {form.type === 'sourcing' && (
+                    <div>
+                      <label className={lbl}>Advance Paid</label>
+                      <input type="text" value={form.advance_paid} onChange={f('advance_paid')} placeholder="0" className={inp} />
                     </div>
-                  )
-                })}
+                  )}
+                  <div className="flex justify-between items-center bg-gray-900 text-white rounded-xl px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-widest">Total</span>
+                    <span className="text-base font-bold tabular-nums">{fmtAmt(invoiceSubtotal, form.currency)}</span>
+                  </div>
+                  <div>
+                    <label className={lbl}>Amount Paid</label>
+                    <input
+                      type="text"
+                      value={form.amount_paid}
+                      onChange={f('amount_paid')}
+                      placeholder={fmtAmt(invoiceSubtotal, form.currency)}
+                      className={inp}
+                    />
+                    <p className="text-[11px] text-gray-400 mt-1">Leave blank if paid in full</p>
+                  </div>
+                  {balance > 0 && (
+                    <div className="flex justify-between items-center px-1 pt-1 border-t border-red-100">
+                      <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Balance Due</span>
+                      <span className="text-sm font-bold text-red-600 tabular-nums">{fmtAmt(balance, form.currency)}</span>
+                    </div>
+                  )}
+                  {paidFull && (
+                    <div className="flex justify-center pt-1">
+                      <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-3 py-1">✓ Paid in Full</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* ── Sourcing Advance Payment ──────────────────── */}
-          {form.type === 'sourcing' && (
-            <div className={card}>
-              <p className={cardHead + ' mb-4'}>Advance Payment</p>
-              <div>
-                <label className={lbl}>Advance Paid</label>
-                <input type="text" value={form.advance_paid} onChange={f('advance_paid')} placeholder="0" className={inp} />
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* ── Payment ───────────────────────────────────── */}
           <div className={card}>
@@ -1024,6 +1044,7 @@ export default function InvoiceEditorClient({
               showBankDetails={form.show_bank_details}
               showSignatures={fieldVisibility.signatures}
               advancePaid={num(form.advance_paid)}
+              amountPaid={invoiceAmtPaid}
               notes={form.notes || null}
               termsAndConditions={form.terms_and_conditions || null}
               items={previewItems}

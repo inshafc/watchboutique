@@ -271,6 +271,7 @@ export interface Invoice {
   show_bank_details: boolean
   show_signatures:   boolean
   advance_paid:      number | null
+  amount_paid:       number | null
   notes:             string | null
   deleted_at?:       string | null
   created_at:        string

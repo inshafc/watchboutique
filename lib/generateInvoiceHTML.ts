@@ -9,7 +9,6 @@ export interface InvoiceHTMLItem {
   condition:     string | null
   photo_url:     string | null
   amount:        number | null
-  amount_paid?:  number | null
 }
 
 export interface InvoiceHTMLBank {
@@ -34,6 +33,7 @@ export interface InvoiceHTMLParams {
   showBankDetails:    boolean
   bank:               InvoiceHTMLBank | null
   advancePaid:        number | null
+  amountPaid:         number | null
   notes:              string | null
   termsAndConditions: string | null
   fieldVisibility: {
@@ -79,10 +79,11 @@ function fmtDate(d: string): string {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string }> = {
-  paid_in_full: { label: 'Paid in Full', dot: '#10b981', text: '#047857' },
-  advance_paid: { label: 'Advance Paid', dot: '#f59e0b', text: '#b45309' },
-  overdue:      { label: 'Overdue',      dot: '#ef4444', text: '#b91c1c' },
-  draft:        { label: 'Draft',        dot: '#9ca3af', text: '#6b7280' },
+  paid_in_full:   { label: 'Paid in Full',   dot: '#10b981', text: '#047857' },
+  partially_paid: { label: 'Partially Paid', dot: '#f59e0b', text: '#b45309' },
+  advance_paid:   { label: 'Advance Paid',   dot: '#f59e0b', text: '#b45309' },
+  overdue:        { label: 'Overdue',        dot: '#ef4444', text: '#b91c1c' },
+  draft:          { label: 'Draft',          dot: '#9ca3af', text: '#6b7280' },
 }
 
 // Prepended to every inline style= attribute to guarantee Poppins on all elements
@@ -90,16 +91,23 @@ const F = "font-family:'Poppins',sans-serif;"
 
 export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   const fv  = p.fieldVisibility
-  const sc  = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.draft
   const MIN_ROWS = 3
 
-  const items           = p.items.filter(it => it.watch_name?.trim())
-  const subtotal        = items.reduce((s, it) => s + (it.amount ?? 0), 0)
-  const hasAmountPaid   = items.some(it => it.amount_paid != null)
-  const totalAmountPaid = items.reduce((s, it) => s + (it.amount_paid ?? 0), 0)
-  const balanceDue      = p.type === 'sourcing' && p.advancePaid != null
-    ? subtotal - p.advancePaid
-    : null
+  const items    = p.items.filter(it => it.watch_name?.trim())
+  const subtotal = items.reduce((s, it) => s + (it.amount ?? 0), 0)
+
+  // Derive display status from amounts
+  const effectiveStatusKey: string =
+    p.amountPaid != null && subtotal > 0 && p.amountPaid >= subtotal ? 'paid_in_full' :
+    p.amountPaid != null && p.amountPaid > 0 && p.amountPaid < subtotal ? 'partially_paid' :
+    p.status
+
+  const sc = STATUS_CONFIG[effectiveStatusKey] ?? STATUS_CONFIG.draft
+
+  const showAdvancePaid = p.advancePaid != null && p.advancePaid > 0
+  const showAmountPaid  = p.amountPaid  != null && p.amountPaid  > 0 && p.amountPaid < subtotal
+  const balanceDue      = showAmountPaid ? subtotal - p.amountPaid! : 0
+  const paidInFull      = p.amountPaid  != null && subtotal > 0 && p.amountPaid >= subtotal
 
   const d0    = new Date(p.date + 'T00:00:00')
   const dd    = String(d0.getDate()).padStart(2, '0')
@@ -247,35 +255,45 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
     </tbody>
   </table>
 
-  <!-- AMOUNT PAID (single total row) -->
-  ${hasAmountPaid ? `
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border:1px solid #f3f4f6;border-radius:6px;margin-bottom:8px;">
-    <span style="${F}font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Amount Paid</span>
-    <span style="${F}font-size:13px;font-weight:600;color:#111111;font-variant-numeric:tabular-nums;">${fmt(totalAmountPaid, p.currency)}</span>
-  </div>` : ''}
-
   <!-- SUBTOTAL -->
   <div style="display:flex;justify-content:flex-end;align-items:center;gap:24px;padding:6px 0;margin-bottom:8px;">
     <span style="${F}font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Subtotal</span>
     <span style="${F}font-size:12px;color:#6b7280;min-width:140px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
   </div>
 
+  <!-- ADVANCE PAID (sourcing, before total) -->
+  ${showAdvancePaid ? `
+  <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:8px;">
+    <span style="${F}font-size:12px;color:#6b7280;">Advance Paid</span>
+    <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.advancePaid, p.currency)}</span>
+  </div>` : ''}
+
   <!-- TOTAL BAR -->
-  <div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;padding:16px 20px;border-radius:8px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;padding:16px 20px;border-radius:8px;margin-bottom:6px;">
     <span style="${F}color:#fff;font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;">Total</span>
     <span style="${F}color:#fff;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
   </div>
 
-  <!-- SOURCING: ADVANCE + BALANCE DUE -->
-  ${p.type === 'sourcing' && p.advancePaid != null ? `
-  <div style="margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:4px;">
-      <span style="${F}font-size:12px;color:#6b7280;">Advance Paid</span>
-      <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.advancePaid, p.currency)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;padding:8px 16px;border:1px solid #e5e7eb;border-radius:6px;">
-      <span style="${F}font-size:12px;font-weight:600;color:#111111;">Balance Due</span>
-      <span style="${F}font-size:13px;font-weight:700;color:#111111;font-variant-numeric:tabular-nums;">${fmt(balanceDue, p.currency)}</span>
+  <!-- AMOUNT PAID (partial payment) -->
+  ${showAmountPaid ? `
+  <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:4px;">
+    <span style="${F}font-size:12px;color:#6b7280;">Amount Paid</span>
+    <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.amountPaid, p.currency)}</span>
+  </div>` : ''}
+
+  <!-- BALANCE DUE -->
+  ${balanceDue > 0 ? `
+  <div style="display:flex;justify-content:space-between;padding:10px 16px;border:1px solid #fecaca;border-radius:6px;margin-bottom:4px;">
+    <span style="${F}font-size:12px;font-weight:700;color:#dc2626;">Balance Due</span>
+    <span style="${F}font-size:13px;font-weight:700;color:#dc2626;font-variant-numeric:tabular-nums;">${fmt(balanceDue, p.currency)}</span>
+  </div>` : ''}
+
+  <!-- PAID IN FULL BADGE -->
+  ${paidInFull ? `
+  <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:999px;padding:4px 14px;display:inline-flex;align-items:center;gap:6px;">
+      <span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;"></span>
+      <span style="${F}font-size:11px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:0.1em;">Paid in Full</span>
     </div>
   </div>` : ''}
 

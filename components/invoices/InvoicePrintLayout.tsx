@@ -11,7 +11,6 @@ export interface PrintItem {
   condition:     string | null
   photo_url:     string | null
   amount:        number | null
-  amount_paid?:  number | null
 }
 
 export interface PrintBank {
@@ -46,6 +45,7 @@ export interface InvoicePrintLayoutProps {
   showBankDetails:      boolean
   showSignatures:       boolean
   advancePaid:          number | null
+  amountPaid:           number | null
   notes:                string | null
   termsAndConditions?:  string | null
   items:                PrintItem[]
@@ -76,11 +76,12 @@ function fmtDate(d: string): string {
   }
 }
 
-const STATUS_CONFIG: Record<InvoiceStatus, { label: string; dotColor: string; textColor: string }> = {
-  paid_in_full: { label: 'Paid in Full', dotColor: '#10b981', textColor: '#047857' },
-  advance_paid: { label: 'Advance Paid', dotColor: '#f59e0b', textColor: '#b45309' },
-  overdue:      { label: 'Overdue',      dotColor: '#ef4444', textColor: '#b91c1c' },
-  draft:        { label: 'Draft',        dotColor: '#9ca3af', textColor: '#6b7280' },
+const STATUS_CONFIG: Record<string, { label: string; dotColor: string; textColor: string }> = {
+  paid_in_full:    { label: 'Paid in Full',    dotColor: '#10b981', textColor: '#047857' },
+  partially_paid:  { label: 'Partially Paid',  dotColor: '#f59e0b', textColor: '#b45309' },
+  advance_paid:    { label: 'Advance Paid',    dotColor: '#f59e0b', textColor: '#b45309' },
+  overdue:         { label: 'Overdue',         dotColor: '#ef4444', textColor: '#b91c1c' },
+  draft:           { label: 'Draft',           dotColor: '#9ca3af', textColor: '#6b7280' },
 }
 
 const MIN_ROWS = 3
@@ -89,7 +90,6 @@ export default function InvoicePrintLayout({
   invoiceNumber,
   date,
   currency,
-  type,
   status,
   clientName,
   clientAddress,
@@ -99,6 +99,7 @@ export default function InvoicePrintLayout({
   showBankDetails,
   showSignatures,
   advancePaid,
+  amountPaid,
   notes,
   termsAndConditions,
   items,
@@ -115,9 +116,20 @@ export default function InvoicePrintLayout({
     signatures:    fieldVisibility.signatures    ?? showSignatures,
   }
 
-  const subtotal   = items.reduce((s, it) => s + (it.amount ?? 0), 0)
-  const balanceDue = type === 'sourcing' && advancePaid != null ? subtotal - advancePaid : null
-  const sc         = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
+  const subtotal = items.reduce((s, it) => s + (it.amount ?? 0), 0)
+
+  // Derive display status from amounts
+  const effectiveStatusKey: string =
+    amountPaid != null && subtotal > 0 && amountPaid >= subtotal ? 'paid_in_full' :
+    amountPaid != null && amountPaid > 0 && amountPaid < subtotal ? 'partially_paid' :
+    status
+
+  const sc = STATUS_CONFIG[effectiveStatusKey] ?? STATUS_CONFIG.draft
+
+  const showAdvancePaid = advancePaid != null && advancePaid > 0
+  const showAmountPaid  = amountPaid  != null && amountPaid  > 0 && amountPaid < subtotal
+  const balanceDue      = showAmountPaid ? subtotal - amountPaid : 0
+  const paidInFull      = amountPaid != null && subtotal > 0 && amountPaid >= subtotal
 
   const effectiveLogo = logoUrl || TWB_LOGO_URL
 
@@ -125,9 +137,6 @@ export default function InvoicePrintLayout({
     ...items,
     ...Array(Math.max(0, MIN_ROWS - items.length)).fill(null),
   ]
-
-  const hasAmountPaid   = items.some(it => it.amount_paid != null)
-  const totalAmountPaid = items.reduce((s, it) => s + (it.amount_paid ?? 0), 0)
 
   const poppins = "'Poppins', sans-serif"
 
@@ -320,21 +329,7 @@ export default function InvoicePrintLayout({
           })}
         </div>
 
-        {/* ── AMOUNT PAID ─────────────────────────────────────────── */}
-        {hasAmountPaid && (
-          <div style={{ padding: '10px 48px 0' }}>
-            <div style={{ border: '1px solid #f3f4f6', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px' }}>
-              <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Amount Paid
-              </span>
-              <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#111111', fontVariantNumeric: 'tabular-nums' }}>
-                {fmt(totalAmountPaid, currency)}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* ── SUBTOTAL + TOTAL ────────────────────────────────────── */}
+        {/* ── TOTALS SECTION ──────────────────────────────────────── */}
         <div style={{ padding: '12px 48px 0' }}>
           {/* Subtotal row */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '24px', padding: '8px 16px', marginBottom: '6px' }}>
@@ -344,30 +339,42 @@ export default function InvoicePrintLayout({
             </span>
           </div>
 
+          {/* Advance Paid row (sourcing only, before total) */}
+          {showAdvancePaid && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', background: '#f9fafb', borderRadius: '6px', marginBottom: '6px' }}>
+              <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280' }}>Advance Paid</span>
+              <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{fmt(advancePaid, currency)}</span>
+            </div>
+          )}
+
           {/* Total bar */}
-          <div style={{
-            background:     '#1a1a1a',
-            color:          '#ffffff',
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'space-between',
-            padding:        '14px 20px',
-            borderRadius:   '8px',
-          }}>
+          <div style={{ background: '#1a1a1a', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderRadius: '8px' }}>
             <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.18em' }}>Total</span>
             <span style={{ fontFamily: poppins, fontSize: '20px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(subtotal, currency)}</span>
           </div>
 
-          {/* Sourcing: advance paid + balance due */}
-          {type === 'sourcing' && advancePaid != null && (
-            <div style={{ marginTop: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', background: '#f9fafb', borderRadius: '6px', marginBottom: '4px' }}>
-                <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280' }}>Advance Paid</span>
-                <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{fmt(advancePaid, currency)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-                <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 600, color: '#111111' }}>Balance Due</span>
-                <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 700, color: '#111111', fontVariantNumeric: 'tabular-nums' }}>{fmt(balanceDue, currency)}</span>
+          {/* Amount Paid row (partial payment) */}
+          {showAmountPaid && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 16px', background: '#f9fafb', borderRadius: '6px', marginTop: '6px' }}>
+              <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 400, color: '#6b7280' }}>Amount Paid</span>
+              <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 600, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{fmt(amountPaid, currency)}</span>
+            </div>
+          )}
+
+          {/* Balance Due row */}
+          {balanceDue > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', border: '1px solid #fecaca', borderRadius: '6px', marginTop: '4px' }}>
+              <span style={{ fontFamily: poppins, fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>Balance Due</span>
+              <span style={{ fontFamily: poppins, fontSize: '13px', fontWeight: 700, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{fmt(balanceDue, currency)}</span>
+            </div>
+          )}
+
+          {/* Paid in Full badge */}
+          {paidInFull && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '999px', padding: '4px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 700, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Paid in Full</span>
               </div>
             </div>
           )}
