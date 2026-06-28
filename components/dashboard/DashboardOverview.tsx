@@ -144,10 +144,10 @@ export default function DashboardOverview({
   const maxMgrComm     = Math.max(...byManager.map(m => m.commission), 1)
 
   return (
-    <div className="px-4 md:px-6 py-6 space-y-6 max-w-7xl mx-auto">
+    <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">{greeting}, Imad</h1>
           <p className="text-[13px] text-text-secondary mt-0.5">
@@ -169,44 +169,52 @@ export default function DashboardOverview({
         </div>
       </div>
 
-      {/* ── ROW 1 — KPI Cards ──────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          label="Watches Sold"
-          value={curStats.watchesSold.toString()}
-          target={tSold}
-          actual={curStats.watchesSold}
-          prevActual={prevStats.watchesSold}
-        />
-        <KPICard
-          label="Total Sales"
-          value={'LKR ' + fmtCompact(curStats.totalSales)}
-          sub={fmtLKR(curStats.totalSales)}
-          target={tSales}
-          actual={curStats.totalSales}
-          prevActual={prevStats.totalSales}
-        />
-        <KPICard
-          label="Gross Profit"
-          value={'LKR ' + fmtCompact(curStats.grossProfit)}
-          sub={fmtLKR(curStats.grossProfit)}
-          target={tGP}
-          actual={curStats.grossProfit}
-          prevActual={prevStats.grossProfit}
-        />
-        <KPICard
-          label="Inventory Value"
-          value={'LKR ' + fmtCompact(inventoryValue)}
-          sub={fmtLKR(inventoryValue)}
-          target={0}
-          actual={inventoryValue}
-          prevActual={0}
-        />
-      </div>
+      {/* ── Bento Grid ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
 
-      {/* ── ROW 2 — Trend Charts ───────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+        {/* ROW 1 — KPI Cards (3 cols each) */}
+        <div className="md:col-span-3">
+          <KPICard
+            label="Watches Sold"
+            value={curStats.watchesSold.toString()}
+            target={tSold}
+            actual={curStats.watchesSold}
+            prevActual={prevStats.watchesSold}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <KPICard
+            label="Total Sales"
+            value={'LKR ' + fmtCompact(curStats.totalSales)}
+            sub={fmtLKR(curStats.totalSales)}
+            target={tSales}
+            actual={curStats.totalSales}
+            prevActual={prevStats.totalSales}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <KPICard
+            label="Gross Profit"
+            value={'LKR ' + fmtCompact(curStats.grossProfit)}
+            sub={fmtLKR(curStats.grossProfit)}
+            target={tGP}
+            actual={curStats.grossProfit}
+            prevActual={prevStats.grossProfit}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <KPICard
+            label="Inventory Value"
+            value={'LKR ' + fmtCompact(inventoryValue)}
+            sub={fmtLKR(inventoryValue)}
+            target={0}
+            actual={inventoryValue}
+            prevActual={0}
+          />
+        </div>
+
+        {/* ROW 2 — Trend Charts (7 + 5) */}
+        <Card className="md:col-span-7">
           <SectionTitle>Sales Trend (last 6 months)</SectionTitle>
           {mounted ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -220,7 +228,7 @@ export default function DashboardOverview({
             </ResponsiveContainer>
           ) : <div className="h-48 bg-[#F7F6F3] rounded-xl animate-pulse" />}
         </Card>
-        <Card>
+        <Card className="md:col-span-5">
           <SectionTitle>Gross Profit Trend (last 6 months)</SectionTitle>
           {mounted ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -234,11 +242,9 @@ export default function DashboardOverview({
             </ResponsiveContainer>
           ) : <div className="h-48 bg-[#F7F6F3] rounded-xl animate-pulse" />}
         </Card>
-      </div>
 
-      {/* ── ROW 3 — Brand + Manager ────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+        {/* ROW 3 — Brand (5) + Manager (7) */}
+        <Card className="md:col-span-5">
           <SectionTitle>Sales by Brand</SectionTitle>
           {byBrand.length === 0 ? (
             <p className="text-sm text-text-muted">No data for this period.</p>
@@ -266,7 +272,7 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
-        <Card>
+        <Card className="md:col-span-7">
           <SectionTitle>Sales by Manager</SectionTitle>
           {byManager.length === 0 ? (
             <p className="text-sm text-text-muted">No data for this period.</p>
@@ -295,12 +301,9 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
-      </div>
 
-      {/* ── ROW 4 — New/Existing + Referral + Top Clients ───── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* New vs Existing */}
-        <Card>
+        {/* ROW 4 — New/Existing (4) + Referral (4) + Top Clients (4) */}
+        <Card className="md:col-span-4">
           <SectionTitle>New vs Existing Customers</SectionTitle>
           {mounted && nve[0].sold + nve[1].sold > 0 ? (
             <div className="flex items-center gap-4">
@@ -329,9 +332,7 @@ export default function DashboardOverview({
             <p className="text-sm text-text-muted">No data.</p>
           )}
         </Card>
-
-        {/* Referral Source */}
-        <Card>
+        <Card className="md:col-span-4">
           <SectionTitle>Referral Source</SectionTitle>
           {byReferral.length === 0 ? (
             <p className="text-sm text-text-muted">No data.</p>
@@ -349,9 +350,7 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
-
-        {/* Top 5 Clients */}
-        <Card>
+        <Card className="md:col-span-4">
           <SectionTitle>Top 5 Clients</SectionTitle>
           {top5.length === 0 ? (
             <p className="text-sm text-text-muted">No data.</p>
@@ -372,12 +371,9 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
-      </div>
 
-      {/* ── ROW 5 — Club TWB + Commission ──────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Club TWB */}
-        <Card>
+        {/* ROW 5 — Club TWB (6) + Commission (6) */}
+        <Card className="md:col-span-6">
           <SectionTitle>Club TWB Clients This Period</SectionTitle>
           {clubTwb.length === 0 ? (
             <p className="text-sm text-text-muted">No Club TWB sales this period.</p>
@@ -406,9 +402,7 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
-
-        {/* Commission Summary */}
-        <Card>
+        <Card className="md:col-span-6">
           <SectionTitle>Commission Summary</SectionTitle>
           {byManager.length === 0 ? (
             <p className="text-sm text-text-muted">No data.</p>
@@ -439,6 +433,7 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
+
       </div>
 
     </div>

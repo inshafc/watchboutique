@@ -162,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] transition-transform duration-200 md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ backgroundColor: '#111111' }}
@@ -172,15 +172,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border md:hidden print:hidden bg-white">
+        <header className="flex items-center justify-between px-4 border-b border-border md:hidden print:hidden bg-white" style={{ height: '56px' }}>
           <button
             onClick={() => setOpen(v => !v)}
             className="p-1.5 rounded-lg text-text-secondary hover:bg-cream transition-colors"
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <span className="text-sm font-semibold text-text-primary tracking-tight">The Watch Boutique</span>
-          <div className="w-8" />
+          <span className="text-sm font-semibold text-text-primary tracking-tight">TWB</span>
+          {profile ? (
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ backgroundColor: '#C9A84C' }}>
+              {initials(profile.full_name || profile.email)}
+            </div>
+          ) : (
+            <div className="w-8" />
+          )}
         </header>
 
         <main className="flex-1 overflow-auto bg-cream">

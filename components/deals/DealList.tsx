@@ -643,7 +643,41 @@ export default function DealList({
 
           {/* ── List View ──────────────────────────────────── */}
           {sorted.length > 0 && view === 'list' && (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile card stack */}
+            <div className="md:hidden space-y-2 mb-2">
+              {sorted.map(deal => {
+                const saleDate = deal.sale_date
+                  ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
+                  : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
+                return (
+                  <div
+                    key={deal.id}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-text-primary text-sm truncate">
+                        {deal.watches?.watch_name ?? <span className="text-text-muted">—</span>}
+                      </p>
+                      {deal.watches?.reference && <p className="text-xs text-text-muted truncate">Ref: {deal.watches.reference}</p>}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <StageBadge stage={deal.stage} />
+                        {deal.clients && <span className="text-xs text-text-secondary truncate">{deal.clients.name}</span>}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
+                        {formatLKR(deal.sale_price ?? deal.offered_price)}
+                      </p>
+                      <p className="text-[11px] text-text-muted">{saleDate}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100">
@@ -739,6 +773,7 @@ export default function DealList({
                 </tbody>
               </table>
             </div>
+            </>
           )}
 
           <p className="px-4 md:px-8 py-4 text-xs text-gray-300 border-t border-gray-50">

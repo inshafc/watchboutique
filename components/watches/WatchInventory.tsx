@@ -85,8 +85,8 @@ function LabelBadges({ labels, createdAt }: { labels?: string[]; createdAt: stri
   return (
     <span className="flex items-center gap-1 shrink-0">
       {isNew      && <span className="text-[10px] font-bold bg-emerald-500 text-white rounded px-1 py-0.5 leading-none">NEW</span>}
-      {labels.includes('hot_sell')   && <span className="text-xs leading-none" title="Hot Sell">🔥</span>}
-      {labels.includes('expensive')  && <span className="text-xs leading-none" title="Expensive">💰</span>}
+      {labels.includes('hot_sell')   && <span title="Hot Sell" className="inline-flex"><svg className="w-3.5 h-3.5 text-orange-500" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16z"/></svg></span>}
+      {labels.includes('expensive')  && <span title="Expensive" className="inline-flex"><svg className="w-3.5 h-3.5 text-amber-500" viewBox="0 0 16 16" fill="currentColor"><path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/></svg></span>}
     </span>
   )
 }
@@ -1325,7 +1325,48 @@ export default function WatchInventory({
 
           {/* ── List View ───────────────────────────────────────── */}
           {processed.length > 0 && view === 'list' && (
-            <div className="overflow-x-auto -mx-4 md:mx-0">
+            <>
+            {/* Mobile card stack */}
+            <div className="md:hidden space-y-2">
+              {processed.map(w => {
+                const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                return (
+                  <div
+                    key={w.id}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    onClick={() => router.push(`/dashboard/watches/${w.id}`)}
+                  >
+                    <div className="shrink-0">
+                      {w.photos?.[0] ? (
+                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} className="w-16 h-16 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-[#F3F2EF] flex items-center justify-center shrink-0">
+                          <svg className="w-6 h-6 text-[#9CA3AF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-text-primary text-sm truncate">{w.watch_name}</p>
+                      {brandName && (
+                        <p className="text-[10px] font-bold uppercase tracking-wider truncate mt-0.5" style={{ color: brandColor ?? '#9CA3AF' }}>
+                          {brandName}
+                        </p>
+                      )}
+                      {w.reference && <p className="text-xs text-text-muted truncate">Ref: {w.reference}</p>}
+                      <div className="mt-1.5"><StatusBadge status={w.watch_status ?? w.status} /></div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>{formatLKR(w.selling_price)}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
                   <tr>
@@ -1437,6 +1478,7 @@ export default function WatchInventory({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}

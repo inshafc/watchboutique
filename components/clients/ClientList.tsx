@@ -665,7 +665,41 @@ export default function ClientList({
 
           {/* Table */}
           {visible.length > 0 && view === 'list' && (
-            <div className="overflow-x-auto -mx-4 md:mx-0">
+            <>
+            {/* Mobile card stack */}
+            <div className="md:hidden space-y-2 mb-2">
+              {visible.map(c => {
+                const totalSales = clientSales[c.id] ?? 0
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                  >
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                      {getInitials(c.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-text-primary text-sm truncate">{c.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <TypeBadge type={c.client_type} />
+                        {c.club_twb && <span className="text-[10px] font-bold text-amber-600">★ Club</span>}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {totalSales > 0 && (
+                        <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
+                          {formatLKR(totalSales)}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-text-muted">{c.phone ?? c.whatsapp ?? ''}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto -mx-0">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
                   <tr>
@@ -766,6 +800,7 @@ export default function ClientList({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}

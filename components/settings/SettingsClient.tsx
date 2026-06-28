@@ -40,17 +40,18 @@ export default function SettingsClient({
   return (
     <div className="flex w-full min-h-full">
       {/* Desktop sub-nav */}
-      <aside className="w-44 shrink-0 border-r border-gray-100 py-6 px-3 hidden md:block">
+      <aside className="w-44 shrink-0 border-r border-border py-6 px-3 hidden md:block">
         <nav className="space-y-0.5">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
               onClick={() => setActive(item.id)}
-              className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-medium text-left transition-colors ${
+              className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[13px] font-medium text-left transition-colors ${
                 active === item.id
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'text-white'
+                  : 'text-text-secondary hover:bg-[#F3F2EF] hover:text-text-primary'
               }`}
+              style={active === item.id ? { backgroundColor: '#111111' } : undefined}
             >
               <span className="truncate">{item.label}</span>
               {item.soon && (
@@ -66,14 +67,15 @@ export default function SettingsClient({
       {/* Right column: mobile nav (stacked above) + content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile sub-nav (scrollable row) */}
-        <div className="md:hidden flex gap-1 overflow-x-auto px-4 py-3 border-b border-gray-100 no-scrollbar shrink-0">
+        <div className="md:hidden flex gap-1.5 overflow-x-auto px-4 py-3 border-b border-border no-scrollbar shrink-0">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
               onClick={() => setActive(item.id)}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                active === item.id ? 'bg-gray-900 text-white' : 'text-gray-500 bg-gray-100 hover:bg-gray-200'
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-medium transition-colors ${
+                active === item.id ? 'text-white' : 'text-text-secondary bg-[#F3F2EF] hover:bg-[#E8E6E1]'
               }`}
+              style={active === item.id ? { backgroundColor: '#111111' } : undefined}
             >
               {item.label}
               {item.soon && <span className="text-[9px] font-bold">•</span>}
@@ -82,7 +84,7 @@ export default function SettingsClient({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto py-6 px-6 md:px-8">
+        <div className="flex-1 overflow-y-auto py-6 px-4 md:px-8">
           {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
           {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
           {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
