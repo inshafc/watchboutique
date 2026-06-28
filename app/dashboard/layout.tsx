@@ -78,11 +78,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
-                active
-                  ? 'text-white bg-white/8 border-l-2 border-gold pl-[10px]'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors relative ${
+                active ? 'text-white border-l-2 pl-[10px]' : 'hover:bg-white/5'
               }`}
+              style={active
+                ? { color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
+                : { color: '#888888' }
+              }
             >
               <Icon />
               {label}
@@ -100,11 +102,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
                 active
-                  ? 'text-white bg-white/8 border-l-2 border-gold pl-[10px]'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                  ? 'text-white border-l-2 pl-[10px]'
+                  : 'hover:bg-white/5'
               }`}
+              style={active
+                ? { color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
+                : { color: '#888888' }
+              }
             >
               <Icon />
               {label}
@@ -116,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {profile && role ? (
           <div className="mt-3 pt-3 border-t border-white/8">
             <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
-              <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+              <div className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-bold shrink-0" style={{ backgroundColor: '#C9A84C' }}>
                 {initials(profile.full_name || profile.email)}
               </div>
               <div className="flex-1 min-w-0">
@@ -144,7 +150,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-cream overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex print:hidden flex-col w-[220px] shrink-0 bg-sidebar">
+      <aside
+        className="hidden md:flex print:hidden flex-col w-[220px] shrink-0"
+        style={{ backgroundColor: '#111111', minHeight: '100vh' }}
+      >
         <SidebarContent />
       </aside>
 
@@ -153,9 +162,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-sidebar transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 transition-transform duration-200 md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ backgroundColor: '#111111' }}
       >
         <SidebarContent />
       </aside>

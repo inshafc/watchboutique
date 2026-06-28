@@ -277,7 +277,7 @@ export default function DashboardOverview({
                 <XAxis dataKey="manager" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
                 <YAxis tickFormatter={v => fmtCompact(v)} tick={{ fontSize: 10, fill: '#9CA3AF' }} width={48} />
                 <Tooltip content={<ChartTooltipLKR />} />
-                <Bar dataKey="totalSales" name="Total Sales" fill="#111111" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalSales" name="Total Sales" fill="#C9A84C" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : <div className="h-40 bg-[#F7F6F3] rounded-xl animate-pulse" />}
