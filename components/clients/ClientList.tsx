@@ -383,14 +383,18 @@ export default function ClientList({
               ))}
             </div>
           )}
-          {/* Filter icon — desktop only */}
+          {/* Filter icon */}
           {!showingDeleted && (
             <button
               onClick={() => setShowFilters(v => !v)}
-              className={`hidden md:block p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-900'}`}
-              title="Filters &amp; sort"
+              className={`relative p-2 rounded-xl border transition-colors ${showFilters ? 'text-white border-[#C9A84C]' : typeFilter !== null ? 'bg-white border-[#C9A84C] text-[#C9A84C]' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-900'}`}
+              style={showFilters ? { backgroundColor: '#C9A84C' } : undefined}
+              title="Filter"
             >
               <FilterIcon />
+              {typeFilter !== null && !showFilters && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center text-[10px] font-bold text-white rounded-full" style={{ backgroundColor: '#C9A84C' }}>1</span>
+              )}
             </button>
           )}
           {/* Select toggle — desktop only */}
@@ -416,8 +420,29 @@ export default function ClientList({
 
       {/* Filter panel */}
       {showFilters && !showingDeleted && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Sort by</p>
+        <div className="bg-white border border-[#E8E6E1] rounded-xl p-4 mb-4">
+          {!showingDrafts && (
+            <div className="mb-4">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Client Type</p>
+              <div className="flex items-center gap-2 overflow-x-auto pb-px flex-nowrap">
+                {(['Retail', 'Reseller', 'Club TWB'] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setTypeFilter(v => v === p ? null : p)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${typeFilter === p ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {typeFilter && (
+                  <button onClick={() => setTypeFilter(null)} className="px-3 py-1.5 rounded-full text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors whitespace-nowrap">
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sort by</p>
           <div className="flex gap-2 flex-wrap">
             {([
               { key: 'created_desc', label: 'Latest' },
@@ -429,7 +454,7 @@ export default function ClientList({
               <button
                 key={key}
                 onClick={() => setSort(key)}
-                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${sort === key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-3 py-1.5 rounded-full text-xs transition-colors ${sort === key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 {label}
               </button>
@@ -452,25 +477,6 @@ export default function ClientList({
         </div>
       )}
 
-      {/* Type filter pills */}
-      {!showingDeleted && !showingDrafts && (
-        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-px flex-nowrap">
-          {(['Retail', 'Reseller', 'Club TWB'] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => setTypeFilter(v => v === p ? null : p)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${typeFilter === p ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-            >
-              {p}
-            </button>
-          ))}
-          {typeFilter && (
-            <button onClick={() => setTypeFilter(null)} className="px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-              Clear
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-px">

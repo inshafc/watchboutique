@@ -156,6 +156,7 @@ export default function WatchInventory({
   const [view,            setView]            = useState<ViewMode>('list')
   const [tileSize,        setTileSize]        = useState<3 | 4 | 5>(4)
   const [showSortMenu,    setShowSortMenu]    = useState(false)
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [tileMenuId,      setTileMenuId]      = useState<string | null>(null)
 
@@ -229,6 +230,8 @@ export default function WatchInventory({
 
   const hasActiveFilters =
     brandId !== null || conditionFilter !== 'All' || statusFilter !== 'All' || sort !== 'last_added'
+
+  const activeFilterCount = (brandId !== null ? 1 : 0) + (conditionFilter !== 'All' ? 1 : 0)
 
   function clearAll() {
     setBrandId(null)
@@ -842,6 +845,22 @@ export default function WatchInventory({
             </div>
           )}
 
+          {!bulkMode && !showingDeleted && !showingDrafts && (
+            <button
+              onClick={() => setShowFilterPanel(v => !v)}
+              title="Filter"
+              className={`relative p-2 rounded-xl border transition-colors ${showFilterPanel ? 'text-white border-[#C9A84C]' : activeFilterCount > 0 ? 'bg-white border-[#C9A84C] text-[#C9A84C]' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
+              style={showFilterPanel ? { backgroundColor: '#C9A84C' } : undefined}
+            >
+              <FunnelIcon />
+              {activeFilterCount > 0 && !showFilterPanel && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center text-[10px] font-bold text-white rounded-full" style={{ backgroundColor: '#C9A84C' }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {!bulkMode && !showingDeleted && !showingDrafts && !showingSourced && (
             <Link href="/dashboard/watches/new" className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors">
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
@@ -890,42 +909,43 @@ export default function WatchInventory({
         </div>
       )}
 
-      {/* ── Brand filter pills ────────────────────────────────── */}
-      {!bulkMode && brands.length > 0 && (
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-px flex-nowrap">
-          {brands.map(b => {
-            const active = brandId === b.id
-            return (
-              <button
-                key={b.id}
-                onClick={() => setBrandId(active ? null : b.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold text-white whitespace-nowrap transition-all border-2 ${active ? 'border-white/70 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                style={{ backgroundColor: b.color ?? '#374151' }}
-              >
-                {b.name}
-              </button>
-            )
-          })}
-          {brandId && (
-            <button onClick={() => setBrandId(null)} className="text-xs text-gray-400 hover:text-gray-700 transition-colors whitespace-nowrap px-1">
-              Clear filter
-            </button>
+      {/* ── Filter panel (brand + condition) ─────────────────── */}
+      {!bulkMode && showFilterPanel && (
+        <div className="bg-white border border-[#E8E6E1] rounded-xl p-4 mb-4">
+          {brands.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Brand</p>
+              <div className="flex items-center gap-2 overflow-x-auto pb-px flex-nowrap">
+                {brands.map(b => {
+                  const active = brandId === b.id
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => setBrandId(active ? null : b.id)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold text-white whitespace-nowrap transition-all border-2 ${active ? 'border-white/70 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                      style={{ backgroundColor: b.color ?? '#374151' }}
+                    >
+                      {b.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           )}
-        </div>
-      )}
-
-      {/* ── Condition filter pills ────────────────────────────── */}
-      {!bulkMode && (
-        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-px flex-nowrap">
-          {(['All', 'Brand New', 'Pre-Owned'] as ConditionFilter[]).map(c => (
-            <button
-              key={c}
-              onClick={() => setConditionFilter(c)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${conditionFilter === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
-            >
-              {c}
-            </button>
-          ))}
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Condition</p>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-px flex-nowrap">
+              {(['All', 'Brand New', 'Pre-Owned'] as ConditionFilter[]).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setConditionFilter(c)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${conditionFilter === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1329,15 +1349,14 @@ export default function WatchInventory({
           {processed.length > 0 && view === 'list' && (
             <>
             {/* Mobile card stack */}
-            <div className="md:hidden space-y-2">
+            <div className="md:hidden">
               {processed.map(w => {
                 const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                 const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                 return (
                   <div
                     key={w.id}
-                    className="flex items-start gap-3 p-4 bg-white border border-[#E8E6E1] cursor-pointer"
-                    style={{ borderRadius: '12px' }}
+                    className="flex items-start gap-3 py-3 cursor-pointer border-b border-[#E8E6E1] transition-colors active:bg-[#F3F2EF]"
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     <div className="shrink-0">
