@@ -1,6 +1,36 @@
 import Link from 'next/link'
 
-export default function GenerateInvoiceButton({ dealId }: { dealId: string }) {
+interface ExistingInvoice {
+  id: string
+  invoice_number: string
+  status: string
+}
+
+interface Props {
+  dealId:          string
+  dealStage?:      string
+  existingInvoice?: ExistingInvoice | null
+}
+
+export default function GenerateInvoiceButton({ dealId, dealStage, existingInvoice }: Props) {
+  if (existingInvoice) {
+    return (
+      <Link
+        href={`/dashboard/invoices/${existingInvoice.id}/edit`}
+        className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-emerald-200"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
+        </svg>
+        {existingInvoice.invoice_number}
+      </Link>
+    )
+  }
+
+  if (dealStage === 'Delivered') {
+    return null
+  }
+
   return (
     <Link
       href={`/dashboard/invoices/new?deal_id=${dealId}`}

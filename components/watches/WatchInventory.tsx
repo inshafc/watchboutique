@@ -125,11 +125,28 @@ function Checkbox({
 export default function WatchInventory({
   watches: initial,
   brands,
+  highlightId,
 }: {
-  watches: WatchWithBrand[]
-  brands: Brand[]
+  watches:     WatchWithBrand[]
+  brands:      Brand[]
+  highlightId?: string
 }) {
   const router = useRouter()
+
+  // Clear ?highlight param after animation completes
+  useEffect(() => {
+    if (highlightId) {
+      const t = setTimeout(() => router.replace('/dashboard/inventory', { scroll: false }), 2600)
+      return () => clearTimeout(t)
+    }
+  }, [highlightId, router])
+
+  // Stagger animation: enabled for initial mount only
+  const staggerActive = useRef(true)
+  useEffect(() => {
+    const t = setTimeout(() => { staggerActive.current = false }, 1400)
+    return () => clearTimeout(t)
+  }, [])
   const [watches,         setWatches]         = useState(initial)
   const [statusFilter,    setStatusFilter]    = useState<StatusFilter>('All')
   const [conditionFilter, setConditionFilter] = useState<ConditionFilter>('All')
@@ -1166,10 +1183,11 @@ export default function WatchInventory({
               tileSize === 4 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' :
                               'grid-cols-2 md:grid-cols-3'
             }`}>
-              {processed.map(w => {
-                const isSelected = selectedIds.has(w.id)
-                const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
-                const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+              {processed.map((w, tileIdx) => {
+                const isSelected  = selectedIds.has(w.id)
+                const isHighlight = w.id === highlightId
+                const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                 return (
                   <div
                     key={w.id}
@@ -1179,7 +1197,8 @@ export default function WatchInventory({
                         : bulkMode
                         ? 'border-gray-100 hover:border-gray-300'
                         : 'border-gray-100 hover:border-gray-300 hover:shadow-sm'
-                    }`}
+                    } ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
+                    style={staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : undefined}
                     onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
                   >
                     {/* Photo */}
@@ -1314,9 +1333,10 @@ export default function WatchInventory({
                 </thead>
                 <tbody>
                   {processed.map((w, idx) => {
-                    const isSelected = selectedIds.has(w.id)
-                    const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
-                    const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                    const isSelected  = selectedIds.has(w.id)
+                    const isHighlight = w.id === highlightId
+                    const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                    const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                     return (
                       <tr
                         key={w.id}
@@ -1330,7 +1350,8 @@ export default function WatchInventory({
                           bulkMode && isSelected
                             ? 'bg-gray-50'
                             : 'hover:bg-gray-50/80'
-                        }`}
+                        } ${isHighlight ? 'row-highlight' : (!isHighlight && staggerActive.current && idx < 20 ? 'stagger-item' : '')}`}
+                        style={!isHighlight && staggerActive.current && idx < 20 ? { animationDelay: `${idx * 40}ms` } : undefined}
                         onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
                       >
                         {/* Bulk checkbox */}

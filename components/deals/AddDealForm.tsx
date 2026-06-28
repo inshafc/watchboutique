@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
 import type { PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import DealSuccessModal from '@/components/deals/DealSuccessModal'
 
 const inp  = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl  = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
@@ -198,8 +199,9 @@ export default function AddDealForm({
   initialWatchId?: string
 }) {
   const router  = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [successModal, setSuccessModal] = useState<{ dealId: string; watchName: string; salePrice: number | null; clientName: string } | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -390,8 +392,28 @@ export default function AddDealForm({
       }
     }
 
-    router.push(`/dashboard/deals/${deal.id}`)
+    const clientName = clients.find(c => c.id === form.client_id)?.name ?? ''
+    setLoading(false)
+    setSuccessModal({
+      dealId:     deal.id,
+      watchName:  selectedWatch?.watch_name ?? '',
+      salePrice:  num(form.sale_price),
+      clientName,
+    })
     router.refresh()
+  }
+
+  if (successModal) {
+    return (
+      <DealSuccessModal
+        type="new"
+        dealId={successModal.dealId}
+        watchName={successModal.watchName}
+        salePrice={successModal.salePrice}
+        clientName={successModal.clientName}
+        onClose={() => setSuccessModal(null)}
+      />
+    )
   }
 
   return (

@@ -38,7 +38,7 @@ function FinancialRow({ label, value, sub }: { label: string; value: React.React
 export default async function DealDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, installRes, tradeInsRes, expensesRes] = await Promise.all([
+  const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes] = await Promise.all([
     supabase
       .from('deals')
       .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
@@ -59,6 +59,14 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       .select('*')
       .eq('deal_id', params.id)
       .order('created_at'),
+    supabase
+      .from('invoices')
+      .select('id, invoice_number, status')
+      .eq('deal_id', params.id)
+      .neq('status', 'draft')
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!dealRes.data) notFound()
@@ -76,9 +84,10 @@ export default async function DealDetailPage({ params }: { params: { id: string 
     investors = (invData ?? []) as WatchInvestorRow[]
   }
 
-  const installments = (installRes.data   ?? []) as Installment[]
-  const tradeIns     = (tradeInsRes.data  ?? []) as TradeIn[]
-  const expenses     = (expensesRes.data  ?? []) as DealExpense[]
+  const installments   = (installRes.data  ?? []) as Installment[]
+  const tradeIns       = (tradeInsRes.data ?? []) as TradeIn[]
+  const expenses       = (expensesRes.data ?? []) as DealExpense[]
+  const existingInvoice = invoiceRes.data as { id: string; invoice_number: string; status: string } | null
 
   const watchCost     = deal.watches?.purchase_cost ?? 0
   const otherCostsAmt = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
@@ -105,7 +114,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       <div className="mb-6">
         {/* Action row: Invoice left, icon actions right */}
         <div className="flex items-center justify-between gap-3 mb-4">
-          <GenerateInvoiceButton dealId={deal.id} />
+          <GenerateInvoiceButton dealId={deal.id} dealStage={deal.stage} existingInvoice={existingInvoice} />
           <DealDetailActions deal={deal} />
         </div>
         {/* Watch name + meta */}

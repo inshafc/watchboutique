@@ -4,7 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import WatchInventory from '@/components/watches/WatchInventory'
 import type { WatchWithBrand, Brand } from '@/types'
 
-export default async function InventoryPage() {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: { highlight?: string }
+}) {
   const supabase = createClient()
 
   const [watchesRes, brandsRes] = await Promise.all([
@@ -22,5 +26,5 @@ export default async function InventoryPage() {
     return true
   })
 
-  return <WatchInventory watches={watches} brands={brands} />
+  return <WatchInventory watches={watches} brands={brands} highlightId={searchParams.highlight} />
 }

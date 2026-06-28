@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
+import WatchSuccessModal from '@/components/watches/WatchSuccessModal'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
   WATCH_CONDITIONS,
@@ -63,6 +64,8 @@ export default function EditWatchForm({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
+  const [successModal, setSuccessModal] = useState(false)
+  const savedRef = useRef({ name: watch.watch_name, ref: watch.reference ?? null })
 
   const [form, setForm] = useState({
     watch_name:     watch.watch_name,
@@ -213,7 +216,9 @@ export default function EditWatchForm({
       if (invErr) { setError(invErr.message); setLoading(false); return }
     }
 
-    router.push('/dashboard/inventory')
+    savedRef.current = { name: form.watch_name.trim(), ref: form.reference.trim() || null }
+    setLoading(false)
+    setSuccessModal(true)
     router.refresh()
   }
 
@@ -226,6 +231,7 @@ export default function EditWatchForm({
   }
 
   return (
+    <>
     <form onSubmit={e => e.preventDefault()} className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
@@ -463,5 +469,16 @@ export default function EditWatchForm({
         </button>
       </div>
     </form>
+
+    {successModal && (
+      <WatchSuccessModal
+        type="edit"
+        watchId={watch.id}
+        watchName={savedRef.current.name}
+        reference={savedRef.current.ref}
+        onClose={() => setSuccessModal(false)}
+      />
+    )}
+    </>
   )
 }

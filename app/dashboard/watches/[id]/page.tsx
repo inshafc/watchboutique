@@ -55,6 +55,30 @@ export default async function WatchDetailPage({ params }: { params: { id: string
   }
   const deals = (dealsRes.data ?? []) as unknown as WatchDeal[]
 
+  type WatchInvoice = {
+    id: string
+    invoice_number: string
+    date: string | null
+    client_name: string | null
+    amount_paid: number | null
+    status: string
+    deal_id: string
+  }
+  let invoice: WatchInvoice | null = null
+  if (deals.length > 0) {
+    const dealIds = deals.map(d => d.id)
+    const { data: invData } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, date, client_name, amount_paid, status, deal_id')
+      .in('deal_id', dealIds)
+      .is('deleted_at', null)
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    invoice = invData as WatchInvoice | null
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8">
       {/* Back */}
@@ -315,6 +339,52 @@ export default async function WatchDetailPage({ params }: { params: { id: string
                   </Link>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Invoice */}
+        {invoice && (
+          <div className="border border-gray-100 rounded-2xl p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice</p>
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <Link
+                  href={`/dashboard/invoices/${invoice.id}/edit`}
+                  className="text-sm font-semibold text-gray-900 hover:text-gray-600 transition-colors"
+                >
+                  {invoice.invoice_number}
+                </Link>
+                {invoice.client_name && (
+                  <p className="text-xs text-gray-400 mt-0.5">{invoice.client_name}</p>
+                )}
+                {invoice.date && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(invoice.date).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-3 shrink-0 ml-3">
+                {invoice.amount_paid != null && (
+                  <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                    {formatLKR(invoice.amount_paid)}
+                  </span>
+                )}
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  invoice.status === 'paid'    ? 'bg-emerald-50 text-emerald-700' :
+                  invoice.status === 'sent'    ? 'bg-sky-50 text-sky-700' :
+                  invoice.status === 'overdue' ? 'bg-red-50 text-red-600' :
+                                                 'bg-gray-100 text-gray-600'
+                }`}>
+                  {invoice.status}
+                </span>
+                <Link
+                  href={`/dashboard/invoices/${invoice.id}/edit`}
+                  className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                >
+                  View →
+                </Link>
+              </div>
             </div>
           </div>
         )}

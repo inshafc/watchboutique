@@ -33,3 +33,32 @@ input[type="number"] {
 input[type="file"] {
   display: none;
 }
+
+/* ── Animated SVG checkmark (success modal) ─────────────── */
+@keyframes draw-circle {
+  from { stroke-dashoffset: 160; }
+  to   { stroke-dashoffset: 0;   }
+}
+@keyframes draw-check {
+  from { stroke-dashoffset: 55; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+/* ── Post-save row highlight pulse ──────────────────────── */
+@keyframes highlight-pulse {
+  0%   { background-color: rgb(254 243 199 / 0.9); }
+  70%  { background-color: rgb(254 243 199 / 0.3); }
+  100% { background-color: transparent; }
+}
+.row-highlight {
+  animation: highlight-pulse 2.5s ease-out forwards;
+}
+
+/* ── List stagger fade-in ────────────────────────────────── */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.stagger-item {
+  animation: stagger-in 0.2s ease both;
+}

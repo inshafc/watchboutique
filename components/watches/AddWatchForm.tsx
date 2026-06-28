@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
+import WatchSuccessModal from '@/components/watches/WatchSuccessModal'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
   WATCH_CONDITIONS,
@@ -49,10 +49,9 @@ function LabelToggle({ label, checked, onChange }: { label: string; checked: boo
 function num(s: string) { return parseFloat(s.replace(/,/g, '')) }
 
 export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const [successToast, setSuccessToast] = useState(false)
+  const [successModal, setSuccessModal] = useState<{ id: string; name: string; ref: string | null } | null>(null)
 
   const [watchId,   setWatchId]   = useState<string | null>(null)
   const [loadingId, setLoadingId] = useState(true)
@@ -226,11 +225,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       }
     }
 
-    setSuccessToast(true)
-    setTimeout(() => {
-      router.push('/dashboard/inventory')
-      router.refresh()
-    }, 1200)
+    setLoading(false)
+    setSuccessModal({ id: watch.id, name: form.watch_name.trim(), ref: form.reference.trim() || null })
   }
 
   return (
@@ -473,14 +469,15 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         </Link>
       </div>
 
-      {/* ── Success toast ─────────────────────────────────── */}
-      {successToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none">
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="text-sm font-medium">Watch saved successfully</span>
-        </div>
+      {/* ── Success modal ─────────────────────────────────── */}
+      {successModal && (
+        <WatchSuccessModal
+          type="new"
+          watchId={successModal.id}
+          watchName={successModal.name}
+          reference={successModal.ref}
+          onClose={() => setSuccessModal(null)}
+        />
       )}
     </form>
   )

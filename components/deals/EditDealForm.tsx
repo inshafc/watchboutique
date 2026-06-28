@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
 import type { Deal, TradeIn, DealExpense, PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import DealSuccessModal from '@/components/deals/DealSuccessModal'
 
 const inp  = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl  = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
@@ -190,8 +191,9 @@ export default function EditDealForm({
   salesManagers?: SalesManager[]
 }) {
   const router  = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [successModal, setSuccessModal] = useState(false)
 
   const [form, setForm] = useState({
     watch_id:          deal.watch_id      ?? '',
@@ -356,8 +358,22 @@ export default function EditDealForm({
       }
     }
 
-    router.push(`/dashboard/deals/${deal.id}`)
+    setLoading(false)
+    setSuccessModal(true)
     router.refresh()
+  }
+
+  if (successModal) {
+    return (
+      <DealSuccessModal
+        type="edit"
+        dealId={deal.id}
+        watchName={selectedWatch?.watch_name ?? watches.find(w => w.id === deal.watch_id)?.watch_name ?? ''}
+        salePrice={num(form.sale_price)}
+        clientName={clients.find(c => c.id === form.client_id)?.name ?? ''}
+        onClose={() => setSuccessModal(false)}
+      />
+    )
   }
 
   return (
