@@ -148,7 +148,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 
   return (
-    <div className="flex h-screen bg-cream overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#F7F6F3' }}>
       {/* Desktop sidebar */}
       <aside
         className="hidden md:flex print:hidden flex-col w-[220px] shrink-0"
@@ -179,7 +179,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <span className="text-sm font-semibold text-text-primary tracking-tight">TWB</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MjY2NTUxNSwiZXhwIjoyODE5NDY1NTE1fQ.nU_JybuGttH1rlh-jx3A92eJwmRBMTgY79NeD9W_3B8"
+            alt="TWB Brain"
+            style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
+          />
           {profile ? (
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ backgroundColor: '#C9A84C' }}>
               {initials(profile.full_name || profile.email)}
@@ -189,7 +194,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </header>
 
-        <main className="flex-1 overflow-auto bg-cream">
+        <main className="flex-1 overflow-auto" style={{ backgroundColor: '#F7F6F3' }}>
           <div>
             {children}
           </div>

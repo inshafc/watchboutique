@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { avatarColor, getInitials } from '@/lib/client-utils'
+import { getInitials } from '@/lib/client-utils'
 import type { DealWithRelations, DealStage, DealType, SalesManager } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -319,11 +319,11 @@ export default function DealList({
         <div className="flex items-center gap-1.5">
           {!showingDeleted && (
             <>
-              {/* Filter */}
+              {/* Filter — desktop only */}
               <button
                 onClick={() => setShowFilters(v => !v)}
                 title="Filters"
-                className={`relative p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                className={`relative hidden md:block p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
               >
                 <FilterIcon />
                 {filtersActive && (
@@ -331,24 +331,24 @@ export default function DealList({
                 )}
               </button>
 
-              {/* Select */}
+              {/* Select — desktop only */}
               <button
                 onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
                 title="Select"
-                className={`p-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                className={`hidden md:block p-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
               >
                 <SelectIcon />
               </button>
 
-              {/* List/Grid toggle */}
-              <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              {/* List/Grid toggle — desktop only */}
+              <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
                 <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
                 <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
               </div>
 
-              {/* Grid size (tile view only) */}
+              {/* Grid size (tile view only) — desktop only */}
               {view === 'tile' && (
-                <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+                <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
                   {([3, 4, 5] as const).map(n => (
                     <button
                       key={n}
@@ -524,7 +524,7 @@ export default function DealList({
                       <td className="px-3 py-3.5 hidden sm:table-cell">
                         {deal.clients ? (
                           <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 opacity-50 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>{getInitials(deal.clients.name)}</div>
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 opacity-50 text-white" style={{ backgroundColor: '#C9A84C' }}>{getInitials(deal.clients.name)}</div>
                             <span className="text-sm text-gray-400 truncate max-w-[120px]">{deal.clients.name}</span>
                           </div>
                         ) : <span className="text-sm text-gray-300">—</span>}
@@ -624,7 +624,7 @@ export default function DealList({
                       </div>
                       {deal.clients && (
                         <div className="flex items-center gap-2 mb-3">
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>{getInitials(deal.clients.name)}</div>
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>{getInitials(deal.clients.name)}</div>
                           <span className="text-xs text-gray-600 truncate">{deal.clients.name}</span>
                           {deal.clients.club_twb && <span className="text-[10px] font-semibold text-gray-400">★</span>}
                           {deal.clients.is_vip   && !deal.clients.club_twb && <span className="text-[10px] font-semibold text-amber-500">★</span>}
@@ -653,24 +653,34 @@ export default function DealList({
                 return (
                   <div
                     key={deal.id}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    className="flex items-start gap-3 p-4 bg-white border border-[#E8E6E1] cursor-pointer"
+                    style={{ borderRadius: '12px' }}
                     onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-text-primary text-sm truncate">
-                        {deal.watches?.watch_name ?? <span className="text-text-muted">—</span>}
+                      {/* LINE 1: Watch name */}
+                      <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>
+                        {deal.watches?.watch_name ?? '—'}
                       </p>
-                      {deal.watches?.reference && <p className="text-xs text-text-muted truncate">Ref: {deal.watches.reference}</p>}
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {/* LINE 2: Ref */}
+                      {deal.watches?.reference && (
+                        <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>Ref: {deal.watches.reference}</p>
+                      )}
+                      {/* LINE 3: Client */}
+                      {deal.clients && (
+                        <p className="mt-0.5 truncate" style={{ fontSize: '13px', color: '#6B6B6B' }}>{deal.clients.name}</p>
+                      )}
+                      {/* LINE 4: Badge + Date */}
+                      <div className="flex items-center justify-between mt-2">
                         <StageBadge stage={deal.stage} />
-                        {deal.clients && <span className="text-xs text-text-secondary truncate">{deal.clients.name}</span>}
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{saleDate}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
+                    {/* PRICE: top right */}
+                    <div className="shrink-0 text-right pt-0.5">
+                      <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>
                         {formatLKR(deal.sale_price ?? deal.offered_price)}
                       </p>
-                      <p className="text-[11px] text-text-muted">{saleDate}</p>
                     </div>
                   </div>
                 )
@@ -743,7 +753,7 @@ export default function DealList({
                         <td className="px-3 py-3.5 hidden sm:table-cell">
                           {deal.clients ? (
                             <div className="flex items-center gap-2">
-                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(deal.clients.name, deal.clients.avatar_color)}`}>{getInitials(deal.clients.name)}</div>
+                              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>{getInitials(deal.clients.name)}</div>
                               <span className="text-sm text-gray-700 truncate max-w-[120px]">{deal.clients.name}</span>
                               {deal.clients.club_twb && <span className="text-xs text-gray-400">★</span>}
                             </div>

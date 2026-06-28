@@ -9,6 +9,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'sdubtvglhylztrxukyep.supabase.co',
+      },
+      {
+        protocol: 'https',
         hostname: '**.framerusercontent.com',
       },
       {

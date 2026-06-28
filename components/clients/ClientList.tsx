@@ -368,36 +368,36 @@ export default function ClientList({
           <p className="text-[13px] text-text-secondary mt-0.5">{liveClients.length} {liveClients.length === 1 ? 'client' : 'clients'}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          {/* View toggle */}
+          {/* View toggle — desktop only */}
           {!showingDeleted && (
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
               <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
               <button onClick={() => setView('grid')} className={`p-2 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Grid view"><GridIcon /></button>
             </div>
           )}
-          {/* Grid size */}
+          {/* Grid size — desktop only */}
           {!showingDeleted && view === 'grid' && (
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
               {([3, 4, 5] as const).map(n => (
                 <button key={n} onClick={() => setGridCols(n)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${gridCols === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}>{n}</button>
               ))}
             </div>
           )}
-          {/* Filter icon */}
+          {/* Filter icon — desktop only */}
           {!showingDeleted && (
             <button
               onClick={() => setShowFilters(v => !v)}
-              className={`p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-900'}`}
+              className={`hidden md:block p-2 rounded-xl border transition-colors ${showFilters ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-900'}`}
               title="Filters &amp; sort"
             >
               <FilterIcon />
             </button>
           )}
-          {/* Select toggle */}
+          {/* Select toggle — desktop only */}
           {!showingDeleted && !showingDrafts && (
             <button
               onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
-              className={`text-sm font-medium px-3 py-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}
+              className={`hidden md:block text-sm font-medium px-3 py-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}
             >
               {selectMode ? 'Cancel' : 'Select'}
             </button>
@@ -452,9 +452,9 @@ export default function ClientList({
         </div>
       )}
 
-      {/* Type filter pills */}
+      {/* Type filter pills — desktop only */}
       {!showingDeleted && !showingDrafts && (
-        <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="hidden md:flex items-center gap-2 flex-wrap mb-4">
           {(['Retail', 'Reseller', 'Club TWB'] as const).map(p => (
             <button
               key={p}
@@ -533,7 +533,7 @@ export default function ClientList({
                   {deletedClients.map(c => (
                     <tr key={c.id} className="group">
                       <td className="px-4 py-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 opacity-50 ${avatarColor(c.name, c.avatar_color)}`}>{getInitials(c.name)}</div>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 opacity-50 text-white" style={{ backgroundColor: '#C9A84C' }}>{getInitials(c.name)}</div>
                       </td>
                       <td className="px-4 py-3 max-w-[180px]">
                         <div className="font-semibold text-gray-400 truncate">{c.name}</div>
@@ -638,7 +638,7 @@ export default function ClientList({
                     )}
 
                     <div className={`flex items-start gap-2 mb-3 ${selectMode ? 'pl-7' : 'pr-6'}`}>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>
                         {getInitials(c.name)}
                       </div>
                       <div className="min-w-0 pt-0.5">
@@ -673,27 +673,32 @@ export default function ClientList({
                 return (
                   <div
                     key={c.id}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    className="flex items-start gap-3 p-4 bg-white rounded-xl border border-[#E8E6E1] cursor-pointer"
+                    style={{ borderRadius: '12px' }}
                     onClick={() => router.push(`/dashboard/clients/${c.id}`)}
                   >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>
                       {getInitials(c.name)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-text-primary text-sm truncate">{c.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>{c.name}</p>
+                      <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>{c.client_type ?? 'Client'}{c.club_twb ? ' · Club TWB' : ''}</p>
+                      <div className="flex items-center gap-2 mt-2">
                         <TypeBadge type={c.client_type} />
-                        {c.club_twb && <span className="text-[10px] font-bold text-amber-600">★ Club</span>}
                       </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      {totalSales > 0 && (
-                        <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
-                          {formatLKR(totalSales)}
-                        </p>
-                      )}
-                      <p className="text-[11px] text-text-muted">{c.phone ?? c.whatsapp ?? ''}</p>
-                    </div>
+                    {totalSales > 0 ? (
+                      <div className="shrink-0 text-right pt-0.5">
+                        <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>{formatLKR(totalSales)}</p>
+                        {(c.phone ?? c.whatsapp) && (
+                          <p className="mt-0.5" style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.phone ?? c.whatsapp}</p>
+                        )}
+                      </div>
+                    ) : (c.phone ?? c.whatsapp) ? (
+                      <div className="shrink-0 text-right pt-0.5">
+                        <p style={{ fontSize: '11px', color: '#9CA3AF' }}>{c.phone ?? c.whatsapp}</p>
+                      </div>
+                    ) : null}
                   </div>
                 )
               })}
@@ -754,7 +759,7 @@ export default function ClientList({
                           </td>
                         ) : (
                           <td className="px-4 py-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>
                               {getInitials(c.name)}
                             </div>
                           </td>

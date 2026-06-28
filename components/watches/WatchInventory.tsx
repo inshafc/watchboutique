@@ -1334,7 +1334,8 @@ export default function WatchInventory({
                 return (
                   <div
                     key={w.id}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-border cursor-pointer active:bg-cream transition-colors"
+                    className="flex items-start gap-3 p-4 bg-white border border-[#E8E6E1] cursor-pointer"
+                    style={{ borderRadius: '12px' }}
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     <div className="shrink-0">
@@ -1349,17 +1350,21 @@ export default function WatchInventory({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-text-primary text-sm truncate">{w.watch_name}</p>
+                      {/* LINE 1: Watch name */}
+                      <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>{w.watch_name}</p>
+                      {/* LINE 2: Brand + Ref */}
                       {brandName && (
-                        <p className="text-[10px] font-bold uppercase tracking-wider truncate mt-0.5" style={{ color: brandColor ?? '#9CA3AF' }}>
-                          {brandName}
-                        </p>
+                        <p className="mt-0.5 font-bold uppercase tracking-wide truncate" style={{ fontSize: '11px', color: brandColor ?? '#9CA3AF' }}>{brandName}</p>
                       )}
-                      {w.reference && <p className="text-xs text-text-muted truncate">Ref: {w.reference}</p>}
-                      <div className="mt-1.5"><StatusBadge status={w.watch_status ?? w.status} /></div>
+                      {w.reference && (
+                        <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>Ref: {w.reference}</p>
+                      )}
+                      {/* LINE 3: Status */}
+                      <div className="mt-2"><StatusBadge status={w.watch_status ?? w.status} /></div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold tabular-nums" style={{ color: '#C9A84C' }}>{formatLKR(w.selling_price)}</p>
+                    {/* PRICE: top right */}
+                    <div className="shrink-0 text-right pt-0.5">
+                      <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>{formatLKR(w.selling_price)}</p>
                     </div>
                   </div>
                 )
