@@ -15,15 +15,6 @@ type Filter   = 'All' | 'Club TWB' | 'Retail' | 'Reseller' | 'Drafts' | 'Deleted
 type SortKey  = 'created_desc' | 'name_asc' | 'name_desc' | 'sales_desc' | 'sales_asc' | 'type_asc' | 'type_desc' | 'manager_asc' | 'manager_desc'
 type ViewMode = 'list' | 'grid'
 
-function clientRating(dealCount: number, isClubTwb: boolean): number {
-  if (dealCount >= 10) return 10
-  if (dealCount >= 5 || isClubTwb) return 9
-  if (dealCount >= 3) return 7
-  if (dealCount >= 2) return 5
-  if (dealCount >= 1) return 3
-  return 0
-}
-
 // ── Badges ───────────────────────────────────────────────────
 
 function PoliticalBadge() {
@@ -119,7 +110,6 @@ function formatLKR(n: number) { return 'LKR ' + n.toLocaleString('en-LK') }
 export default function ClientList({
   clients: initial,
   clientSales = {},
-  clientDealCounts = {},
 }: {
   clients: Client[]
   clientSales?: Record<string, number>
@@ -130,8 +120,7 @@ export default function ClientList({
   const [search,  setSearch]      = useState('')
   const [filter,  setFilter]      = useState<Filter>('All')
   const [sort,    setSort]        = useState<SortKey>('created_desc')
-  const [view,    setView]        = useState<ViewMode>('list')
-  const [gridCols, setGridCols]   = useState<3 | 4 | 5>(4)
+  const [view,    setView]        = useState<ViewMode>('grid')
   const [typeFilter, setTypeFilter] = useState<'Retail' | 'Reseller' | 'Club TWB' | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
@@ -375,14 +364,6 @@ export default function ClientList({
               <button onClick={() => setView('grid')} className={`p-2 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Grid view"><GridIcon /></button>
             </div>
           )}
-          {/* Grid size — desktop only */}
-          {!showingDeleted && view === 'grid' && (
-            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-              {([3, 4, 5] as const).map(n => (
-                <button key={n} onClick={() => setGridCols(n)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${gridCols === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}>{n}</button>
-              ))}
-            </div>
-          )}
           {/* Filter icon */}
           {!showingDeleted && (
             <button
@@ -593,21 +574,17 @@ export default function ClientList({
 
           {/* Grid View */}
           {visible.length > 0 && view === 'grid' && (
-            <div className={`grid gap-4 ${
-              gridCols === 5 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' :
-              gridCols === 4 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' :
-                               'grid-cols-2 md:grid-cols-3'
-            }`}>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {visible.map(c => {
                 const totalSales = clientSales[c.id] ?? 0
-                const dealCount  = clientDealCounts[c.id] ?? 0
-                const rating     = clientRating(dealCount, c.club_twb)
                 return (
                   <div
                     key={c.id}
                     onClick={() => !selectMode && router.push(`/dashboard/clients/${c.id}`)}
-                    className={`bg-white border rounded-2xl p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all relative ${
-                      selectMode && selectedIds.has(c.id) ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-100'
+                    className={`bg-white border rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden ${
+                      selectMode && selectedIds.has(c.id)
+                        ? 'border-gray-900 ring-2 ring-gray-900/10'
+                        : 'border-[#E8E6E1] hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   >
                     {/* Select checkbox */}
@@ -643,26 +620,42 @@ export default function ClientList({
                       </div>
                     )}
 
-                    <div className={`flex items-start gap-2 mb-3 ${selectMode ? 'pl-7' : 'pr-6'}`}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 text-white" style={{ backgroundColor: '#C9A84C' }}>
-                        {getInitials(c.name)}
+                    {/* Card body */}
+                    <div className="p-5">
+                      {/* Avatar centered */}
+                      <div className="flex justify-center mb-3">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-semibold text-white shrink-0" style={{ backgroundColor: '#C9A84C' }}>
+                          {getInitials(c.name)}
+                        </div>
                       </div>
-                      <div className="min-w-0 pt-0.5">
-                        <span className="text-xs font-bold text-gray-700">{rating}<span className="text-gray-400 font-normal">/10</span></span>
+
+                      {/* Name */}
+                      <p className="text-center font-semibold text-[#111] truncate mb-1" style={{ fontSize: '15px' }}>{c.name}</p>
+
+                      {/* Badges centered */}
+                      <div className="flex items-center justify-center gap-1 flex-wrap mb-3">
+                        {c.is_draft && <DraftBadge />}
+                        <TypeBadge type={c.client_type} />
+                        {c.labels?.includes('political')     && <PoliticalBadge />}
+                        {c.labels?.includes('at_risk')       && <AtRiskBadge />}
+                        {c.labels?.includes('high_potential') && <HighPotentialBadge />}
+                      </div>
+
+                      {/* Divider */}
+                      <div className="h-px bg-[#E8E6E1] mb-3" />
+
+                      {/* Bottom row */}
+                      <div className="flex items-center justify-between gap-2">
+                        {totalSales > 0 ? (
+                          <span className="text-xs font-semibold tabular-nums" style={{ color: '#C9A84C' }}>{formatLKR(totalSales)}</span>
+                        ) : (
+                          <span className="text-xs text-gray-300">No sales</span>
+                        )}
+                        {(c.phone ?? c.whatsapp) && (
+                          <span className="text-[11px] text-gray-400 truncate">{c.phone ?? c.whatsapp}</span>
+                        )}
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-gray-900 truncate mb-1.5">{c.name}</p>
-                    <div className="flex items-center gap-1 flex-wrap mb-2">
-                      {c.is_draft && <DraftBadge />}
-                      <TypeBadge type={c.client_type} />
-                      <StatusTierBadge client={c} />
-                      {c.labels?.includes('political')      && <PoliticalBadge />}
-                      {c.labels?.includes('at_risk')         && <AtRiskBadge />}
-                      {c.labels?.includes('high_potential')  && <HighPotentialBadge />}
-                    </div>
-                    {totalSales > 0 && (
-                      <p className="text-xs font-medium text-gray-700 tabular-nums">{formatLKR(totalSales)}</p>
-                    )}
                   </div>
                 )
               })}

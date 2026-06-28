@@ -645,11 +645,12 @@ export default function DealList({
           {sorted.length > 0 && view === 'list' && (
             <>
             {/* Mobile card stack */}
-            <div className="md:hidden space-y-2 mb-2">
+            <div className="md:hidden space-y-2 mb-2 px-4 md:px-8">
               {sorted.map(deal => {
                 const saleDate = deal.sale_date
                   ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                   : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
+                const photo = deal.watches?.photos?.[0] ?? null
                 return (
                   <div
                     key={deal.id}
@@ -657,6 +658,16 @@ export default function DealList({
                     style={{ borderRadius: '12px' }}
                     onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
                   >
+                    {/* Watch photo */}
+                    {photo ? (
+                      <Image src={photo} alt="" width={48} height={48} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       {/* LINE 1: Watch name */}
                       <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>
@@ -704,6 +715,7 @@ export default function DealList({
                     <th className="px-4 md:px-8 py-3 text-left whitespace-nowrap hidden lg:table-cell">
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</span>
                     </th>
+                    <th className="px-3 py-3 w-14" />
                     <th className="px-3 py-3 text-left whitespace-nowrap">
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Watch</span>
                     </th>
@@ -725,6 +737,7 @@ export default function DealList({
                       ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                       : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                     const selected = selectedIds.has(deal.id)
+                    const photo    = deal.watches?.photos?.[0] ?? null
                     return (
                       <tr
                         key={deal.id}
@@ -743,6 +756,17 @@ export default function DealList({
                         )}
                         <td className="px-4 md:px-8 py-3.5 hidden lg:table-cell">
                           <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">{saleDate}</span>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          {photo ? (
+                            <Image src={photo} alt="" width={48} height={48} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                              <svg className="w-5 h-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                              </svg>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3.5">
                           <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">

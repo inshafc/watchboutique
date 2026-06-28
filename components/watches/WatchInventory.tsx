@@ -39,26 +39,19 @@ function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 1
 
 // ── Types & constants ─────────────────────────────────────────
 
-type SortOption      = 'last_added' | 'sell_desc' | 'sell_asc' | 'buy_desc' | 'name_asc' | 'name_desc'
+type SortOption      = 'last_added' | 'oldest_added' | 'sell_desc' | 'sell_asc' | 'buy_desc' | 'name_asc' | 'name_desc'
 type ConditionFilter = 'All' | 'Brand New' | 'Pre-Owned'
 type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced'
 type ViewMode        = 'list' | 'tile'
 
 const SORT_LABELS: Record<SortOption, string> = {
-  last_added: 'Last Added',
-  sell_desc:  'Sell Price: High → Low',
-  sell_asc:   'Sell Price: Low → High',
-  buy_desc:   'Buy Price: High → Low',
-  name_asc:   'Name: A → Z',
-  name_desc:  'Name: Z → A',
-}
-
-const CONDITION_COLORS: Record<string, string> = {
-  'Brand New': 'bg-emerald-50 text-emerald-700',
-  'Excellent': 'bg-sky-50 text-sky-700',
-  'Good':      'bg-blue-50 text-blue-600',
-  'Fair':      'bg-amber-50 text-amber-700',
-  'Poor':      'bg-red-50 text-red-600',
+  last_added:    'Date Added: Newest First',
+  oldest_added:  'Date Added: Oldest First',
+  sell_desc:     'Price: High to Low',
+  sell_asc:      'Price: Low to High',
+  name_asc:      'Name: A to Z',
+  name_desc:     'Name: Z to A',
+  buy_desc:      'Buy Price: High → Low',
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -153,8 +146,7 @@ export default function WatchInventory({
   const [brandId,         setBrandId]         = useState<string | null>(null)
   const [search,          setSearch]          = useState('')
   const [sort,            setSort]            = useState<SortOption>('last_added')
-  const [view,            setView]            = useState<ViewMode>('list')
-  const [tileSize,        setTileSize]        = useState<3 | 4 | 5>(4)
+  const [view,            setView]            = useState<ViewMode>('tile')
   const [showSortMenu,    setShowSortMenu]    = useState(false)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -289,11 +281,12 @@ export default function WatchInventory({
     }
 
     switch (sort) {
-      case 'sell_desc': return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
-      case 'sell_asc':  return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
-      case 'buy_desc':  return [...list].sort((a, b) => (b.purchase_cost ?? 0) - (a.purchase_cost ?? 0))
-      case 'name_asc':  return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
-      case 'name_desc': return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
+      case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
+      case 'sell_asc':     return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
+      case 'buy_desc':     return [...list].sort((a, b) => (b.purchase_cost ?? 0) - (a.purchase_cost ?? 0))
+      case 'name_asc':     return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
+      case 'name_desc':    return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
+      case 'oldest_added': return [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       default: {
         // sort_order > 0 items first (ordered), then unordered by created_at desc
         const ordered   = list.filter(w => (w.sort_order ?? 0) > 0).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -340,11 +333,11 @@ export default function WatchInventory({
     if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
     if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
     switch (sort) {
-      case 'sell_desc': return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
-      case 'sell_asc':  return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
-      case 'name_asc':  return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
-      case 'name_desc': return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
-      default:          return [...list].sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime())
+      case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
+      case 'sell_asc':     return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
+      case 'name_asc':     return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
+      case 'name_desc':    return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
+      default:             return [...list].sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime())
     }
   }, [deletedWatches, search, brandId, conditionFilter, sort])
 
@@ -778,17 +771,6 @@ export default function WatchInventory({
             </div>
           )}
 
-          {/* Tile size selector */}
-          {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-              {([3, 4, 5] as const).map(n => (
-                <button key={n} onClick={() => setTileSize(n)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tileSize === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}>
-                  {n}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Sort / filter */}
           {!bulkMode && (
             <div className="hidden md:flex items-center gap-1" ref={sortMenuRef}>
@@ -946,56 +928,86 @@ export default function WatchInventory({
               ))}
             </div>
           </div>
+          <div className="mt-3">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sort by</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                { key: 'last_added',   label: 'Date: Newest First' },
+                { key: 'oldest_added', label: 'Date: Oldest First' },
+                { key: 'sell_desc',    label: 'Price: High to Low' },
+                { key: 'sell_asc',     label: 'Price: Low to High' },
+                { key: 'name_asc',     label: 'Name: A to Z' },
+                { key: 'name_desc',    label: 'Name: Z to A' },
+              ] as { key: SortOption; label: string }[]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSort(key)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${sort === key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* ── Status filter tabs + total value ─────────────────── */}
       {!bulkMode && (
-        <div className="flex items-center justify-between mb-5 gap-4">
-          <div className="flex items-center gap-1 overflow-x-auto pb-px">
-            {(['All', ...WATCH_STATUSES, 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
-                  statusFilter === f
-                    ? f === 'Deleted'
-                      ? 'bg-red-50 text-red-600 font-medium'
-                      : f === 'Drafts'
-                      ? 'bg-amber-50 text-amber-700 font-medium'
-                      : f === 'Sourced'
-                      ? 'bg-indigo-50 text-indigo-700 font-medium'
-                      : 'bg-gray-900 text-white font-medium'
-                    : f === 'Deleted'
-                    ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                    : f === 'Drafts'
-                    ? 'text-gray-400 hover:text-amber-700 hover:bg-amber-50'
-                    : f === 'Sourced'
-                    ? 'text-gray-400 hover:text-indigo-700 hover:bg-indigo-50'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {f}
-                {(f !== 'Deleted' || deletedWatches !== null) && (
-                  <span className={`text-xs tabular-nums ${
-                    statusFilter === f
-                      ? f === 'Deleted' ? 'text-red-400'
-                        : f === 'Drafts' ? 'text-amber-500'
-                        : f === 'Sourced' ? 'text-indigo-500'
-                        : 'text-gray-300'
-                      : 'text-gray-400'
-                  }`}>
-                    {countByStatus(f)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="mb-5">
+          {/* Mobile: total value above tabs */}
           {!showingDeleted && totalSellingValue > 0 && (
-            <p className="text-xs text-gray-400 whitespace-nowrap shrink-0">
+            <p className="md:hidden text-xs text-gray-400 mb-2">
               Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
             </p>
           )}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1 overflow-x-auto pb-px">
+              {(['All', ...WATCH_STATUSES, 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setStatusFilter(f)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
+                    statusFilter === f
+                      ? f === 'Deleted'
+                        ? 'bg-red-50 text-red-600 font-medium'
+                        : f === 'Drafts'
+                        ? 'bg-amber-50 text-amber-700 font-medium'
+                        : f === 'Sourced'
+                        ? 'bg-indigo-50 text-indigo-700 font-medium'
+                        : 'bg-gray-900 text-white font-medium'
+                      : f === 'Deleted'
+                      ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                      : f === 'Drafts'
+                      ? 'text-gray-400 hover:text-amber-700 hover:bg-amber-50'
+                      : f === 'Sourced'
+                      ? 'text-gray-400 hover:text-indigo-700 hover:bg-indigo-50'
+                      : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  {f}
+                  {(f !== 'Deleted' || deletedWatches !== null) && (
+                    <span className={`text-xs tabular-nums ${
+                      statusFilter === f
+                        ? f === 'Deleted' ? 'text-red-400'
+                          : f === 'Drafts' ? 'text-amber-500'
+                          : f === 'Sourced' ? 'text-indigo-500'
+                          : 'text-gray-300'
+                        : 'text-gray-400'
+                    }`}>
+                      {countByStatus(f)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {/* Desktop: total value on same row as tabs */}
+            {!showingDeleted && totalSellingValue > 0 && (
+              <p className="hidden md:block text-xs text-gray-400 whitespace-nowrap shrink-0">
+                Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -1224,11 +1236,7 @@ export default function WatchInventory({
 
           {/* ── Tile View ───────────────────────────────────────── */}
           {processed.length > 0 && view === 'tile' && (
-            <div className={`grid gap-4 ${
-              tileSize === 5 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' :
-              tileSize === 4 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' :
-                              'grid-cols-2 md:grid-cols-3'
-            }`}>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {processed.map((w, tileIdx) => {
                 const isSelected  = selectedIds.has(w.id)
                 const isHighlight = w.id === highlightId
@@ -1237,18 +1245,18 @@ export default function WatchInventory({
                 return (
                   <div
                     key={w.id}
-                    className={`group relative bg-white rounded-2xl overflow-visible transition-all cursor-pointer border-2 ${
+                    className={`group relative bg-white rounded-xl overflow-visible cursor-pointer transition-all duration-200 ${
                       bulkMode && isSelected
-                        ? 'border-gray-900 shadow-sm'
+                        ? 'border-2 border-gray-900 shadow-sm'
                         : bulkMode
-                        ? 'border-gray-100 hover:border-gray-300'
-                        : 'border-gray-100 hover:border-gray-300 hover:shadow-sm'
+                        ? 'border border-[#E8E6E1] hover:border-gray-300'
+                        : 'border border-[#E8E6E1] hover:shadow-md hover:-translate-y-0.5'
                     } ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
                     style={staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : undefined}
                     onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
                   >
                     {/* Photo */}
-                    <div className="relative aspect-square bg-gray-50 overflow-hidden rounded-t-[14px]">
+                    <div className="relative h-[180px] bg-gray-100 overflow-hidden rounded-t-xl">
                       {w.photos && w.photos.length > 0 ? (
                         <Image
                           src={w.photos[0]}
@@ -1257,7 +1265,13 @@ export default function WatchInventory({
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
-                        <WatchPlaceholder />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <circle cx="12" cy="12" r="7"/>
+                            <path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
                       )}
 
                       {/* Bulk mode checkbox overlay */}
@@ -1309,33 +1323,25 @@ export default function WatchInventory({
 
                     {/* Info */}
                     <div className="p-3">
-                      {brandName && (
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-1 truncate" style={{ color: brandColor ?? '#9ca3af' }}>
-                          {brandName}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{w.watch_name}</p>
-                        {w.is_draft ? (
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <p className="text-[14px] font-semibold text-[#111] truncate leading-tight">{w.watch_name}</p>
+                        {w.is_draft && (
                           <span className="text-[10px] font-medium bg-gray-200 text-gray-500 rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
-                        ) : (
-                          <span className="inline-block w-2 h-2 rounded-full bg-green-400 shrink-0" title="Live" />
                         )}
                         <LabelBadges labels={w.labels} createdAt={w.created_at} />
                       </div>
-                      {w.reference && <p className="text-xs text-gray-400 mt-0.5 truncate">Ref: {w.reference}</p>}
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${CONDITION_COLORS[w.condition] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {w.condition}
-                        </span>
+                      {brandName && (
+                        <p className="text-[12px] truncate" style={{ color: brandColor ?? '#9CA3AF' }}>{brandName}</p>
+                      )}
+                      {w.reference && (
+                        <p className="text-[11px] text-[#9CA3AF] mt-0.5 truncate">Ref: {w.reference}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                         <StatusBadge status={w.watch_status ?? w.status} />
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-gray-50 space-y-0.5">
-                        {w.purchase_cost != null && (
-                          <p className="text-[10px] text-gray-400 tabular-nums">Buy: {formatLKR(w.purchase_cost)}</p>
-                        )}
                         {w.selling_price != null && (
-                          <p className="text-xs font-semibold text-gray-900 tabular-nums">{formatLKR(w.selling_price)}</p>
+                          <span className="text-[13px] font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
+                            {formatLKR(w.selling_price)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1349,14 +1355,14 @@ export default function WatchInventory({
           {processed.length > 0 && view === 'list' && (
             <>
             {/* Mobile card stack */}
-            <div className="md:hidden">
+            <div className="md:hidden bg-[#F7F6F3] -mx-4 px-4">
               {processed.map(w => {
                 const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                 const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                 return (
                   <div
                     key={w.id}
-                    className="flex items-start gap-3 py-3 cursor-pointer border-b border-[#E8E6E1] transition-colors active:bg-[#F3F2EF]"
+                    className="flex items-start gap-3 py-3 cursor-pointer border-b border-[#E8E6E1] transition-colors active:bg-[#F0EFE9]"
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     <div className="shrink-0">

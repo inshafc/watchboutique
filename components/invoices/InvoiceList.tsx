@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -57,6 +58,13 @@ function getWatchName(inv: InvoiceWithItems): string | null {
   const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ watch_name?: string }> | null
   if (lineItems && lineItems.length > 0 && lineItems[0].watch_name) return lineItems[0].watch_name
   if (inv.invoice_items && inv.invoice_items.length > 0) return inv.invoice_items[0].watch_name
+  return null
+}
+
+function getWatchPhoto(inv: InvoiceWithItems): string | null {
+  const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ photo_url?: string | null }> | null
+  if (lineItems && lineItems.length > 0 && lineItems[0].photo_url) return lineItems[0].photo_url
+  if (inv.invoice_items && inv.invoice_items.length > 0) return inv.invoice_items[0].photo_url ?? null
   return null
 }
 
@@ -361,104 +369,167 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
         ) : (
 
           /* ── List view ─────────────────────────────────────── */
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Invoice #</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Date</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Client</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden md:table-cell">Watch</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden sm:table-cell">Type</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Amount</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Status</th>
-                <th className="pb-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
+          <>
+            {/* Mobile card list (FIX 6 + FIX 8) */}
+            <div className="md:hidden -mx-6 px-0">
               {displayed.map(inv => {
                 const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
                 const amt   = getSubtotal(inv)
                 const watch = getWatchName(inv)
+                const photo = getWatchPhoto(inv)
                 return (
-                  <tr key={inv.id} className="group hover:bg-gray-50 transition-colors">
-                    <td className="py-3.5 pr-4">
-                      <Link
-                        href={`/dashboard/invoices/${inv.id}/edit`}
-                        className="text-sm font-mono font-semibold text-gray-900 hover:text-gray-600 transition-colors"
-                      >
-                        {inv.invoice_number}
-                      </Link>
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <span className="text-sm text-gray-500">{fmtDate(inv.date)}</span>
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <span className="text-sm text-gray-700">
-                        {inv.client_name ?? <span className="text-gray-300">—</span>}
-                      </span>
-                    </td>
-                    <td className="py-3.5 pr-4 hidden md:table-cell max-w-[160px]">
-                      <span className="text-sm text-gray-500 truncate block">
-                        {watch ?? <span className="text-gray-300">—</span>}
-                      </span>
-                    </td>
-                    <td className="py-3.5 pr-4 hidden sm:table-cell">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${TYPE_COLORS[inv.type] ?? TYPE_COLORS.general}`}>
-                        {TYPE_LABELS[inv.type] ?? inv.type}
-                      </span>
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                        {fmt(amt || null, inv.currency)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <span className={`flex items-center gap-1.5 text-xs font-semibold ${sc.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sc.dot}`} />
-                        {sc.label}
-                      </span>
-                    </td>
-                    <td className="py-3.5">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                        <Link
-                          href={`/dashboard/invoices/${inv.id}/print`}
-                          target="_blank"
-                          className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Print"
-                        >
-                          <PrintIcon />
-                        </Link>
-                        <Link
-                          href={`/dashboard/invoices/${inv.id}/edit`}
-                          className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <EditIcon />
-                        </Link>
-                        {inv.deleted_at ? (
-                          <button
-                            onClick={() => handleRestore(inv)}
-                            className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Restore"
-                          >
-                            <RestoreIcon />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDelete(inv)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <TrashIcon />
-                          </button>
-                        )}
+                  <div
+                    key={inv.id}
+                    onClick={() => router.push(`/dashboard/invoices/${inv.id}/edit`)}
+                    className="flex items-center gap-3 px-6 py-3 border-b border-[#E8E6E1] cursor-pointer active:bg-gray-50"
+                  >
+                    {/* Photo */}
+                    {photo ? (
+                      <Image src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                        </svg>
                       </div>
-                    </td>
-                  </tr>
+                    )}
+                    {/* Left: invoice # + date */}
+                    <div className="w-24 shrink-0">
+                      <p className="font-semibold truncate" style={{ fontSize: '13px', color: '#111' }}>{inv.invoice_number}</p>
+                      <p style={{ fontSize: '11px', color: '#9CA3AF' }}>{fmtDate(inv.date)}</p>
+                    </div>
+                    {/* Middle: client + watch */}
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate" style={{ fontSize: '13px', color: '#374151' }}>{inv.client_name ?? '—'}</p>
+                      {watch && <p className="truncate" style={{ fontSize: '11px', color: '#6B6B6B' }}>{watch}</p>}
+                    </div>
+                    {/* Right: amount + status */}
+                    <div className="shrink-0 text-right">
+                      <p className="font-bold tabular-nums" style={{ fontSize: '13px', color: '#C9A84C' }}>
+                        {fmt(amt || null, inv.currency)}
+                      </p>
+                      <span className={`text-[10px] font-semibold ${sc.text}`}>{sc.label}</span>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop table (FIX 8: photo column) */}
+            <table className="hidden md:table w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 w-12" />
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Invoice #</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Date</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Client</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden md:table-cell">Watch</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden sm:table-cell">Type</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Amount</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Status</th>
+                  <th className="pb-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {displayed.map(inv => {
+                  const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
+                  const amt   = getSubtotal(inv)
+                  const watch = getWatchName(inv)
+                  const photo = getWatchPhoto(inv)
+                  return (
+                    <tr key={inv.id} className="group hover:bg-gray-50 transition-colors">
+                      <td className="py-3.5 pr-4">
+                        {photo ? (
+                          <Image src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <Link
+                          href={`/dashboard/invoices/${inv.id}/edit`}
+                          className="text-sm font-mono font-semibold text-gray-900 hover:text-gray-600 transition-colors"
+                        >
+                          {inv.invoice_number}
+                        </Link>
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span className="text-sm text-gray-500">{fmtDate(inv.date)}</span>
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span className="text-sm text-gray-700">
+                          {inv.client_name ?? <span className="text-gray-300">—</span>}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-4 hidden md:table-cell max-w-[160px]">
+                        <span className="text-sm text-gray-500 truncate block">
+                          {watch ?? <span className="text-gray-300">—</span>}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-4 hidden sm:table-cell">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${TYPE_COLORS[inv.type] ?? TYPE_COLORS.general}`}>
+                          {TYPE_LABELS[inv.type] ?? inv.type}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                          {fmt(amt || null, inv.currency)}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span className={`flex items-center gap-1.5 text-xs font-semibold ${sc.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sc.dot}`} />
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="py-3.5">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                          <Link
+                            href={`/dashboard/invoices/${inv.id}/print`}
+                            target="_blank"
+                            className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Print"
+                          >
+                            <PrintIcon />
+                          </Link>
+                          <Link
+                            href={`/dashboard/invoices/${inv.id}/edit`}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <EditIcon />
+                          </Link>
+                          {inv.deleted_at ? (
+                            <button
+                              onClick={() => handleRestore(inv)}
+                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Restore"
+                            >
+                              <RestoreIcon />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDelete(inv)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <TrashIcon />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </>
 
         )}
       </div>
