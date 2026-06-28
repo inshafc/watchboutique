@@ -471,11 +471,11 @@ export default function WatchInventory({
 
     const { data: investors } = await supabase
       .from('watch_investors')
-      .select('investor_name_id, percentage')
+      .select('investor_name, percentage')
       .eq('watch_id', watch.id)
     if (investors && investors.length > 0) {
       await supabase.from('watch_investors').insert(
-        investors.map(i => ({ watch_id: newWatch.id, investor_name_id: i.investor_name_id, percentage: i.percentage }))
+        investors.map(i => ({ watch_id: newWatch.id, investor_name: i.investor_name, percentage: i.percentage }))
       )
     }
 
