@@ -769,7 +769,7 @@ export default function WatchInventory({
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           {/* List / Tile toggle */}
           {!bulkMode && !showingDeleted && !showingDrafts && (
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
               <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
               <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
             </div>
@@ -777,7 +777,7 @@ export default function WatchInventory({
 
           {/* Tile size selector */}
           {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
               {([3, 4, 5] as const).map(n => (
                 <button key={n} onClick={() => setTileSize(n)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tileSize === n ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}>
                   {n}
@@ -788,7 +788,7 @@ export default function WatchInventory({
 
           {/* Sort / filter */}
           {!bulkMode && (
-            <div className="flex items-center gap-1" ref={sortMenuRef}>
+            <div className="hidden md:flex items-center gap-1" ref={sortMenuRef}>
               <div className="relative">
                 <button
                   onClick={() => setShowSortMenu(v => !v)}
@@ -828,16 +828,18 @@ export default function WatchInventory({
 
           {/* Select / Cancel bulk mode */}
           {!showingDeleted && !showingDrafts && (
-            <button
-              onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
-              className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition-colors ${
-                bulkMode
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'
-              }`}
-            >
-              {bulkMode ? 'Cancel' : 'Select'}
-            </button>
+            <div className="hidden md:block">
+              <button
+                onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+                className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                  bulkMode
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'
+                }`}
+              >
+                {bulkMode ? 'Cancel' : 'Select'}
+              </button>
+            </div>
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && !showingSourced && (
@@ -890,7 +892,7 @@ export default function WatchInventory({
 
       {/* ── Brand filter pills ────────────────────────────────── */}
       {!bulkMode && brands.length > 0 && (
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-px flex-nowrap">
           {brands.map(b => {
             const active = brandId === b.id
             return (
@@ -914,7 +916,7 @@ export default function WatchInventory({
 
       {/* ── Condition filter pills ────────────────────────────── */}
       {!bulkMode && (
-        <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-px flex-nowrap">
           {(['All', 'Brand New', 'Pre-Owned'] as ConditionFilter[]).map(c => (
             <button
               key={c}

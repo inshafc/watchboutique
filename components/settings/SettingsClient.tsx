@@ -84,14 +84,16 @@ export default function SettingsClient({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 md:px-8">
-          {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
-          {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
-          {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
-          {active === 'brands'   && <BrandsSection        initialBrands={brands} />}
-          {active === 'investors'&& <InvestorsSection     initialInvestors={investors} />}
-          {active === 'kpi'      && <KPITargetsSection    salesManagers={salesManagers} />}
-          {active === 'users'    && <UserManagementSection />}
+        <div className="flex-1 overflow-y-auto py-4 md:py-6 px-4 md:px-8">
+          <div className="bg-white border border-[#E8E6E1] rounded-xl p-4 md:border-0 md:rounded-none md:bg-transparent md:p-0">
+            {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
+            {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
+            {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
+            {active === 'brands'   && <BrandsSection        initialBrands={brands} />}
+            {active === 'investors'&& <InvestorsSection     initialInvestors={investors} />}
+            {active === 'kpi'      && <KPITargetsSection    salesManagers={salesManagers} />}
+            {active === 'users'    && <UserManagementSection />}
+          </div>
         </div>
       </div>
     </div>

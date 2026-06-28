@@ -452,9 +452,9 @@ export default function ClientList({
         </div>
       )}
 
-      {/* Type filter pills — desktop only */}
+      {/* Type filter pills */}
       {!showingDeleted && !showingDrafts && (
-        <div className="hidden md:flex items-center gap-2 flex-wrap mb-4">
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-px flex-nowrap">
           {(['Retail', 'Reseller', 'Club TWB'] as const).map(p => (
             <button
               key={p}

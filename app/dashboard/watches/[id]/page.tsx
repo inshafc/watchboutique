@@ -159,7 +159,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Quick stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Year',      value: extractYear(watch.date_on_card) },
           { label: 'Serial',    value: watch.serial_number },
@@ -168,7 +168,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         ].map(({ label, value }) => (
           <div key={label} className="bg-gray-50 rounded-xl px-4 py-3 text-center">
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5 truncate">{value || '—'}</p>
+            <p className="font-semibold text-gray-900 mt-0.5 break-words" style={{ fontSize: '14px' }}>{value || '—'}</p>
           </div>
         ))}
       </div>

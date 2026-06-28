@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { useAuth } from '@/context/AuthContext'
+import ProfileEditModal from '@/components/ui/ProfileEditModal'
 import type { UserRole } from '@/lib/auth'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -19,7 +20,6 @@ function TrendingUpIcon(){ return <svg className="w-4 h-4" viewBox="0 0 16 16" f
 function GearIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg> }
 function MenuIcon()      { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2z" clipRule="evenodd" /></svg> }
 function CloseIcon()     { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg> }
-function SignOutIcon()   { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z" clipRule="evenodd"/><path fillRule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z" clipRule="evenodd"/></svg> }
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
@@ -56,7 +56,17 @@ const ROLE_BADGE: Record<UserRole, { label: string; cls: string }> = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname      = usePathname()
   const [open, setOpen] = useState(false)
-  const { profile, role, signOut, loading } = useAuth()
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [profileToast, setProfileToast] = useState<string | null>(null)
+  const { profile, role, signOut, loading, refreshProfile } = useAuth()
+
+  useEffect(() => {
+    if (profileToast) {
+      const t = setTimeout(() => setProfileToast(null), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [profileToast])
 
   const visibleNav       = loading || !role ? NAV       : NAV.filter(n => n.roles.includes(role as Permission))
   const visibleBottomNav = loading || !role ? BOTTOM_NAV : BOTTOM_NAV.filter(n => n.roles.includes(role as Permission))
@@ -64,9 +74,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const SidebarContent = () => (
     <>
       {/* Brand header */}
-      <div className="px-5 py-6 border-b border-white/8">
-        <p className="text-[10px] text-white/30 uppercase tracking-widest font-medium">Internal System</p>
-        <h1 className="text-base font-semibold text-white mt-1 tracking-tight">The Watch Boutique</h1>
+      <div className="flex items-center justify-center px-5 py-5 border-b border-white/8">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MjY2NTUxNSwiZXhwIjoyODE5NDY1NTE1fQ.nU_JybuGttH1rlh-jx3A92eJwmRBMTgY79NeD9W_3B8"
+          alt="TWB"
+          style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
+        />
       </div>
 
       {/* Main nav */}
@@ -120,25 +134,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User indicator */}
         {profile && role ? (
-          <div className="mt-3 pt-3 border-t border-white/8">
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
+          <div className="mt-3 pt-3 border-t border-white/8 relative">
+            {showProfileMenu && (
+              <div className="absolute bottom-full left-3 right-3 mb-1 bg-white rounded-xl shadow-lg border border-[#E8E6E1] overflow-hidden z-50">
+                <button
+                  onClick={() => { setShowProfileEdit(true); setShowProfileMenu(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={signOut}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-gray-100 text-left"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setShowProfileMenu(v => !v)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+            >
               <div className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-bold shrink-0" style={{ backgroundColor: '#C9A84C' }}>
                 {initials(profile.full_name || profile.email)}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-semibold text-white truncate">{profile.full_name || profile.email}</p>
                 <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${ROLE_BADGE[role].cls}`}>
                   {ROLE_BADGE[role].label}
                 </span>
               </div>
-              <button
-                onClick={signOut}
-                title="Sign out"
-                className="shrink-0 text-white/30 hover:text-white/70 transition-colors p-1 rounded-lg hover:bg-white/10"
-              >
-                <SignOutIcon />
-              </button>
-            </div>
+              <svg className="w-3 h-3 shrink-0 text-white/30" viewBox="0 0 12 12" fill="currentColor">
+                <path d={showProfileMenu ? 'M6 4L2 8h8L6 4z' : 'M6 8L2 4h8L6 8z'}/>
+              </svg>
+            </button>
           </div>
         ) : (
           <p className="text-[10px] text-white/20 font-medium px-3 pt-2">TWB ERP · v1</p>
@@ -186,9 +215,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
           />
           {profile ? (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ backgroundColor: '#C9A84C' }}>
+            <button
+              onClick={() => setShowProfileEdit(true)}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+              style={{ backgroundColor: '#C9A84C' }}
+            >
               {initials(profile.full_name || profile.email)}
-            </div>
+            </button>
           ) : (
             <div className="w-8" />
           )}
@@ -200,6 +233,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+
+      {/* Profile edit modal */}
+      {showProfileEdit && profile && (
+        <ProfileEditModal
+          initialName={profile.full_name || ''}
+          email={profile.email}
+          onClose={() => setShowProfileEdit(false)}
+          onSave={async () => {
+            await refreshProfile()
+            setShowProfileEdit(false)
+            setProfileToast('Profile updated')
+          }}
+        />
+      )}
+
+      {/* Toast */}
+      {profileToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-lg pointer-events-none">
+          {profileToast}
+        </div>
+      )}
     </div>
   )
 }

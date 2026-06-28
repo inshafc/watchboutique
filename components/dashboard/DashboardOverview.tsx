@@ -12,6 +12,7 @@ import {
   topClients, clubTwbDeals, newVsExisting, targetForPeriod,
   fmtLKR, fmtCompact, pctChange,
 } from '@/lib/analytics'
+import { useAuth } from '@/context/AuthContext'
 
 const RANGES: { label: string; value: DateRange }[] = [
   { label: 'This Month',    value: 'this_month' },
@@ -112,11 +113,13 @@ export default function DashboardOverview({
 }) {
   const [range, setRange] = useState<DateRange>('this_month')
   const [mounted, setMounted] = useState(false)
+  const { profile } = useAuth()
 
   useEffect(() => setMounted(true), [])
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
 
   const [start, end]         = getDateBounds(range)
   const [prevStart, prevEnd] = getPrevBounds(range)
@@ -147,25 +150,27 @@ export default function DashboardOverview({
     <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{greeting}, Imad</h1>
+          <h1 className="text-2xl font-semibold text-text-primary">{greeting}, {firstName}</h1>
           <p className="text-[13px] text-text-secondary mt-0.5">
             {new Date().toLocaleDateString('en-LK', { dateStyle: 'full' })}
           </p>
         </div>
-        <div className="flex flex-wrap gap-1 bg-[#F3F2EF] rounded-xl p-1 self-start">
-          {RANGES.map(r => (
-            <button
-              key={r.value}
-              onClick={() => setRange(r.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                range === r.value ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto -mx-1 px-1 self-start">
+          <div className="inline-flex gap-1 bg-[#F3F2EF] rounded-xl p-1">
+            {RANGES.map(r => (
+              <button
+                key={r.value}
+                onClick={() => setRange(r.value)}
+                className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-shrink-0 ${
+                  range === r.value ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

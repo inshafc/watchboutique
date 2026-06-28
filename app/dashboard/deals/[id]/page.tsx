@@ -141,6 +141,29 @@ export default async function DealDetailPage({ params }: { params: { id: string 
         </div>
       </div>
 
+      {/* Watch photo */}
+      {deal.watches && (
+        deal.watches.photos?.[0] ? (
+          <div className="mb-4 rounded-xl overflow-hidden" style={{ maxHeight: '240px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={deal.watches.photos[0]}
+              alt={deal.watches.watch_name ?? 'Watch'}
+              className="w-full object-cover"
+              style={{ maxHeight: '240px' }}
+            />
+          </div>
+        ) : (
+          <div className="mb-4 w-full rounded-xl flex items-center justify-center" style={{ height: '100px', backgroundColor: '#F3F2EF' }}>
+            <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+              <circle cx="12" cy="12" r="7"/>
+              <path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+            </svg>
+          </div>
+        )
+      )}
+
       {/* Client + Watch cards */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         {deal.clients && (

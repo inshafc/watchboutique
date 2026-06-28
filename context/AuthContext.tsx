@@ -11,21 +11,23 @@ import {
 } from '@/lib/auth'
 
 interface AuthContextType {
-  user:          User    | null
-  profile:       Profile | null
-  role:          UserRole | null
-  loading:       boolean
-  hasPermission: (permission: keyof typeof PERMISSIONS) => boolean
-  signOut:       () => Promise<void>
+  user:            User    | null
+  profile:         Profile | null
+  role:            UserRole | null
+  loading:         boolean
+  hasPermission:   (permission: keyof typeof PERMISSIONS) => boolean
+  signOut:         () => Promise<void>
+  refreshProfile:  () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
-  user:          null,
-  profile:       null,
-  role:          null,
-  loading:       true,
-  hasPermission: () => false,
-  signOut:       async () => {},
+  user:            null,
+  profile:         null,
+  role:            null,
+  loading:         true,
+  hasPermission:   () => false,
+  signOut:         async () => {},
+  refreshProfile:  async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -82,8 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/login'
   }
 
+  async function refreshProfile() {
+    if (user) {
+      await fetchProfile(user.id)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, hasPermission, signOut }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, hasPermission, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
