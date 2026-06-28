@@ -574,7 +574,7 @@ export default function ClientList({
 
           {/* Grid View */}
           {visible.length > 0 && view === 'grid' && (
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map(c => {
                 const totalSales = clientSales[c.id] ?? 0
                 return (

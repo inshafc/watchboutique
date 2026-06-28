@@ -1243,7 +1243,7 @@ export default function WatchInventory({
 
           {/* ── Tile View ───────────────────────────────────────── */}
           {processed.length > 0 && view === 'tile' && (
-            <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:gap-4 lg:grid-cols-3">
               {processed.map((w, tileIdx) => {
                 const isSelected  = selectedIds.has(w.id)
                 const isHighlight = w.id === highlightId

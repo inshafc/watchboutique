@@ -292,7 +292,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
         ) : view === 'tile' ? (
 
           /* ── Tile view ─────────────────────────────────────── */
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
             {displayed.map(inv => {
               const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
               const amt   = getSubtotal(inv)
