@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex items-center justify-center px-5 py-5 border-b border-white/8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MjY2NTUxNSwiZXhwIjoyODE5NDY1NTE1fQ.nU_JybuGttH1rlh-jx3A92eJwmRBMTgY79NeD9W_3B8"
+          src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(1).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDEpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2NjgyNzMsImV4cCI6MzUxMDY2ODI3M30.7gVCREOIzT8sL64l6JKQHEBEq0_xULtkN2czn1YEYSo"
           alt="TWB"
           style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
         />
@@ -210,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MjY2NTUxNSwiZXhwIjoyODE5NDY1NTE1fQ.nU_JybuGttH1rlh-jx3A92eJwmRBMTgY79NeD9W_3B8"
+            src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(1).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDEpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2NjgyNzMsImV4cCI6MzUxMDY2ODI3M30.7gVCREOIzT8sL64l6JKQHEBEq0_xULtkN2czn1YEYSo"
             alt="TWB Brain"
             style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
           />
