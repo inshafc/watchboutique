@@ -288,6 +288,7 @@ export default function AddDealForm({
     setLoading(true)
     setError(null)
 
+    try {
     const supabase = createClient()
 
     const { data: deal, error: dealErr } = await supabase
@@ -316,6 +317,7 @@ export default function AddDealForm({
       .single()
 
     if (dealErr || !deal) {
+      console.error('Deal insert error:', dealErr)
       setError(dealErr?.message ?? 'Failed to create sale.')
       setLoading(false)
       return
@@ -401,6 +403,11 @@ export default function AddDealForm({
       clientName,
     })
     router.refresh()
+    } catch (err) {
+      console.error('Unexpected sale save error:', err)
+      setError('An unexpected error occurred. Check the browser console for details.')
+      setLoading(false)
+    }
   }
 
   if (successModal) {

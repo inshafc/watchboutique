@@ -233,7 +233,6 @@ export default function EditWatchForm({
       savedRef.current = { name: form.watch_name.trim(), ref: form.reference.trim() || null }
       setLoading(false)
       setSuccessModal(true)
-      router.refresh()
     } catch (err) {
       console.error('Unexpected save error:', err)
       setError('An unexpected error occurred. Check the browser console for details.')

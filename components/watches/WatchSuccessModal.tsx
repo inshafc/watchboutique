@@ -104,12 +104,14 @@ export default function WatchSuccessModal({ type, watchId, watchName, reference,
           {/* Buttons */}
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={handleBackToInventory}
               className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
             >
               Back to Inventory
             </button>
             <button
+              type="button"
               onClick={handleViewWatch}
               className="flex-1 py-2.5 text-sm font-semibold text-white bg-gray-900 hover:bg-black rounded-xl transition-colors"
             >

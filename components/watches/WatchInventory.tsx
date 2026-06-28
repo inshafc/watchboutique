@@ -440,7 +440,7 @@ export default function WatchInventory({
   async function handleDuplicate(e: React.MouseEvent, watch: WatchWithBrand) {
     e.stopPropagation()
     const supabase = createClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('watches')
       .insert({
         watch_name:     `${watch.watch_name} (Copy)`,
@@ -457,15 +457,35 @@ export default function WatchInventory({
         selling_price:  watch.selling_price,
         comments:       watch.comments,
         photos:         watch.photos,
+        labels:         watch.labels,
         brand_id:       watch.brand_id,
         is_draft:       true,
       })
       .select()
       .single()
-    if (data) {
-      setWatches(v => [data as WatchWithBrand, ...v])
-      router.push(`/dashboard/watches/${data.id}/edit`)
+    if (error || !data) {
+      console.error('Duplicate watch error:', error)
+      return
     }
+    const newWatch = data as WatchWithBrand
+
+    const { data: investors } = await supabase
+      .from('watch_investors')
+      .select('investor_name_id, percentage')
+      .eq('watch_id', watch.id)
+    if (investors && investors.length > 0) {
+      await supabase.from('watch_investors').insert(
+        investors.map(i => ({ watch_id: newWatch.id, investor_name_id: i.investor_name_id, percentage: i.percentage }))
+      )
+    }
+
+    setWatches(v => [newWatch, ...v])
+    showUndo('Watch duplicated as draft', async () => {
+      const sb = createClient()
+      await sb.from('watch_investors').delete().eq('watch_id', newWatch.id)
+      await sb.from('watches').delete().eq('id', newWatch.id)
+      setWatches(v => v.filter(w => w.id !== newWatch.id))
+    })
   }
 
   function handleShare(e: React.MouseEvent, watchId: string) {
@@ -510,6 +530,7 @@ export default function WatchInventory({
       selling_price:  w.selling_price,
       comments:       w.comments,
       photos:         w.photos,
+      labels:         w.labels,
       brand_id:       w.brand_id,
       is_draft:       true,
     }))
