@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
+
 import { useAuth } from '@/context/AuthContext'
 import type { UserRole } from '@/lib/auth'
 
@@ -168,14 +168,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <main className="flex-1 overflow-auto">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-          >
+          <div>
             {children}
-          </motion.div>
+          </div>
         </main>
       </div>
     </div>
