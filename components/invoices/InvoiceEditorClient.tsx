@@ -1085,8 +1085,8 @@ export default function InvoiceEditorClient({
         {/* Mobile preview */}
         <div className="lg:hidden border-t border-gray-100 px-4 pt-5 pb-8">
           <p className="text-[11px] font-semibold uppercase mb-3" style={{ letterSpacing: '0.1em', color: '#6B6B6B' }}>LIVE PREVIEW</p>
-          <div className="overflow-hidden">
-            <div style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: 'calc(100% / 0.45)' }}>
+          <div style={{ width: '100%', overflow: 'hidden', height: `${297 * 0.45}mm`, position: 'relative' }}>
+            <div style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: `${100 / 0.45}%`, position: 'absolute', top: 0, left: 0 }}>
               <InvoicePrintLayout
                 invoiceNumber={invoice.invoice_number}
                 date={form.date}

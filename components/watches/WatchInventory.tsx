@@ -828,6 +828,13 @@ export default function WatchInventory({
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && (
+            <div className="flex md:hidden bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
+              <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
+            </div>
+          )}
+
+          {!bulkMode && !showingDeleted && !showingDrafts && (
             <button
               onClick={() => setShowFilterPanel(v => !v)}
               title="Filter"
@@ -1236,7 +1243,7 @@ export default function WatchInventory({
 
           {/* ── Tile View ───────────────────────────────────────── */}
           {processed.length > 0 && view === 'tile' && (
-            <div className="hidden md:grid gap-4 grid-cols-3">
+            <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-3">
               {processed.map((w, tileIdx) => {
                 const isSelected  = selectedIds.has(w.id)
                 const isHighlight = w.id === highlightId
@@ -1351,8 +1358,8 @@ export default function WatchInventory({
             </div>
           )}
 
-          {/* ── Mobile card stack — always shown on mobile ─────── */}
-          {processed.length > 0 && (
+          {/* ── Mobile list view ───────────────────────────────── */}
+          {processed.length > 0 && view === 'list' && (
             <div className="md:hidden bg-[#F7F6F3] -mx-4 px-4">
               {processed.map(w => {
                 const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null

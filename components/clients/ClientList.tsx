@@ -357,9 +357,9 @@ export default function ClientList({
           <p className="text-[13px] text-text-secondary mt-0.5">{liveClients.length} {liveClients.length === 1 ? 'client' : 'clients'}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          {/* View toggle — desktop only */}
+          {/* View toggle */}
           {!showingDeleted && (
-            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
               <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
               <button onClick={() => setView('grid')} className={`p-2 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Grid view"><GridIcon /></button>
             </div>
@@ -574,7 +574,7 @@ export default function ClientList({
 
           {/* Grid View */}
           {visible.length > 0 && view === 'grid' && (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
               {visible.map(c => {
                 const totalSales = clientSales[c.id] ?? 0
                 return (

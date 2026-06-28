@@ -306,7 +306,7 @@ export default function DealList({
     ? 'grid-cols-2 lg:grid-cols-4'
     : gridCols === 5
     ? 'grid-cols-2 lg:grid-cols-5'
-    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+    : 'grid-cols-2 lg:grid-cols-3'
 
   return (
     <div>
@@ -340,8 +340,8 @@ export default function DealList({
                 <SelectIcon />
               </button>
 
-              {/* List/Grid toggle — desktop only */}
-              <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+              {/* List/Grid toggle */}
+              <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
                 <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
                 <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
               </div>
