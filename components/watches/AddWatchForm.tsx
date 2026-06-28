@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
@@ -136,6 +136,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     setBrandError(data && data.length > 0 ? 'Brand already exists' : null)
   }
 
+  const draftRef = useRef(false)
+
   async function doSave(isDraft: boolean) {
     if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
@@ -245,7 +247,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   }
 
   return (
-    <form onSubmit={e => e.preventDefault()} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); doSave(draftRef.current) }} className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
@@ -463,8 +465,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       )}
       <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
         <button
-          type="button"
-          onClick={() => doSave(false)}
+          type="submit"
+          onClick={() => { draftRef.current = false }}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
         >
@@ -472,8 +474,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           {loading ? 'Saving…' : 'Publish'}
         </button>
         <button
-          type="button"
-          onClick={() => doSave(true)}
+          type="submit"
+          onClick={() => { draftRef.current = true }}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
         >

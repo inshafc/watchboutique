@@ -65,7 +65,8 @@ export default function EditWatchForm({
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [successModal, setSuccessModal] = useState(false)
-  const savedRef = useRef({ name: watch.watch_name, ref: watch.reference ?? null })
+  const savedRef  = useRef({ name: watch.watch_name, ref: watch.reference ?? null })
+  const draftRef  = useRef(false)
 
   const [form, setForm] = useState({
     watch_name:     watch.watch_name,
@@ -250,7 +251,7 @@ export default function EditWatchForm({
 
   return (
     <>
-    <form onSubmit={e => e.preventDefault()} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); doSave(draftRef.current) }} className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
@@ -457,10 +458,15 @@ export default function EditWatchForm({
       </div>
 
       {/* ── Action buttons ────────────────────────────────────── */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
+          {error}
+        </div>
+      )}
       <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
         <button
-          type="button"
-          onClick={() => doSave(false)}
+          type="submit"
+          onClick={() => { draftRef.current = false }}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
         >
@@ -468,8 +474,8 @@ export default function EditWatchForm({
           {loading ? 'Saving…' : 'Publish'}
         </button>
         <button
-          type="button"
-          onClick={() => doSave(true)}
+          type="submit"
+          onClick={() => { draftRef.current = true }}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
         >
