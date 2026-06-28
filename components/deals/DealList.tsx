@@ -313,8 +313,8 @@ export default function DealList({
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 px-4 md:px-8 pt-6 pb-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Sales</h1>
-          <span className="text-sm text-gray-400 tabular-nums">{deals.length}</span>
+          <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Sales</h1>
+          <span className="text-[13px] text-text-secondary tabular-nums">{deals.length}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {!showingDeleted && (
@@ -363,7 +363,7 @@ export default function DealList({
 
               <Link
                 href="/dashboard/deals/new"
-                className="inline-flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors"
+                className="inline-flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
                 New Sale

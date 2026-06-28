@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
+  --background: #F7F6F3;
   --foreground: #111111;
 }
 
@@ -34,6 +34,13 @@ input[type="file"] {
   display: none;
 }
 
+/* Gold focus ring for form inputs */
+.input-focus:focus {
+  outline: none;
+  border-color: #C9A84C;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12);
+}
+
 /* ── Animated SVG checkmark (success modal) ─────────────── */
 @keyframes draw-circle {
   from { stroke-dashoffset: 160; }
@@ -46,8 +53,8 @@ input[type="file"] {
 
 /* ── Post-save row highlight pulse ──────────────────────── */
 @keyframes highlight-pulse {
-  0%   { background-color: rgb(254 243 199 / 0.9); }
-  70%  { background-color: rgb(254 243 199 / 0.3); }
+  0%   { background-color: rgb(201 168 76 / 0.15); }
+  70%  { background-color: rgb(201 168 76 / 0.05); }
   100% { background-color: transparent; }
 }
 .row-highlight {

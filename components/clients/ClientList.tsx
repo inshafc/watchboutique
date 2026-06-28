@@ -364,8 +364,8 @@ export default function ClientList({
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Clients</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{liveClients.length} {liveClients.length === 1 ? 'client' : 'clients'}</p>
+          <h2 className="text-2xl font-semibold text-text-primary tracking-tight">Clients</h2>
+          <p className="text-[13px] text-text-secondary mt-0.5">{liveClients.length} {liveClients.length === 1 ? 'client' : 'clients'}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           {/* View toggle */}
@@ -405,7 +405,7 @@ export default function ClientList({
           {!showingDeleted && (
             <Link
               href="/dashboard/clients/new"
-              className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-black transition-colors"
+              className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors"
             >
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
               Add Client

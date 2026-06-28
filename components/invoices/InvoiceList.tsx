@@ -181,8 +181,8 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
     <div className="flex flex-col h-full">
 
       {/* ── Top bar ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Invoices</h1>
+      <div className="flex items-center justify-between gap-4 px-6 pt-6 pb-4 border-b border-border">
+        <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Invoices</h1>
         <div className="flex items-center gap-2">
           <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
             <button
@@ -202,7 +202,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
           </div>
           <Link
             href="/dashboard/invoices/new"
-            className="bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors flex items-center gap-1.5"
+            className="bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors flex items-center gap-1.5"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M6 1v10M1 6h10" strokeLinecap="round"/>

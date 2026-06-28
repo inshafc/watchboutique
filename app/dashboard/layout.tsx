@@ -39,16 +39,16 @@ const BOTTOM_NAV = [
   { label: 'Settings', href: '/dashboard/settings', Icon: GearIcon, exact: false, roles: ['super_admin'] as Permission[] },
 ]
 
-// ── User indicator ────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
 const ROLE_BADGE: Record<UserRole, { label: string; cls: string }> = {
-  super_admin: { label: 'Admin',   cls: 'bg-gray-900 text-white' },
-  enterer:     { label: 'Enterer', cls: 'bg-blue-50  text-blue-700' },
-  viewer:      { label: 'Viewer',  cls: 'bg-gray-100 text-gray-500' },
+  super_admin: { label: 'Admin',   cls: 'bg-gold text-white' },
+  enterer:     { label: 'Enterer', cls: 'bg-white/10 text-white/70' },
+  viewer:      { label: 'Viewer',  cls: 'bg-white/10 text-white/70' },
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -63,12 +63,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const SidebarContent = () => (
     <>
-      <div className="px-5 py-6 border-b border-gray-100">
-        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-medium">Internal System</p>
-        <h1 className="text-base font-bold text-gray-900 mt-1 tracking-tight">The Watch Boutique</h1>
+      {/* Brand header */}
+      <div className="px-5 py-6 border-b border-white/8">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest font-medium">Internal System</p>
+        <h1 className="text-base font-semibold text-white mt-1 tracking-tight">The Watch Boutique</h1>
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      {/* Main nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {visibleNav.map(({ label, href, Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -76,8 +78,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                active ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
+                active
+                  ? 'text-white bg-white/8 border-l-2 border-gold pl-[10px]'
+                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
               }`}
             >
               <Icon />
@@ -87,7 +91,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         })}
       </nav>
 
-      <div className="p-3 border-t border-gray-100 space-y-0.5">
+      {/* Bottom nav + user */}
+      <div className="px-3 pb-4 border-t border-white/8 pt-3 space-y-0.5">
         {visibleBottomNav.map(({ label, href, Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -95,8 +100,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                active ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active
+                  ? 'text-white bg-white/8 border-l-2 border-gold pl-[10px]'
+                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
               }`}
             >
               <Icon />
@@ -107,14 +114,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User indicator */}
         {profile && role ? (
-          <div className="mt-2 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl">
-              {/* Avatar */}
-              <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+          <div className="mt-3 pt-3 border-t border-white/8">
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center text-[11px] font-bold shrink-0">
                 {initials(profile.full_name || profile.email)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-900 truncate">{profile.full_name || profile.email}</p>
+                <p className="text-xs font-semibold text-white truncate">{profile.full_name || profile.email}</p>
                 <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${ROLE_BADGE[role].cls}`}>
                   {ROLE_BADGE[role].label}
                 </span>
@@ -122,32 +128,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 onClick={signOut}
                 title="Sign out"
-                className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100"
+                className="shrink-0 text-white/30 hover:text-white/70 transition-colors p-1 rounded-lg hover:bg-white/10"
               >
                 <SignOutIcon />
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-[10px] text-gray-300 font-medium px-3 pt-2">TWB ERP · v1</p>
+          <p className="text-[10px] text-white/20 font-medium px-3 pt-2">TWB ERP · v1</p>
         )}
       </div>
     </>
   )
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-cream overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex print:hidden flex-col w-56 shrink-0 border-r border-gray-100 bg-white">
+      <aside className="hidden md:flex print:hidden flex-col w-[220px] shrink-0 bg-sidebar">
         <SidebarContent />
       </aside>
 
       {/* Mobile: overlay + drawer */}
       {open && (
-        <div className="fixed inset-0 z-40 bg-black/20 md:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-white border-r border-gray-100 transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-sidebar transition-transform duration-200 md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -156,18 +162,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100 md:hidden print:hidden bg-white">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border md:hidden print:hidden bg-white">
           <button
             onClick={() => setOpen(v => !v)}
-            className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-text-secondary hover:bg-cream transition-colors"
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <span className="text-sm font-bold text-gray-900 tracking-tight">The Watch Boutique</span>
+          <span className="text-sm font-semibold text-text-primary tracking-tight">The Watch Boutique</span>
           <div className="w-8" />
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-cream">
           <div>
             {children}
           </div>

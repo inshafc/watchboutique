@@ -1,15 +1,17 @@
 import type { WatchStatus } from '@/types'
 
-const config: Record<WatchStatus, string> = {
-  'Available': 'bg-emerald-50  text-emerald-700 ring-emerald-200',
-  'On Hold':   'bg-amber-50   text-amber-700  ring-amber-200',
-  'Sold':      'bg-sky-50     text-sky-700    ring-sky-200',
-  'Consigned': 'bg-purple-50  text-purple-700 ring-purple-200',
+const config: Record<string, string> = {
+  'Available': 'bg-[#DCFCE7] text-[#16A34A]',
+  'On Hold':   'bg-[#FEF3C7] text-[#D97706]',
+  'Sold':      'bg-[#F3F2EF] text-[#6B6B6B]',
+  'Consigned': 'bg-[#EDE9FE] text-[#7C3AED]',
+  'Draft':     'bg-[#F3F2EF] text-[#9CA3AF]',
 }
 
 export default function StatusBadge({ status }: { status: string }) {
+  const cls = config[status as WatchStatus] ?? 'bg-[#F3F2EF] text-[#6B6B6B]'
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${config[status as WatchStatus] ?? 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.05em] ${cls}`}>
       {status}
     </span>
   )

@@ -22,10 +22,10 @@ interface InvestorRow {
   percentage: string
 }
 
-const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
-const lbl = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
-const card = 'bg-white border border-gray-100 rounded-2xl p-5 md:p-6'
-const cardTitle = 'text-sm font-semibold text-gray-800 mb-4'
+const inp = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
+const lbl = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
+const card = 'bg-card border border-border rounded-xl p-5 md:p-6'
+const cardTitle = 'text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] mb-4'
 
 function LabelToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -463,7 +463,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           type="button"
           onClick={handlePublish}
           disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-5 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           {loading ? 'Saving…' : 'Publish'}
@@ -472,14 +472,14 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           type="button"
           onClick={handleSaveDraft}
           disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 bg-card text-text-secondary text-[13px] font-medium px-5 py-2.5 rounded-lg border border-border hover:border-text-muted transition-colors disabled:opacity-50"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg>
           Save Draft
         </button>
         <Link
           href="/dashboard/inventory"
-          className="flex items-center gap-1.5 text-sm font-medium text-red-500 px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors ml-auto"
+          className="flex items-center gap-1.5 text-[13px] font-medium text-negative px-5 py-2.5 rounded-lg border border-[#FEE2E2] hover:bg-[#FEE2E2] transition-colors ml-auto"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Discard
