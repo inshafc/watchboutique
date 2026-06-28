@@ -1236,7 +1236,7 @@ export default function WatchInventory({
 
           {/* ── Tile View ───────────────────────────────────────── */}
           {processed.length > 0 && view === 'tile' && (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+            <div className="hidden md:grid gap-4 grid-cols-3">
               {processed.map((w, tileIdx) => {
                 const isSelected  = selectedIds.has(w.id)
                 const isHighlight = w.id === highlightId
@@ -1351,10 +1351,8 @@ export default function WatchInventory({
             </div>
           )}
 
-          {/* ── List View ───────────────────────────────────────── */}
-          {processed.length > 0 && view === 'list' && (
-            <>
-            {/* Mobile card stack */}
+          {/* ── Mobile card stack — always shown on mobile ─────── */}
+          {processed.length > 0 && (
             <div className="md:hidden bg-[#F7F6F3] -mx-4 px-4">
               {processed.map(w => {
                 const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
@@ -1377,19 +1375,15 @@ export default function WatchInventory({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      {/* LINE 1: Watch name */}
                       <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>{w.watch_name}</p>
-                      {/* LINE 2: Brand + Ref */}
                       {brandName && (
                         <p className="mt-0.5 font-bold uppercase tracking-wide truncate" style={{ fontSize: '11px', color: brandColor ?? '#9CA3AF' }}>{brandName}</p>
                       )}
                       {w.reference && (
                         <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>Ref: {w.reference}</p>
                       )}
-                      {/* LINE 3: Status */}
                       <div className="mt-2"><StatusBadge status={w.watch_status ?? w.status} /></div>
                     </div>
-                    {/* PRICE: top right */}
                     <div className="shrink-0 text-right pt-0.5">
                       <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>{formatLKR(w.selling_price)}</p>
                     </div>
@@ -1397,7 +1391,10 @@ export default function WatchInventory({
                 )
               })}
             </div>
-            {/* Desktop table */}
+          )}
+
+          {/* ── Desktop List View ──────────────────────────────────── */}
+          {processed.length > 0 && view === 'list' && (
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
@@ -1510,7 +1507,6 @@ export default function WatchInventory({
                 </tbody>
               </table>
             </div>
-            </>
           )}
         </>
       )}

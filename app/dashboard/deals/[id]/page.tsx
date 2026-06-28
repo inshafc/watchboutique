@@ -38,7 +38,7 @@ function FinancialRow({ label, value, sub }: { label: string; value: React.React
 export default async function DealDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes] = await Promise.all([
+  const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes, draftInvoiceRes] = await Promise.all([
     supabase
       .from('deals')
       .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
@@ -67,6 +67,14 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       .is('deleted_at', null)
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('invoices')
+      .select('id, invoice_number, status')
+      .eq('deal_id', params.id)
+      .eq('status', 'draft')
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!dealRes.data) notFound()
@@ -88,6 +96,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const tradeIns       = (tradeInsRes.data ?? []) as TradeIn[]
   const expenses       = (expensesRes.data ?? []) as DealExpense[]
   const existingInvoice = invoiceRes.data as { id: string; invoice_number: string; status: string } | null
+  const draftInvoice    = draftInvoiceRes.data as { id: string; invoice_number: string; status: string } | null
 
   const watchCost     = deal.watches?.purchase_cost ?? 0
   const otherCostsAmt = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
@@ -112,9 +121,8 @@ export default async function DealDetailPage({ params }: { params: { id: string 
 
       {/* Header */}
       <div className="mb-6">
-        {/* Action row: Invoice left, icon actions right */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <GenerateInvoiceButton dealId={deal.id} dealStage={deal.stage} existingInvoice={existingInvoice} />
+        {/* Action row */}
+        <div className="flex items-center justify-end gap-3 mb-4">
           <DealDetailActions deal={deal} />
         </div>
         {/* Watch name + meta */}
@@ -200,6 +208,11 @@ export default async function DealDetailPage({ params }: { params: { id: string 
             Closed {formatDate(deal.closed_at)}
           </p>
         )}
+      </div>
+
+      {/* Invoice */}
+      <div className="mb-4">
+        <GenerateInvoiceButton dealId={deal.id} existingInvoice={existingInvoice} draftInvoice={draftInvoice} />
       </div>
 
       {/* Financials */}

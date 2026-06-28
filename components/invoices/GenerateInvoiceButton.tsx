@@ -7,12 +7,13 @@ interface ExistingInvoice {
 }
 
 interface Props {
-  dealId:          string
-  dealStage?:      string
+  dealId:           string
   existingInvoice?: ExistingInvoice | null
+  draftInvoice?:    ExistingInvoice | null
+  dealStage?:       string
 }
 
-export default function GenerateInvoiceButton({ dealId, dealStage, existingInvoice }: Props) {
+export default function GenerateInvoiceButton({ dealId, existingInvoice, draftInvoice }: Props) {
   if (existingInvoice) {
     return (
       <Link
@@ -27,8 +28,18 @@ export default function GenerateInvoiceButton({ dealId, dealStage, existingInvoi
     )
   }
 
-  if (dealStage === 'Delivered') {
-    return null
+  if (draftInvoice) {
+    return (
+      <Link
+        href={`/dashboard/invoices/${draftInvoice.id}/edit`}
+        className="inline-flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-amber-200"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
+        </svg>
+        Continue Invoice
+      </Link>
+    )
   }
 
   return (
