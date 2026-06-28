@@ -205,39 +205,45 @@ export default function AddClientForm({
     setLoading(true)
     setError(null)
 
-    const salesManagerName = salesManagers.find(sm => sm.id === salesManagerId)?.name ?? null
-    const labels: string[] = []
-    if (labelPolitical) labels.push('political')
-    if (labelAtRisk)    labels.push('at_risk')
-    if (labelHighPot)   labels.push('high_potential')
+    try {
+      const salesManagerName = salesManagers.find(sm => sm.id === salesManagerId)?.name ?? null
+      const labels: string[] = []
+      if (labelPolitical) labels.push('political')
+      if (labelAtRisk)    labels.push('at_risk')
+      if (labelHighPot)   labels.push('high_potential')
 
-    const birthday    = bdayMonth && bdayDay    ? `${bdayMonth}-${bdayDay}` : null
-    const anniversary = annivMonth && annivDay  ? `${annivMonth}-${annivDay}` : null
+      const birthday    = bdayMonth && bdayDay    ? `${bdayMonth}-${bdayDay}` : null
+      const anniversary = annivMonth && annivDay  ? `${annivMonth}-${annivDay}` : null
 
-    const supabase = createClient()
-    const { error: err } = await supabase.from('clients').insert({
-      name:          form.name.trim(),
-      email:         form.email.trim()   || null,
-      phone:         buildFullPhone(),
-      address:       form.address.trim() || null,
-      sales_manager: salesManagerName,
-      profile_notes: form.notes.trim()   || null,
-      is_vip:        statusTier === 'VIP',
-      club_twb:      statusTier === 'Club TWB',
-      status_tier:   statusTier,
-      lead_referral: leadReferral || null,
-      client_type:   clientType   || null,
-      avatar_color:  null,
-      labels,
-      is_draft:      isDraft,
-      birthday,
-      anniversary,
-    })
+      const supabase = createClient()
+      const { error: err } = await supabase.from('clients').insert({
+        name:          form.name.trim(),
+        email:         form.email.trim()   || null,
+        phone:         buildFullPhone(),
+        address:       form.address.trim() || null,
+        sales_manager: salesManagerName,
+        profile_notes: form.notes.trim()   || null,
+        is_vip:        statusTier === 'VIP',
+        club_twb:      statusTier === 'Club TWB',
+        status_tier:   statusTier,
+        lead_referral: leadReferral || null,
+        client_type:   clientType   || null,
+        avatar_color:  null,
+        labels,
+        is_draft:      isDraft,
+        birthday,
+        anniversary,
+      })
 
-    if (err) { setError(err.message); setLoading(false); return }
+      if (err) { setError(err.message); setLoading(false); return }
 
-    router.push(redirectTo)
-    router.refresh()
+      router.push(redirectTo)
+      router.refresh()
+    } catch (err) {
+      console.error('Client save error:', err)
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      setLoading(false)
+    }
   }
 
   return (

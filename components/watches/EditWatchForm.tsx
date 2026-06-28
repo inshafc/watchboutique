@@ -139,88 +139,94 @@ export default function EditWatchForm({
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    let resolvedBrandId = brandId
-    if (showNewBrand && newBrandName.trim()) {
-      const { data: brand } = await supabase
-        .from('brands')
-        .insert({ name: newBrandName.trim() })
-        .select('id')
-        .single()
-      resolvedBrandId = brand?.id ?? null
-    }
+      let resolvedBrandId = brandId
+      if (showNewBrand && newBrandName.trim()) {
+        const { data: brand } = await supabase
+          .from('brands')
+          .insert({ name: newBrandName.trim() })
+          .select('id')
+          .single()
+        resolvedBrandId = brand?.id ?? null
+      }
 
-    const urlMap = new Map<File, string>()
-    for (const item of photoItems) {
-      if (item.kind === 'file') {
-        const ext = item.file.name.split('.').pop() ?? 'jpg'
-        const path = `${watch.id}/edit_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('watch-photos')
-          .upload(path, item.file, { upsert: true })
-        if (!upErr) {
-          const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
-          urlMap.set(item.file, data.publicUrl)
+      const urlMap = new Map<File, string>()
+      for (const item of photoItems) {
+        if (item.kind === 'file') {
+          const ext = item.file.name.split('.').pop() ?? 'jpg'
+          const path = `${watch.id}/edit_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const { error: upErr } = await supabase.storage
+            .from('watch-photos')
+            .upload(path, item.file, { upsert: true })
+          if (!upErr) {
+            const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+            urlMap.set(item.file, data.publicUrl)
+          }
         }
       }
-    }
-    const photos = photoItems
-      .map(item => item.kind === 'url' ? item.url : (urlMap.get(item.file) ?? ''))
-      .filter(Boolean)
+      const photos = photoItems
+        .map(item => item.kind === 'url' ? item.url : (urlMap.get(item.file) ?? ''))
+        .filter(Boolean)
 
-    const labels: string[] = []
-    if (labelNewArrival) labels.push('new_arrival')
-    if (labelHotSell)    labels.push('hot_sell')
-    if (labelExpensive)  labels.push('expensive')
+      const labels: string[] = []
+      if (labelNewArrival) labels.push('new_arrival')
+      if (labelHotSell)    labels.push('hot_sell')
+      if (labelExpensive)  labels.push('expensive')
 
-    const { error: watchErr } = await supabase
-      .from('watches')
-      .update({
-        watch_name:     form.watch_name.trim(),
-        reference:      form.reference.trim()      || null,
-        serial_number:  form.serial_number.trim()  || null,
-        date_on_card:   form.date_on_card           || null,
-        condition:      form.condition,
-        set_details:    form.set_details,
-        purchased_from: form.purchased_from.trim() || null,
-        purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
-        status:         form.status,
-        selling_price:  form.selling_price ? num(form.selling_price) : null,
-        comments:       form.comments.trim()       || null,
-        photos,
-        brand_id:       resolvedBrandId,
-        labels,
-        is_draft:       isDraft,
-      })
-      .eq('id', watch.id)
+      const { error: watchErr } = await supabase
+        .from('watches')
+        .update({
+          watch_name:     form.watch_name.trim(),
+          reference:      form.reference.trim()      || null,
+          serial_number:  form.serial_number.trim()  || null,
+          date_on_card:   form.date_on_card           || null,
+          condition:      form.condition,
+          set_details:    form.set_details,
+          purchased_from: form.purchased_from.trim() || null,
+          purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
+          status:         form.status,
+          selling_price:  form.selling_price ? num(form.selling_price) : null,
+          comments:       form.comments.trim()       || null,
+          photos,
+          brand_id:       resolvedBrandId,
+          labels,
+          is_draft:       isDraft,
+        })
+        .eq('id', watch.id)
 
-    if (watchErr) {
-      setError(watchErr.message)
-      setLoading(false)
-      return
-    }
-
-    await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
-
-    const investorRows = investors
-      .filter(i => i.investor_name.trim())
-      .map(i => ({
-        watch_id:      watch.id,
-        investor_name: i.investor_name,
-        percentage:    parseFloat(i.percentage),
-      }))
-
-    if (investorRows.length > 0) {
-      const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
-      if (invErr) {
-        setError(invErr.message)
+      if (watchErr) {
+        setError(watchErr.message)
         setLoading(false)
         return
       }
-    }
 
-    router.push('/dashboard/watches/' + watch.id)
+      await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
+
+      const investorRows = investors
+        .filter(i => i.investor_name.trim())
+        .map(i => ({
+          watch_id:      watch.id,
+          investor_name: i.investor_name,
+          percentage:    parseFloat(i.percentage),
+        }))
+
+      if (investorRows.length > 0) {
+        const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
+        if (invErr) {
+          setError(invErr.message)
+          setLoading(false)
+          return
+        }
+      }
+
+      router.push('/dashboard/watches/' + watch.id)
+    } catch (err) {
+      console.error('Watch update error:', err)
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      setLoading(false)
+    }
   }
 
   async function handleDelete() {
