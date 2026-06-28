@@ -488,83 +488,107 @@ export default function InvoiceEditorClient({
     </button>
   )
 
+  const handleDownload = () => {
+    const html = generateInvoiceHTML({
+      invoiceNumber:      invoice.invoice_number,
+      date:               form.date,
+      currency:           form.currency,
+      type:               form.type,
+      status:             form.status,
+      clientName:         form.client_name    || null,
+      clientPhone:        form.client_phone   || null,
+      clientAddress:      form.client_address || null,
+      salesManager:       form.sales_manager  || null,
+      paymentMethod:      form.payment_method || null,
+      showBankDetails:    form.show_bank_details,
+      bank:               previewBank,
+      advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
+      amountPaid:         invoiceAmtPaid,
+      notes:              form.notes              || null,
+      termsAndConditions: form.terms_and_conditions || null,
+      logoUrl:            logoUrl,
+      fieldVisibility: {
+        phone:         fieldVisibility.phone         ?? true,
+        address:       fieldVisibility.address       ?? true,
+        sales_manager: fieldVisibility.sales_manager ?? true,
+        notes:         fieldVisibility.notes         ?? true,
+        terms:         fieldVisibility.terms         ?? true,
+        signatures:    fieldVisibility.signatures    ?? false,
+      },
+      items:              previewItems,
+    })
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url  = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  }
+
   return (
-    <div className="flex min-h-full">
+    <div className="flex flex-col lg:flex-row min-h-full">
 
       {/* ── Left panel: form ────────────────────────────────── */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 lg:overflow-y-auto">
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard/invoices" className="text-sm text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1.5">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Invoices
-            </Link>
-            <span className="text-gray-200">/</span>
-            <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number}</span>
+        <div className="border-b border-gray-100 bg-white sticky top-0 z-10">
+          <div className="flex items-center justify-between gap-3 px-4 lg:px-6 py-4">
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard/invoices" className="text-sm text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1.5">
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Invoices
+              </Link>
+              <span className="text-gray-200">/</span>
+              <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {savedOnce && (
+                <>
+                  <Link
+                    href={`/dashboard/invoices/${invoice.id}/print`}
+                    target="_blank"
+                    className="hidden lg:flex text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
+                    Print
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    className="hidden lg:flex text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                    Download
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {savedOnce && (
-              <>
-                <Link
-                  href={`/dashboard/invoices/${invoice.id}/print`}
-                  target="_blank"
-                  className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
-                  Print
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const html = generateInvoiceHTML({
-                      invoiceNumber:      invoice.invoice_number,
-                      date:               form.date,
-                      currency:           form.currency,
-                      type:               form.type,
-                      status:             form.status,
-                      clientName:         form.client_name    || null,
-                      clientPhone:        form.client_phone   || null,
-                      clientAddress:      form.client_address || null,
-                      salesManager:       form.sales_manager  || null,
-                      paymentMethod:      form.payment_method || null,
-                      showBankDetails:    form.show_bank_details,
-                      bank:               previewBank,
-                      advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
-                      amountPaid:         invoiceAmtPaid,
-                      notes:              form.notes              || null,
-                      termsAndConditions: form.terms_and_conditions || null,
-                      logoUrl:            logoUrl,
-                      fieldVisibility: {
-                        phone:         fieldVisibility.phone         ?? true,
-                        address:       fieldVisibility.address       ?? true,
-                        sales_manager: fieldVisibility.sales_manager ?? true,
-                        notes:         fieldVisibility.notes         ?? true,
-                        terms:         fieldVisibility.terms         ?? true,
-                        signatures:    fieldVisibility.signatures    ?? false,
-                      },
-                      items:              previewItems,
-                    })
-                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-                    const url  = URL.createObjectURL(blob)
-                    window.open(url, '_blank')
-                  }}
-                  className="text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-                  Download
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
+          {savedOnce && (
+            <div className="flex gap-2 px-4 pb-3 lg:hidden">
+              <Link
+                href={`/dashboard/invoices/${invoice.id}/print`}
+                target="_blank"
+                className="flex-1 text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
+                Print
+              </Link>
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="flex-1 text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                Download
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -1028,8 +1052,9 @@ export default function InvoiceEditorClient({
       </div>
 
       {/* ── Right panel: live preview ───────────────────────── */}
-      <div className="w-[42%] shrink-0 border-l border-gray-100 sticky top-0 h-screen overflow-y-auto" style={{ background: '#f0f0f0' }}>
-        <div className="p-5">
+      <div className="lg:w-[42%] lg:shrink-0 lg:border-l lg:border-gray-100 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: '#f0f0f0' }}>
+        {/* Desktop preview */}
+        <div className="hidden lg:block p-5">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">Live Preview</p>
           <div className="shadow-2xl" style={{ zoom: 0.55, borderRadius: '2px', overflow: 'hidden' }}>
             <InvoicePrintLayout
@@ -1055,6 +1080,37 @@ export default function InvoiceEditorClient({
               logoUrl={logoUrl}
               fieldVisibility={fieldVisibility}
             />
+          </div>
+        </div>
+        {/* Mobile preview */}
+        <div className="lg:hidden border-t border-gray-100 px-4 pt-5 pb-8">
+          <p className="text-[11px] font-semibold uppercase mb-3" style={{ letterSpacing: '0.1em', color: '#6B6B6B' }}>LIVE PREVIEW</p>
+          <div className="overflow-hidden">
+            <div style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: 'calc(100% / 0.45)' }}>
+              <InvoicePrintLayout
+                invoiceNumber={invoice.invoice_number}
+                date={form.date}
+                currency={form.currency}
+                exchangeRate={num(form.exchange_rate)}
+                type={form.type}
+                status={form.status}
+                clientName={form.client_name     || null}
+                clientAddress={form.client_address || null}
+                clientPhone={form.client_phone   || null}
+                salesManager={form.sales_manager || null}
+                paymentMethod={form.payment_method || null}
+                showBankDetails={form.show_bank_details}
+                showSignatures={fieldVisibility.signatures}
+                advancePaid={num(form.advance_paid)}
+                amountPaid={invoiceAmtPaid}
+                notes={form.notes || null}
+                termsAndConditions={form.terms_and_conditions || null}
+                items={previewItems}
+                bank={previewBank}
+                logoUrl={logoUrl}
+                fieldVisibility={fieldVisibility}
+              />
+            </div>
           </div>
         </div>
       </div>
