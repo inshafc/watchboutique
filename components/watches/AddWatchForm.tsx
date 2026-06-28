@@ -144,89 +144,104 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    let resolvedBrandId = brandId
-    if (showNewBrand && newBrandName.trim()) {
-      const { data: brand } = await supabase
-        .from('brands')
-        .insert({ name: newBrandName.trim() })
-        .select('id')
-        .single()
-      resolvedBrandId = brand?.id ?? null
-    }
-
-    const labels: string[] = []
-    if (labelNewArrival) labels.push('new_arrival')
-    if (labelHotSell)    labels.push('hot_sell')
-    if (labelExpensive)  labels.push('expensive')
-
-    const { data: watch, error: watchErr } = await supabase
-      .from('watches')
-      .insert({
-        watch_id:       watchId,
-        watch_name:     form.watch_name.trim(),
-        reference:      form.reference.trim()      || null,
-        serial_number:  form.serial_number.trim()  || null,
-        date_on_card:   form.date_on_card           || null,
-        condition:      form.condition,
-        set_details:    form.set_details,
-        purchased_from: form.purchased_from.trim() || null,
-        purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
-        currency:       'LKR',
-        status:         form.status,
-        watch_status:   form.status,
-        selling_price:  form.selling_price ? num(form.selling_price) : null,
-        comments:       form.comments.trim()       || null,
-        photos:         [],
-        brand_id:       resolvedBrandId,
-        labels,
-        is_draft:       isDraft,
-      })
-      .select()
-      .single()
-
-    if (watchErr) { setError(watchErr.message); setLoading(false); return }
-
-    // Upload photos in order
-    const photoUrls: string[] = []
-    for (const item of photoItems) {
-      if (item.kind === 'file') {
-        const ext = item.file.name.split('.').pop() ?? 'jpg'
-        const path = `${watch.id}/photo_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: upErr } = await supabase.storage
-          .from('watch-photos')
-          .upload(path, item.file, { upsert: true })
-        if (!upErr) {
-          const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
-          photoUrls.push(data.publicUrl)
-        }
+      let resolvedBrandId = brandId
+      if (showNewBrand && newBrandName.trim()) {
+        const { data: brand, error: brandErr } = await supabase
+          .from('brands')
+          .insert({ name: newBrandName.trim() })
+          .select('id')
+          .single()
+        if (brandErr) console.error('Brand insert error:', brandErr)
+        resolvedBrandId = brand?.id ?? null
       }
-    }
-    if (photoUrls.length > 0) {
-      await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
-    }
 
-    const investorRows = investors
-      .filter(i => i.investor_name.trim())
-      .map(i => ({
-        watch_id:      watch.id,
-        investor_name: i.investor_name,
-        percentage:    parseFloat(i.percentage),
-      }))
+      const labels: string[] = []
+      if (labelNewArrival) labels.push('new_arrival')
+      if (labelHotSell)    labels.push('hot_sell')
+      if (labelExpensive)  labels.push('expensive')
 
-    if (investorRows.length > 0) {
-      const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
-      if (invErr) {
-        await supabase.from('watches').delete().eq('id', watch.id)
-        setError(invErr.message)
+      const { data: watch, error: watchErr } = await supabase
+        .from('watches')
+        .insert({
+          watch_id:       watchId,
+          watch_name:     form.watch_name.trim(),
+          reference:      form.reference.trim()      || null,
+          serial_number:  form.serial_number.trim()  || null,
+          date_on_card:   form.date_on_card           || null,
+          condition:      form.condition,
+          set_details:    form.set_details,
+          purchased_from: form.purchased_from.trim() || null,
+          purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
+          currency:       'LKR',
+          status:         form.status,
+          watch_status:   form.status,
+          selling_price:  form.selling_price ? num(form.selling_price) : null,
+          comments:       form.comments.trim()       || null,
+          photos:         [],
+          brand_id:       resolvedBrandId,
+          labels,
+          is_draft:       isDraft,
+        })
+        .select()
+        .single()
+
+      if (watchErr || !watch) {
+        console.error('Watch insert error:', watchErr)
+        setError(watchErr?.message ?? 'Failed to save watch. Check console for details.')
         setLoading(false)
         return
       }
-    }
 
-    setLoading(false)
-    setSuccessModal({ id: watch.id, name: form.watch_name.trim(), ref: form.reference.trim() || null })
+      // Upload photos in order
+      const photoUrls: string[] = []
+      for (const item of photoItems) {
+        if (item.kind === 'file') {
+          const ext = item.file.name.split('.').pop() ?? 'jpg'
+          const path = `${watch.id}/photo_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const { error: upErr } = await supabase.storage
+            .from('watch-photos')
+            .upload(path, item.file, { upsert: true })
+          if (upErr) {
+            console.error('Photo upload error:', upErr)
+          } else {
+            const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+            photoUrls.push(data.publicUrl)
+          }
+        }
+      }
+      if (photoUrls.length > 0) {
+        await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
+      }
+
+      const investorRows = investors
+        .filter(i => i.investor_name.trim())
+        .map(i => ({
+          watch_id:      watch.id,
+          investor_name: i.investor_name,
+          percentage:    parseFloat(i.percentage),
+        }))
+
+      if (investorRows.length > 0) {
+        const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
+        if (invErr) {
+          console.error('Investor insert error:', invErr)
+          await supabase.from('watches').delete().eq('id', watch.id)
+          setError(invErr.message)
+          setLoading(false)
+          return
+        }
+      }
+
+      setLoading(false)
+      setSuccessModal({ id: watch.id, name: form.watch_name.trim(), ref: form.reference.trim() || null })
+    } catch (err) {
+      console.error('Unexpected save error:', err)
+      setError('An unexpected error occurred. Check the browser console for details.')
+      setLoading(false)
+    }
   }
 
   return (
