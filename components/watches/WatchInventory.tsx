@@ -440,7 +440,8 @@ export default function WatchInventory({
   async function handleDuplicate(e: React.MouseEvent, watch: WatchWithBrand) {
     e.stopPropagation()
     const supabase = createClient()
-    const { data, error } = await supabase
+
+    const { data: newWatch, error: insertErr } = await supabase
       .from('watches')
       .insert({
         watch_name:     `${watch.watch_name} (Copy)`,
@@ -463,23 +464,25 @@ export default function WatchInventory({
       })
       .select()
       .single()
-    if (error || !data) {
-      console.error('Duplicate watch error:', error)
+
+    if (insertErr || !newWatch) {
+      showUndo('Failed to duplicate watch', async () => { /* no-op */ })
       return
     }
-    const newWatch = data as WatchWithBrand
 
     const { data: investors } = await supabase
       .from('watch_investors')
       .select('investor_name, percentage')
       .eq('watch_id', watch.id)
+
     if (investors && investors.length > 0) {
       await supabase.from('watch_investors').insert(
         investors.map(i => ({ watch_id: newWatch.id, investor_name: i.investor_name, percentage: i.percentage }))
       )
     }
 
-    setWatches(v => [newWatch, ...v])
+    setWatches(v => [newWatch as WatchWithBrand, ...v])
+    router.refresh()
     showUndo('Watch duplicated as draft', async () => {
       const sb = createClient()
       await sb.from('watch_investors').delete().eq('watch_id', newWatch.id)

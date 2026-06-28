@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
-import WatchSuccessModal from '@/components/watches/WatchSuccessModal'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
   WATCH_CONDITIONS,
@@ -64,9 +63,6 @@ export default function EditWatchForm({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const [successModal, setSuccessModal] = useState(false)
-  const savedRef  = useRef({ name: watch.watch_name, ref: watch.reference ?? null })
-  const draftRef  = useRef(false)
 
   const [form, setForm] = useState({
     watch_name:     watch.watch_name,
@@ -135,7 +131,7 @@ export default function EditWatchForm({
     setBrandError(data && data.length > 0 ? 'Brand already exists' : null)
   }
 
-  async function doSave(isDraft: boolean) {
+  async function save(isDraft: boolean) {
     if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
     if (brandError) { setError('Please fix the brand error before saving.'); return }
@@ -143,102 +139,88 @@ export default function EditWatchForm({
     setLoading(true)
     setError(null)
 
-    try {
-      const supabase = createClient()
+    const supabase = createClient()
 
-      let resolvedBrandId = brandId
-      if (showNewBrand && newBrandName.trim()) {
-        const { data: brand, error: brandErr } = await supabase
-          .from('brands')
-          .insert({ name: newBrandName.trim() })
-          .select('id')
-          .single()
-        if (brandErr) console.error('Brand insert error:', brandErr)
-        resolvedBrandId = brand?.id ?? null
-      }
+    let resolvedBrandId = brandId
+    if (showNewBrand && newBrandName.trim()) {
+      const { data: brand } = await supabase
+        .from('brands')
+        .insert({ name: newBrandName.trim() })
+        .select('id')
+        .single()
+      resolvedBrandId = brand?.id ?? null
+    }
 
-      // Upload new files in order, build ordered photos array
-      const urlMap = new Map<File, string>()
-      for (const item of photoItems) {
-        if (item.kind === 'file') {
-          const ext = item.file.name.split('.').pop() ?? 'jpg'
-          const path = `${watch.id}/edit_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-          const { error: upErr } = await supabase.storage
-            .from('watch-photos')
-            .upload(path, item.file, { upsert: true })
-          if (upErr) {
-            console.error('Photo upload error:', upErr)
-          } else {
-            const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
-            urlMap.set(item.file, data.publicUrl)
-          }
+    const urlMap = new Map<File, string>()
+    for (const item of photoItems) {
+      if (item.kind === 'file') {
+        const ext = item.file.name.split('.').pop() ?? 'jpg'
+        const path = `${watch.id}/edit_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('watch-photos')
+          .upload(path, item.file, { upsert: true })
+        if (!upErr) {
+          const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+          urlMap.set(item.file, data.publicUrl)
         }
       }
-      const photos = photoItems
-        .map(item => item.kind === 'url' ? item.url : (urlMap.get(item.file) ?? ''))
-        .filter(Boolean)
+    }
+    const photos = photoItems
+      .map(item => item.kind === 'url' ? item.url : (urlMap.get(item.file) ?? ''))
+      .filter(Boolean)
 
-      const labels: string[] = []
-      if (labelNewArrival) labels.push('new_arrival')
-      if (labelHotSell)    labels.push('hot_sell')
-      if (labelExpensive)  labels.push('expensive')
+    const labels: string[] = []
+    if (labelNewArrival) labels.push('new_arrival')
+    if (labelHotSell)    labels.push('hot_sell')
+    if (labelExpensive)  labels.push('expensive')
 
-      const { error: watchErr } = await supabase
-        .from('watches')
-        .update({
-          watch_name:     form.watch_name.trim(),
-          reference:      form.reference.trim()      || null,
-          serial_number:  form.serial_number.trim()  || null,
-          date_on_card:   form.date_on_card           || null,
-          condition:      form.condition,
-          set_details:    form.set_details,
-          purchased_from: form.purchased_from.trim() || null,
-          purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
-          status:         form.status,
-          selling_price:  form.selling_price ? num(form.selling_price) : null,
-          comments:       form.comments.trim()       || null,
-          photos,
-          brand_id:       resolvedBrandId,
-          labels,
-          is_draft:       isDraft,
-        })
-        .eq('id', watch.id)
+    const { error: watchErr } = await supabase
+      .from('watches')
+      .update({
+        watch_name:     form.watch_name.trim(),
+        reference:      form.reference.trim()      || null,
+        serial_number:  form.serial_number.trim()  || null,
+        date_on_card:   form.date_on_card           || null,
+        condition:      form.condition,
+        set_details:    form.set_details,
+        purchased_from: form.purchased_from.trim() || null,
+        purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
+        status:         form.status,
+        selling_price:  form.selling_price ? num(form.selling_price) : null,
+        comments:       form.comments.trim()       || null,
+        photos,
+        brand_id:       resolvedBrandId,
+        labels,
+        is_draft:       isDraft,
+      })
+      .eq('id', watch.id)
 
-      if (watchErr) {
-        console.error('Watch update error:', watchErr)
-        setError(watchErr.message)
+    if (watchErr) {
+      setError(watchErr.message)
+      setLoading(false)
+      return
+    }
+
+    await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
+
+    const investorRows = investors
+      .filter(i => i.investor_name.trim())
+      .map(i => ({
+        watch_id:      watch.id,
+        investor_name: i.investor_name,
+        percentage:    parseFloat(i.percentage),
+      }))
+
+    if (investorRows.length > 0) {
+      const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
+      if (invErr) {
+        setError(invErr.message)
         setLoading(false)
         return
       }
-
-      await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
-
-      const investorRows = investors
-        .filter(i => i.investor_name.trim())
-        .map(i => ({
-          watch_id:      watch.id,
-          investor_name: i.investor_name,
-          percentage:    parseFloat(i.percentage),
-        }))
-
-      if (investorRows.length > 0) {
-        const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
-        if (invErr) {
-          console.error('Investor insert error:', invErr)
-          setError(invErr.message)
-          setLoading(false)
-          return
-        }
-      }
-
-      savedRef.current = { name: form.watch_name.trim(), ref: form.reference.trim() || null }
-      setLoading(false)
-      setSuccessModal(true)
-    } catch (err) {
-      console.error('Unexpected save error:', err)
-      setError('An unexpected error occurred. Check the browser console for details.')
-      setLoading(false)
     }
+
+    router.push('/dashboard/watches/' + watch.id)
   }
 
   async function handleDelete() {
@@ -246,12 +228,13 @@ export default function EditWatchForm({
     const supabase = createClient()
     await supabase.from('watches').update({ deleted_at: new Date().toISOString() }).eq('id', watch.id)
     router.push('/dashboard/inventory')
-    router.refresh()
   }
 
+  const handlePublish   = () => save(false)
+  const handleSaveDraft = () => save(true)
+
   return (
-    <>
-    <form onSubmit={e => { e.preventDefault(); doSave(draftRef.current) }} className="space-y-4">
+    <div className="space-y-4">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
@@ -428,7 +411,8 @@ export default function EditWatchForm({
         </div>
         <div className="flex items-center justify-between mt-4">
           <button
-            type="button" onClick={addInvestor}
+            type="button"
+            onClick={addInvestor}
             disabled={investors.length >= 4 || investors.length >= INVESTOR_NAMES.length}
             className="text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-0"
           >
@@ -465,8 +449,8 @@ export default function EditWatchForm({
       )}
       <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
         <button
-          type="submit"
-          onClick={() => { draftRef.current = false }}
+          type="button"
+          onClick={handlePublish}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
         >
@@ -474,8 +458,8 @@ export default function EditWatchForm({
           {loading ? 'Saving…' : 'Publish'}
         </button>
         <button
-          type="submit"
-          onClick={() => { draftRef.current = true }}
+          type="button"
+          onClick={handleSaveDraft}
           disabled={loading || !!brandError}
           className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
         >
@@ -492,17 +476,6 @@ export default function EditWatchForm({
           Delete
         </button>
       </div>
-    </form>
-
-    {successModal && (
-      <WatchSuccessModal
-        type="edit"
-        watchId={watch.id}
-        watchName={savedRef.current.name}
-        reference={savedRef.current.ref}
-        onClose={() => setSuccessModal(false)}
-      />
-    )}
-    </>
+    </div>
   )
 }
