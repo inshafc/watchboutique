@@ -44,11 +44,23 @@ export async function middleware(req: NextRequest) {
     // Fetch profile once for all authenticated requests
     const { data: p } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, must_change_password')
       .eq('id', user.id)
       .single()
 
-    const role = (p?.role ?? 'viewer') as string
+    const mustChange = p?.must_change_password === true
+    const role       = (p?.role ?? 'viewer') as string
+
+    // Must change password → only /change-password is allowed
+    if (mustChange && !pathname.startsWith('/change-password')) {
+      return NextResponse.redirect(new URL('/change-password', req.url))
+    }
+
+    // Password already changed → redirect away from /change-password
+    if (!mustChange && pathname.startsWith('/change-password')) {
+      const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
+      return NextResponse.redirect(new URL(dest, req.url))
+    }
 
     // Already authenticated → off /login
     if (pathname === '/login') {
@@ -76,5 +88,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/change-password'],
 }

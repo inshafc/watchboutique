@@ -18,37 +18,47 @@ function EyeIcon({ open }: { open: boolean }) {
   )
 }
 
-export default function LoginPage() {
-  const [email,        setEmail]        = useState('')
+export default function ChangePasswordPage() {
   const [password,     setPassword]     = useState('')
+  const [confirm,      setConfirm]      = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm,  setShowConfirm]  = useState(false)
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
     setError(null)
 
-    const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (password !== confirm) {
+      setError("Passwords don't match.")
+      return
+    }
 
-    if (signInError) {
-      setError('Invalid email or password.')
+    setLoading(true)
+    const supabase = createClient()
+
+    const { error: updateErr } = await supabase.auth.updateUser({ password })
+    if (updateErr) {
+      setError(updateErr.message)
       setLoading(false)
       return
     }
 
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user!.id)
-      .single()
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ must_change_password: false })
+        .eq('id', user.id)
+    }
 
-    const role = profile?.role ?? 'viewer'
-    router.push(role === 'super_admin' ? '/dashboard' : '/dashboard/inventory')
+    router.push('/dashboard')
     router.refresh()
   }
 
@@ -58,7 +68,7 @@ export default function LoginPage() {
     border: '1px solid #2d2d2d',
     borderRadius: '12px',
     color: 'white',
-    padding: '13px 16px',
+    padding: '13px 44px 13px 16px',
     fontSize: '14px',
     fontFamily: "'Poppins', sans-serif",
     outline: 'none',
@@ -85,34 +95,28 @@ export default function LoginPage() {
                   style={{ height: '56px', width: 'auto', objectFit: 'contain' }}
                 />
               </div>
-              <h1 style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 300, fontSize: '32px', lineHeight: 1.2, color: 'white', margin: 0 }}>
-                Login
+              <h1 style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 300, fontSize: '28px', lineHeight: 1.2, color: 'white', margin: 0 }}>
+                Set Your Password
               </h1>
+              <p className="mt-2" style={{ color: '#666', fontSize: '13px', fontFamily: "'Poppins', sans-serif" }}>
+                Please set a new password to continue
+              </p>
             </div>
 
             {/* Form */}
             <div className="px-8 pb-8">
               <form onSubmit={handleSubmit} className="space-y-3">
 
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Email"
-                  required
-                  style={inputStyle}
-                />
-
+                {/* New password */}
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Password"
+                    placeholder="New Password"
                     required
-                    style={{ ...inputStyle, paddingRight: '44px' }}
+                    style={inputStyle}
                   />
                   <button
                     type="button"
@@ -124,6 +128,32 @@ export default function LoginPage() {
                     <EyeIcon open={showPassword} />
                   </button>
                 </div>
+
+                {/* Confirm password */}
+                <div className="relative">
+                  <input
+                    type={showConfirm ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={confirm}
+                    onChange={e => setConfirm(e.target.value)}
+                    placeholder="Confirm Password"
+                    required
+                    style={inputStyle}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                    style={{ color: '#555', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  >
+                    <EyeIcon open={showConfirm} />
+                  </button>
+                </div>
+
+                <p style={{ color: '#555', fontSize: '11px', fontFamily: "'Poppins', sans-serif" }}>
+                  At least 8 characters
+                </p>
 
                 {error && (
                   <p className="text-sm text-red-500 text-center">{error}</p>
@@ -141,9 +171,9 @@ export default function LoginPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Signing in…
+                      Setting password…
                     </>
-                  ) : 'Sign In'}
+                  ) : 'Set Password'}
                 </button>
 
               </form>

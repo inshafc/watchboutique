@@ -7,8 +7,9 @@ export interface Profile {
   role:                 UserRole
   is_active:            boolean
   created_at:           string
-  updated_at:           string
-  phone?:               string | null
+  updated_at:            string
+  phone?:                string | null
+  must_change_password?: boolean
 }
 
 export const PERMISSIONS = {
