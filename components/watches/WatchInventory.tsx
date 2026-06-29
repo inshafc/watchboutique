@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 
@@ -125,6 +126,8 @@ export default function WatchInventory({
   highlightId?: string
 }) {
   const router = useRouter()
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'super_admin'
 
   // Clear ?highlight param after animation completes
   useEffect(() => {
@@ -963,7 +966,7 @@ export default function WatchInventory({
       {!bulkMode && (
         <div className="mb-5">
           {/* Mobile: total value above tabs */}
-          {!showingDeleted && totalSellingValue > 0 && (
+          {isAdmin && !showingDeleted && totalSellingValue > 0 && (
             <p className="md:hidden text-xs text-gray-400 mb-2">
               Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
             </p>
@@ -1009,7 +1012,7 @@ export default function WatchInventory({
               ))}
             </div>
             {/* Desktop: total value on same row as tabs */}
-            {!showingDeleted && totalSellingValue > 0 && (
+            {isAdmin && !showingDeleted && totalSellingValue > 0 && (
               <p className="hidden md:block text-xs text-gray-400 whitespace-nowrap shrink-0">
                 Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
               </p>
