@@ -205,7 +205,12 @@ export default function DashboardOverview({
         <div className="flex-1 min-w-0 py-2">
           <p className="text-[11px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-2">Revenue</p>
           <div className="flex items-baseline flex-wrap">
-            <span className="text-[28px] md:text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
+            {/* Mobile: compact to prevent bleed */}
+            <span className="md:hidden text-[40px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
+              LKR {fmtCompact(curStats.totalSales)}
+            </span>
+            {/* Desktop: full number */}
+            <span className="hidden md:inline text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
               LKR&nbsp;{formatRevenue(curStats.totalSales)}
             </span>
           </div>
