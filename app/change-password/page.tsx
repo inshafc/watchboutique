@@ -26,6 +26,13 @@ export default function ChangePasswordPage() {
       setError('Passwords do not match')
       return
     }
+    const hasUpper  = /[A-Z]/.test(password)
+    const hasNumber = /[0-9]/.test(password)
+    const hasSymbol = /[^A-Za-z0-9]/.test(password)
+    if (!hasUpper || !hasNumber || !hasSymbol) {
+      setError('Password must include uppercase, a number, and a symbol')
+      return
+    }
     setLoading(true)
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
@@ -82,6 +89,9 @@ export default function ChangePasswordPage() {
               {showConfirm ? '👁' : '👁‍🗨'}
             </button>
           </div>
+          <p style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>
+            Min 8 characters · at least one uppercase · one number · one symbol
+          </p>
           {error && <p style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center' }}>{error}</p>}
           <button
             type="button"

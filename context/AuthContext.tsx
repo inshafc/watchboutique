@@ -30,6 +30,8 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile:  async () => {},
 })
 
+const INACTIVITY_TIMEOUT = 3 * 60 * 1000 // 3 minutes
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,    setUser]    = useState<User    | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -48,6 +50,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient()
+    let timer: NodeJS.Timeout
+
+    const resetTimer = () => {
+      clearTimeout(timer)
+      timer = setTimeout(async () => {
+        await supabase.auth.signOut()
+        window.location.replace('/login')
+      }, INACTIVITY_TIMEOUT)
+    }
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const
+    events.forEach(e => window.addEventListener(e, resetTimer))
+    resetTimer()
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -68,7 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timer)
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      subscription.unsubscribe()
+    }
   }, [fetchProfile])
 
   const role = profile?.role ?? null

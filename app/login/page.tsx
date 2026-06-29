@@ -92,11 +92,11 @@ export default function LoginPage() {
 
             {/* Form */}
             <div className="px-8 pb-8">
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-3" data-lpignore="true" data-form-type="other">
 
                 <input
                   type="email"
-                  autoComplete="email"
+                  autoComplete="off"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Email"
@@ -107,7 +107,7 @@ export default function LoginPage() {
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Password"
