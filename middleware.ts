@@ -36,41 +36,48 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Unauthenticated → /login
-  if (!user && pathname.startsWith('/dashboard')) {
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/change-password'))) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Already authenticated → off /login
-  if (user && pathname === '/login') {
-    const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    const role = p?.role ?? 'viewer'
-    const dest  = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
-    return NextResponse.redirect(new URL(dest, req.url))
-  }
-
-  // Role-based routing for authenticated users
   if (user) {
-    const isDashboardRoot = pathname === '/dashboard' || pathname === '/dashboard/'
-    const needsRoleCheck  =
-      isDashboardRoot ||
-      SUPER_ADMIN_ONLY.some(r => pathname.startsWith(r)) ||
-      ['/dashboard/deals', '/dashboard/invoices'].some(r => pathname.startsWith(r))
+    // Fetch profile once for all authenticated requests
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('role, must_change_password')
+      .eq('id', user.id)
+      .single()
 
-    if (needsRoleCheck) {
-      const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      const role = (p?.role ?? 'viewer') as string
+    const mustChange = p?.must_change_password === true
+    const role       = (p?.role ?? 'viewer') as string
 
-      // Redirect away from dashboard home for non-super_admins
+    // Must change password → only /change-password is allowed
+    if (mustChange && !pathname.startsWith('/change-password')) {
+      return NextResponse.redirect(new URL('/change-password', req.url))
+    }
+
+    // Password already changed → redirect away from /change-password
+    if (!mustChange && pathname.startsWith('/change-password')) {
+      const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
+      return NextResponse.redirect(new URL(dest, req.url))
+    }
+
+    // Already authenticated → off /login
+    if (pathname === '/login') {
+      const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
+      return NextResponse.redirect(new URL(dest, req.url))
+    }
+
+    // Role-based routing for dashboard routes
+    if (pathname.startsWith('/dashboard')) {
+      const isDashboardRoot = pathname === '/dashboard' || pathname === '/dashboard/'
+
       if (isDashboardRoot && role !== 'super_admin') {
         return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
       }
-
-      // Redirect super_admin-only routes
       if (SUPER_ADMIN_ONLY.some(r => pathname.startsWith(r)) && role !== 'super_admin') {
         return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
       }
-
-      // Redirect viewer-blocked routes
       if (VIEWER_BLOCKED.some(r => pathname.startsWith(r)) && role === 'viewer') {
         return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
       }
@@ -81,5 +88,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/change-password'],
 }

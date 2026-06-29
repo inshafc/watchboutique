@@ -1,13 +1,14 @@
 export type UserRole = 'super_admin' | 'enterer' | 'viewer'
 
 export interface Profile {
-  id:         string
-  email:      string
-  full_name:  string
-  role:       UserRole
-  is_active:  boolean
-  created_at: string
-  updated_at: string
+  id:                   string
+  email:                string
+  full_name:            string
+  role:                 UserRole
+  is_active:            boolean
+  created_at:           string
+  updated_at:           string
+  must_change_password?: boolean
 }
 
 export const PERMISSIONS = {
