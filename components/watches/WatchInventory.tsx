@@ -883,7 +883,7 @@ export default function WatchInventory({
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
                 >
                   {w.photos && w.photos.length > 0 ? (
-                    <Image src={w.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
+                    <Image src={w.photos[0]} alt="" width={32} height={32} sizes="32px" className="rounded-lg object-cover shrink-0" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
                   )}
@@ -1083,7 +1083,7 @@ export default function WatchInventory({
                       <tr key={w.id} className="group">
                         <td className="px-4 py-3 sticky left-0 bg-white">
                           {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 opacity-50" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 opacity-50" />
                           ) : (
                             <WatchPlaceholder small />
                           )}
@@ -1173,7 +1173,7 @@ export default function WatchInventory({
                       >
                         <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-amber-50/50 transition-colors">
                           {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 opacity-70" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 opacity-70" />
                           ) : (
                             <WatchPlaceholder small />
                           )}
@@ -1269,6 +1269,7 @@ export default function WatchInventory({
                           src={w.photos[0]}
                           alt={w.watch_name}
                           fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
@@ -1372,7 +1373,7 @@ export default function WatchInventory({
                   >
                     <div className="shrink-0">
                       {w.photos?.[0] ? (
-                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} className="w-16 h-16 rounded-lg object-cover" />
+                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="w-16 h-16 rounded-lg object-cover" />
                       ) : (
                         <div className="w-16 h-16 rounded-lg bg-[#F3F2EF] flex items-center justify-center shrink-0">
                           <svg className="w-6 h-6 text-[#9CA3AF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -1465,7 +1466,7 @@ export default function WatchInventory({
                         {/* Photo */}
                         <td className={`px-4 py-3 sticky left-0 bg-white transition-colors ${bulkMode && isSelected ? 'bg-gray-50' : 'group-hover:bg-gray-50/80'}`}>
                           {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} className="rounded-xl object-cover border border-gray-100 shrink-0" />
+                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 shrink-0" />
                           ) : (
                             <WatchPlaceholder small />
                           )}

@@ -1,7 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
+import { useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const TrendChart = dynamic(() => import('./TrendChart'), {
+  loading: () => <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />,
+  ssr: false,
+})
 import {
   type DealRow, type Target, type DateRange, type AgeingWatch,
   filterDeals, getDateBounds, getPrevBounds, computeStats,
@@ -102,20 +107,6 @@ function Empty({ msg = 'No data for this period.' }: { msg?: string }) {
   return <p className="text-[13px] text-[#9CA3AF]">{msg}</p>
 }
 
-interface TooltipPayload { name: string; value: number; color: string }
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload[]; label?: string }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-[#E8E6E1] p-3 text-xs">
-      <p className="font-semibold text-[#6B6B6B] mb-1.5">{label}</p>
-      {payload.map(p => (
-        <p key={p.name} style={{ color: p.color }} className="font-medium">
-          {p.name}: {p.value > 999 ? fmtLKR(p.value) : p.value}
-        </p>
-      ))}
-    </div>
-  )
-}
 
 export default function DashboardOverview({
   deals,
@@ -130,11 +121,8 @@ export default function DashboardOverview({
   ageingWatches?: AgeingWatch[]
 }) {
   const [range, setRange]         = useState<DateRange>('this_month')
-  const [mounted, setMounted]     = useState(false)
   const [hoveredMgr, setHoveredMgr] = useState<number | null>(null)
   const { profile } = useAuth()
-
-  useEffect(() => setMounted(true), [])
 
   const [start, end]         = getDateBounds(range)
   const [prevStart, prevEnd] = getPrevBounds(range)
@@ -426,37 +414,13 @@ export default function DashboardOverview({
         {/* CARD D1 — SALES TREND (6 cols) */}
         <Card className="md:col-span-6">
           <CardLabel>Sales Trend — Last 6 Months</CardLabel>
-          {mounted ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F2EF" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => fmtCompact(v)} tick={{ fontSize: 10, fill: '#9CA3AF' }} width={44} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="sales" name="Sales" stroke="#C9A84C" strokeWidth={2} dot={{ fill: '#C9A84C', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />
-          )}
+          <TrendChart data={trend} dataKey="sales" name="Sales" stroke="#C9A84C" />
         </Card>
 
         {/* CARD D2 — GROSS PROFIT TREND (6 cols) */}
         <Card className="md:col-span-6">
           <CardLabel>Gross Profit Trend — Last 6 Months</CardLabel>
-          {mounted ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F2EF" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={v => fmtCompact(v)} tick={{ fontSize: 10, fill: '#9CA3AF' }} width={44} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="gp" name="Gross Profit" stroke="#16A34A" strokeWidth={2} dot={{ fill: '#16A34A', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />
-          )}
+          <TrendChart data={trend} dataKey="gp" name="Gross Profit" stroke="#16A34A" />
         </Card>
 
         {/* CARD E — LEAD SOURCE (4 cols) */}

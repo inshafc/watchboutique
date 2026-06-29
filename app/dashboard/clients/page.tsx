@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 import { createClient } from '@/lib/supabase/server'
 import ClientList from '@/components/clients/ClientList'
@@ -8,7 +8,7 @@ export default async function ClientsPage() {
   const supabase = createClient()
 
   const [clientsRes, dealsRes] = await Promise.all([
-    supabase.from('clients').select('*').is('deleted_at', null).order('name', { ascending: true }),
+    supabase.from('clients').select('id, name, whatsapp, email, phone, instagram, is_vip, club_twb, notes, profile_notes, address, lead_referral, client_type, sales_manager, avatar_color, created_at, deleted_at, labels, is_draft, birthday, anniversary, status_tier').is('deleted_at', null).order('name', { ascending: true }),
     supabase
       .from('deals')
       .select('client_id, sale_price, stage')
