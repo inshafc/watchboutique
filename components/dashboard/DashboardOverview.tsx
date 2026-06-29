@@ -177,7 +177,7 @@ export default function DashboardOverview({
             {new Date().toLocaleDateString('en-LK', { dateStyle: 'full' })}
           </p>
         </div>
-        <div className="overflow-x-auto -mx-1 px-1 self-start md:self-auto">
+        <div className="overflow-x-auto">
           <div className="inline-flex gap-1 bg-[#EDECE9] rounded-xl p-1">
             {RANGES.map(r => (
               <button
