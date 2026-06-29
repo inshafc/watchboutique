@@ -73,7 +73,7 @@ export default function ProfileEditModal({
       style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm animate-scale-in">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#E8E6E1]">
           <h2 className="text-base font-semibold" style={{ color: '#111111' }}>Edit Profile</h2>
           <button

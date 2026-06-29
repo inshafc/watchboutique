@@ -210,7 +210,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
           </div>
           <Link
             href="/dashboard/invoices/new"
-            className="bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors flex items-center gap-1.5"
+            className="bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors flex items-center gap-1.5 btn-press"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M6 1v10M1 6h10" strokeLinecap="round"/>
@@ -293,7 +293,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
 
           /* ── Tile view ─────────────────────────────────────── */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-            {displayed.map(inv => {
+            {displayed.map((inv, idx) => {
               const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
               const amt   = getSubtotal(inv)
               const watch = getWatchName(inv)
@@ -301,7 +301,8 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                 <div
                   key={inv.id}
                   onClick={() => router.push(`/dashboard/invoices/${inv.id}/edit`)}
-                  className="group relative bg-white border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-gray-200 hover:shadow-sm transition-all flex flex-col gap-2.5"
+                  className="group relative bg-white border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-gray-200 transition-all flex flex-col gap-2.5 card-hover"
+                  style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
                 >
                   {/* Type + status row */}
                   <div className="flex items-center justify-between gap-1">
@@ -372,7 +373,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
           <>
             {/* Mobile card list (FIX 6 + FIX 8) */}
             <div className="md:hidden -mx-6 px-0">
-              {displayed.map(inv => {
+              {displayed.map((inv, idx) => {
                 const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
                 const amt   = getSubtotal(inv)
                 const watch = getWatchName(inv)
@@ -382,6 +383,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                     key={inv.id}
                     onClick={() => router.push(`/dashboard/invoices/${inv.id}/edit`)}
                     className="flex items-center gap-3 px-6 py-3 border-b border-[#E8E6E1] cursor-pointer active:bg-gray-50"
+                    style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
                   >
                     {/* Photo */}
                     {photo ? (

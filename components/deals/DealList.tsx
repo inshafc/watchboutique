@@ -363,7 +363,7 @@ export default function DealList({
 
               <Link
                 href="/dashboard/deals/new"
-                className="inline-flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors"
+                className="inline-flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors btn-press"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 1v10M1 6h10" strokeLinecap="round"/></svg>
                 New Sale
@@ -573,16 +573,17 @@ export default function DealList({
           {/* ── Tile View ──────────────────────────────────── */}
           {sorted.length > 0 && view === 'tile' && (
             <div className={`px-4 md:px-8 py-5 grid gap-4 ${gridColsClass}`}>
-              {sorted.map(deal => {
+              {sorted.map((deal, idx) => {
                 const gp       = grossProfit(deal)
                 const selected = selectedIds.has(deal.id)
                 return (
                   <div
                     key={deal.id}
                     onClick={() => selectMode ? toggleSelect(deal.id) : router.push(`/dashboard/deals/${deal.id}`)}
-                    className={`bg-white border rounded-2xl overflow-hidden transition-all group cursor-pointer relative ${
-                      selected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-100 hover:border-gray-300 hover:shadow-sm'
+                    className={`bg-white border rounded-2xl overflow-hidden transition-all group cursor-pointer relative card-hover ${
+                      selected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-100'
                     }`}
+                    style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
                   >
                     {/* Select checkbox overlay */}
                     {selectMode && (
@@ -646,7 +647,7 @@ export default function DealList({
             <>
             {/* Mobile card stack */}
             <div className="md:hidden space-y-2 mb-2 px-4 md:px-8">
-              {sorted.map(deal => {
+              {sorted.map((deal, idx) => {
                 const saleDate = deal.sale_date
                   ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                   : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
@@ -654,8 +655,8 @@ export default function DealList({
                 return (
                   <div
                     key={deal.id}
-                    className="flex items-start gap-3 p-4 bg-white border border-[#E8E6E1] cursor-pointer"
-                    style={{ borderRadius: '12px' }}
+                    className="flex items-start gap-3 p-4 bg-white border border-[#E8E6E1] cursor-pointer card-hover"
+                    style={{ borderRadius: '12px', animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
                     onClick={() => router.push(`/dashboard/deals/${deal.id}`)}
                   >
                     {/* Watch photo */}

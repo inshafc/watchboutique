@@ -50,7 +50,7 @@ export default function DealSuccessModal({ type, dealId, watchName, salePrice, c
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center animate-scale-in">
 
           {/* Animated checkmark */}
           <div className="flex justify-center mb-5">

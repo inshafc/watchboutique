@@ -89,7 +89,7 @@ function AbsChangePill({ current, prev }: { current: number; prev: number }) {
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-2xl p-5 ${className}`} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+    <div className={`bg-white rounded-2xl p-5 card-hover ${className}`} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
       {children}
     </div>
   )
@@ -211,7 +211,7 @@ export default function DashboardOverview({
         <div className="grid grid-cols-3 gap-3 lg:w-[58%] lg:shrink-0">
 
           {/* Watches Sold */}
-          <div className="bg-white rounded-2xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Watches Sold</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.watchesSold}</p>
             {tSold > 0 && (
@@ -224,7 +224,7 @@ export default function DashboardOverview({
           </div>
 
           {/* GP Margin */}
-          <div className="bg-white rounded-2xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.08s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">GP Margin</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.gpMargin.toFixed(1)}%</p>
             <p className="text-[10px] text-[#9CA3AF] mt-1">of {GP_PCT_TARGET}% target</p>
@@ -235,7 +235,7 @@ export default function DashboardOverview({
           </div>
 
           {/* Gross Profit */}
-          <div className="bg-white rounded-2xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.16s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Gross Profit</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">LKR {fmtCompact(curStats.grossProfit)}</p>
             {tGP > 0 && (

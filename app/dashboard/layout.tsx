@@ -85,8 +85,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {visibleNav.map(({ label, href, Icon, exact }) => {
+        {visibleNav.map(({ label, href, Icon, exact }, i) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
+          const slideStyle = { animation: 'slideInLeft 0.3s ease-out forwards', animationDelay: `${i * 0.05}s`, opacity: 0 as const }
           return (
             <Link
               key={href}
@@ -96,8 +97,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 active ? 'text-white border-l-2 pl-[10px]' : 'hover:bg-white/5'
               }`}
               style={active
-                ? { color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
-                : { color: '#888888' }
+                ? { ...slideStyle, color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
+                : { ...slideStyle, color: '#888888' }
               }
             >
               <Icon />
@@ -136,7 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {profile && role ? (
           <div className="mt-3 pt-3 border-t border-white/8 relative">
             {showProfileMenu && (
-              <div className="absolute bottom-full left-3 right-3 mb-1 bg-white rounded-xl shadow-lg border border-[#E8E6E1] overflow-hidden z-50">
+              <div className="absolute bottom-full left-3 right-3 mb-1 bg-white rounded-xl shadow-lg border border-[#E8E6E1] overflow-hidden z-50 animate-scale-in">
                 <button
                   onClick={() => { setShowProfileEdit(true); setShowProfileMenu(false) }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors text-left"
@@ -228,7 +229,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <main className="flex-1 overflow-auto" style={{ backgroundColor: '#F7F6F3' }}>
-          <div>
+          <div key={pathname} className="animate-fade-in">
             {children}
           </div>
         </main>

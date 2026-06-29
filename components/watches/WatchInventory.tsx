@@ -851,7 +851,7 @@ export default function WatchInventory({
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && !showingSourced && (
-            <Link href="/dashboard/watches/new" className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors">
+            <Link href="/dashboard/watches/new" className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors btn-press">
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
               Add Watch
             </Link>
@@ -1252,12 +1252,12 @@ export default function WatchInventory({
                 return (
                   <div
                     key={w.id}
-                    className={`group relative bg-white rounded-xl overflow-visible cursor-pointer transition-all duration-200 ${
+                    className={`group relative bg-white rounded-xl overflow-visible cursor-pointer transition-all duration-200 card-hover ${
                       bulkMode && isSelected
                         ? 'border-2 border-gray-900 shadow-sm'
                         : bulkMode
                         ? 'border border-[#E8E6E1] hover:border-gray-300'
-                        : 'border border-[#E8E6E1] hover:shadow-md hover:-translate-y-0.5'
+                        : 'border border-[#E8E6E1] hover:border-gray-200'
                     } ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
                     style={staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : undefined}
                     onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}

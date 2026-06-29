@@ -390,7 +390,7 @@ export default function ClientList({
           {!showingDeleted && (
             <Link
               href="/dashboard/clients/new"
-              className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors"
+              className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors btn-press"
             >
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
               Add Client
@@ -575,17 +575,18 @@ export default function ClientList({
           {/* Grid View */}
           {visible.length > 0 && view === 'grid' && (
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map(c => {
+              {visible.map((c, idx) => {
                 const totalSales = clientSales[c.id] ?? 0
                 return (
                   <div
                     key={c.id}
                     onClick={() => !selectMode && router.push(`/dashboard/clients/${c.id}`)}
-                    className={`bg-white border rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden ${
+                    className={`bg-white border rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden card-hover ${
                       selectMode && selectedIds.has(c.id)
                         ? 'border-gray-900 ring-2 ring-gray-900/10'
-                        : 'border-[#E8E6E1] hover:shadow-md hover:-translate-y-0.5'
+                        : 'border-[#E8E6E1]'
                     }`}
+                    style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
                   >
                     {/* Select checkbox */}
                     {selectMode && (
