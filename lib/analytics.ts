@@ -14,6 +14,7 @@ export interface DealRow {
   commission_payable: boolean
   commission_amount: number | null
   new_client: boolean
+  source?: string | null
   sales_manager: string | null
   client_id: string | null
   watches: {
