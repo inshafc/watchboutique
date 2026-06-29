@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createBrowserClient } from '@supabase/ssr'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -23,43 +22,48 @@ export default function ChangePasswordPage() {
   const [confirm,      setConfirm]      = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm,  setShowConfirm]  = useState(false)
-  const [loading,      setLoading]      = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
 
+  const handleSubmit = async () => {
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+      setError('At least 8 characters')
       return
     }
     if (password !== confirm) {
-      setError("Passwords don't match.")
+      setError("Passwords don't match")
       return
     }
-
     setLoading(true)
-    const supabase = createClient()
+    setError(null)
 
-    const { error: updateErr } = await supabase.auth.updateUser({ password })
-    if (updateErr) {
-      setError(updateErr.message)
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+
+      if (updateError) {
+        setError(updateError.message)
+        setLoading(false)
+        return
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ must_change_password: false })
+          .eq('id', user.id)
+      }
+
+      window.location.href = '/dashboard'
+    } catch (err) {
+      setError(String(err))
       setLoading(false)
-      return
     }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ must_change_password: false })
-        .eq('id', user.id)
-    }
-
-    router.push('/dashboard')
-    router.refresh()
   }
 
   const inputStyle: React.CSSProperties = {
@@ -105,7 +109,7 @@ export default function ChangePasswordPage() {
 
             {/* Form */}
             <div className="px-8 pb-8">
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={e => { e.preventDefault(); handleSubmit() }} className="space-y-3">
 
                 {/* New password */}
                 <div className="relative">
