@@ -58,12 +58,13 @@ export default function LoginPage() {
 
             {/* Header band */}
             <div className="bg-gray-900 px-8 pt-10 pb-8 text-center">
-              <div
-                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-5"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-              >
-                <span className="text-white text-lg font-bold tracking-tight">TWB</span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(2).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDIpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2Njg0NTcsImV4cCI6MzUxMDY2ODQ1N30.pulhV5qaPqSacgBey2Og77pQBgdh8kMoaUiIIpm_-sA"
+                alt="TWB"
+                style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
+                className="mb-5"
+              />
               <h1
                 className="text-white text-sm font-semibold tracking-[0.18em] uppercase"
                 style={{ fontFamily: "'Poppins', sans-serif" }}
