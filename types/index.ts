@@ -41,12 +41,13 @@ export interface Watch {
   photos: string[]
   created_at: string
   brand_id:     string | null
-  watch_status: string | null
-  deleted_at?:  string | null
-  watch_id?:    string | null
-  sort_order?:  number
-  labels?:      string[]
-  is_draft?:    boolean
+  watch_status:   string | null
+  deleted_at?:    string | null
+  watch_id?:      string | null
+  sort_order?:    number
+  labels?:        string[]
+  is_draft?:      boolean
+  date_acquired?: string | null
 }
 
 export interface WatchWithBrand extends Watch {

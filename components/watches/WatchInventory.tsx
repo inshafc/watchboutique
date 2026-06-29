@@ -1344,6 +1344,9 @@ export default function WatchInventory({
                       {w.reference && (
                         <p className="text-[11px] text-[#9CA3AF] mt-0.5 truncate">Ref: {w.reference}</p>
                       )}
+                      {w.date_acquired && (
+                        <p className="text-[11px] text-[#9CA3AF] mt-0.5 truncate">Acquired {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}</p>
+                      )}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                         <StatusBadge status={w.watch_status ?? w.status} />
                         {w.selling_price != null && (
@@ -1389,6 +1392,9 @@ export default function WatchInventory({
                       )}
                       {w.reference && (
                         <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>Ref: {w.reference}</p>
+                      )}
+                      {w.date_acquired && (
+                        <p className="mt-0.5 truncate" style={{ fontSize: '11px', color: '#9CA3AF' }}>Acquired {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}</p>
                       )}
                       <div className="mt-2"><StatusBadge status={w.watch_status ?? w.status} /></div>
                     </div>
@@ -1483,6 +1489,7 @@ export default function WatchInventory({
                             <LabelBadges labels={w.labels} createdAt={w.created_at} />
                           </div>
                           {w.reference && <div className="text-xs text-gray-400 mt-0.5">Ref: {w.reference}</div>}
+                          {w.date_acquired && <div className="text-xs text-gray-400 mt-0.5">Acquired {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}</div>}
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell whitespace-nowrap">
                           {brandName ? (

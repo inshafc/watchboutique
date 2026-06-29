@@ -39,6 +39,7 @@ export interface AgeingWatch {
   watch_name: string
   condition: string | null
   created_at: string
+  date_acquired: string | null
   selling_price: number | null
   brands: { name: string } | null
 }

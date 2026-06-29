@@ -448,6 +448,7 @@ export default function EditDealForm({
             <div>
               <label className={lbl}>Sale Date</label>
               <input type="date" value={form.sale_date} onChange={field('sale_date')} className={inp} />
+              <p className="text-[11px] text-gray-400 mt-1">Defaults to today — edit to backdate or post-date</p>
             </div>
             <div>
               <label className={lbl}>Sales Manager</label>

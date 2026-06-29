@@ -72,6 +72,7 @@ export default function EditWatchForm({
     condition:      watch.condition      as WatchCondition,
     set_details:    normaliseSetDetails(watch.set_details),
     purchased_from: watch.purchased_from ?? '',
+    date_acquired:  watch.date_acquired  ?? '',
     purchase_cost:  watch.purchase_cost  != null ? String(watch.purchase_cost) : '',
     status:         watch.status         as WatchStatus,
     selling_price:  watch.selling_price  != null ? String(watch.selling_price) : '',
@@ -185,6 +186,7 @@ export default function EditWatchForm({
           condition:      form.condition,
           set_details:    form.set_details,
           purchased_from: form.purchased_from.trim() || null,
+          date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           status:         form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
@@ -346,6 +348,11 @@ export default function EditWatchForm({
           <div>
             <label className={lbl}>Purchased From</label>
             <input type="text" value={form.purchased_from} onChange={field('purchased_from')} className={inp} />
+          </div>
+          <div>
+            <label className={lbl}>Date Acquired</label>
+            <input type="date" value={form.date_acquired} onChange={field('date_acquired')} className={inp} />
+            <p className="text-[11px] text-gray-400 mt-1">When was this watch purchased/acquired?</p>
           </div>
           <div>
             <label className={lbl}>Purchase Cost</label>

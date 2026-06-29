@@ -165,6 +165,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           { label: 'Serial',    value: watch.serial_number },
           { label: 'Condition', value: watch.condition },
           { label: 'Set',       value: watch.set_details },
+          ...(watch.date_acquired ? [{ label: 'Acquired', value: new Date(watch.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' }) }] : []),
         ].map(({ label, value }) => (
           <div key={label} className="bg-gray-50 rounded-xl px-4 py-3 text-center">
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>

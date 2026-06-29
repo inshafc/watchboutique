@@ -551,7 +551,8 @@ export default function DashboardOverview({
                 </thead>
                 <tbody>
                   {ageingWatches.map(w => {
-                    const days = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60 * 24))
+                    const refDate = w.date_acquired ?? w.created_at
+                    const days = Math.floor((Date.now() - new Date(refDate).getTime()) / (1000 * 60 * 60 * 24))
                     const daysColor = days >= 120 ? 'text-[#DC2626]' : days >= 90 ? 'text-[#EA580C]' : 'text-[#D97706]'
                     return (
                       <tr key={w.id} className="border-b border-[#F7F6F3] last:border-0">

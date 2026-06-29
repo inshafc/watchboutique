@@ -12,8 +12,6 @@ const DashboardOverview = nextDynamic(
 export default async function DashboardPage() {
   const supabase = createClient()
 
-  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
-
   const [dealsRes, watchesRes, targetsRes, ageingRes] = await Promise.all([
     supabase
       .from('deals')
@@ -34,18 +32,20 @@ export default async function DashboardPage() {
       .is('month', null),
     supabase
       .from('watches')
-      .select('id, watch_name, condition, created_at, selling_price, brands(name)')
+      .select('id, watch_name, condition, created_at, date_acquired, selling_price, brands(name)')
       .in('watch_status', ['Available', 'On Hold', 'Offered'])
       .is('deleted_at', null)
       .eq('is_draft', false)
-      .lt('created_at', sixtyDaysAgo)
       .order('created_at', { ascending: true }),
   ])
 
   const deals = (dealsRes.data ?? []) as unknown as DealRow[]
   const inventoryValue = (watchesRes.data ?? []).reduce((s: number, w: { selling_price: number | null }) => s + (w.selling_price ?? 0), 0)
   const targets = (targetsRes.data ?? []) as Target[]
-  const ageingWatches = (ageingRes.data ?? []) as unknown as AgeingWatch[]
+  const sixtyDaysAgoMs = Date.now() - 60 * 24 * 60 * 60 * 1000
+  const ageingWatches = ((ageingRes.data ?? []) as unknown as AgeingWatch[])
+    .filter(w => new Date(w.date_acquired ?? w.created_at).getTime() < sixtyDaysAgoMs)
+    .sort((a, b) => new Date(a.date_acquired ?? a.created_at).getTime() - new Date(b.date_acquired ?? b.created_at).getTime())
 
   const delivered = deals.filter(d => d.stage === 'Delivered')
   const sourceMap = new Map<string, { count: number; revenue: number }>()

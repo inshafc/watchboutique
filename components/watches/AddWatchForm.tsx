@@ -87,6 +87,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     set_details:    'Full Set' as WatchSetDetails,
     purchased_from: '',
     purchase_cost:  '',
+    date_acquired:  new Date().toISOString().split('T')[0],
     status:         'Available' as WatchStatus,
     selling_price:  '',
     comments:       '',
@@ -173,6 +174,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           condition:      form.condition,
           set_details:    form.set_details,
           purchased_from: form.purchased_from.trim() || null,
+          date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           currency:       'LKR',
           status:         form.status,
@@ -347,6 +349,11 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           <div>
             <label className={lbl}>Purchased From</label>
             <input type="text" value={form.purchased_from} onChange={field('purchased_from')} placeholder="Seller name or source" className={inp} />
+          </div>
+          <div>
+            <label className={lbl}>Date Acquired</label>
+            <input type="date" value={form.date_acquired} onChange={field('date_acquired')} className={inp} />
+            <p className="text-[11px] text-gray-400 mt-1">When was this watch purchased/acquired?</p>
           </div>
           <div>
             <label className={lbl}>Purchase Cost</label>
