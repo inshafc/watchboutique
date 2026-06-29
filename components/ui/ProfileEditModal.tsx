@@ -14,33 +14,18 @@ export default function ProfileEditModal({
   onClose: () => void
   onSave: () => void
 }) {
-  const [name, setName] = useState(initialName)
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [name,   setName]   = useState(initialName)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error,  setError]  = useState<string | null>(null)
 
   async function handleSave() {
     if (!name.trim()) return
-    if (password && password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-    if (password && password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
     setSaving(true)
     setError(null)
-    const supabase = createClient()
 
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setError('Not authenticated')
-      setSaving(false)
-      return
-    }
+    if (!user) { setError('Not authenticated'); setSaving(false); return }
 
     const { error: profileError } = await supabase
       .from('profiles')
@@ -51,16 +36,6 @@ export default function ProfileEditModal({
       setError('Failed to update profile')
       setSaving(false)
       return
-    }
-
-    if (password) {
-      const { error: pwError } = await supabase.auth.updateUser({ password })
-      if (pwError) {
-        setError('Profile saved but password update failed: ' + pwError.message)
-        setSaving(false)
-        onSave()
-        return
-      }
     }
 
     setSaving(false)
@@ -96,35 +71,14 @@ export default function ProfileEditModal({
               className="w-full px-3 py-2.5 border border-[#E8E6E1] rounded-xl text-[13px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A84C] focus:border-[#C9A84C] transition-all"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              disabled
-              className="w-full px-3 py-2.5 border border-[#E8E6E1] rounded-xl text-[13px] text-gray-400 bg-gray-50 cursor-not-allowed"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              New Password <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Leave blank to keep current"
-              className="w-full px-3 py-2.5 border border-[#E8E6E1] rounded-xl text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9A84C] focus:border-[#C9A84C] transition-all"
-            />
-          </div>
-          {password.length > 0 && (
+          {email && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
               <input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2.5 border border-[#E8E6E1] rounded-xl text-[13px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#C9A84C] focus:border-[#C9A84C] transition-all"
+                type="email"
+                value={email}
+                disabled
+                className="w-full px-3 py-2.5 border border-[#E8E6E1] rounded-xl text-[13px] text-gray-400 bg-gray-50 cursor-not-allowed"
               />
             </div>
           )}

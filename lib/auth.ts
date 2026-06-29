@@ -8,7 +8,7 @@ export interface Profile {
   is_active:            boolean
   created_at:           string
   updated_at:           string
-  must_change_password?: boolean
+  phone?:               string | null
 }
 
 export const PERMISSIONS = {
