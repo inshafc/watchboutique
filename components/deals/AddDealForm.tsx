@@ -216,6 +216,7 @@ export default function AddDealForm({
     cash_amount:       '',
     bank_amount:       '',
     sales_manager:     '',
+    source:            '',
     notes:             '',
     commission_amount: '50000',
   })
@@ -311,6 +312,7 @@ export default function AddDealForm({
         commission_payable: commissionPayable,
         commission_amount:  commissionPayable ? num(form.commission_amount) : null,
         new_client:         newClient,
+        source:             form.source || null,
         closed_at:          new Date().toISOString(),
       })
       .select('id')
@@ -509,6 +511,17 @@ export default function AddDealForm({
               {salesManagers.map(sm => (
                 <option key={sm.id} value={sm.name}>{sm.name}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className={lbl}>Source</label>
+            <select value={form.source} onChange={field('source')} className={inp}>
+              <option value="">— Select —</option>
+              <option value="Referral">Referral</option>
+              <option value="Socials">Socials</option>
+              <option value="Website">Website</option>
+              <option value="Hotline / WhatsApp">Hotline / WhatsApp</option>
+              <option value="Other">Other</option>
             </select>
           </div>
           <div>

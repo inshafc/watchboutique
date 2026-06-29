@@ -110,6 +110,7 @@ export default function DashboardOverview({
   deals: DealRow[]
   inventoryValue: number
   targets: Target[]
+  sourceSummary?: { source: string; count: number; revenue: number }[]
 }) {
   const [range, setRange] = useState<DateRange>('this_month')
   const [mounted, setMounted] = useState(false)

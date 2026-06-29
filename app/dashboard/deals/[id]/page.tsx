@@ -291,6 +291,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
           {deal.sale_date && (
             <div><p className="text-xs text-gray-400 mb-0.5">Sale Date</p><p className="text-sm text-gray-900">{formatDate(deal.sale_date)}</p></div>
           )}
+          <div><p className="text-xs text-gray-400 mb-0.5">Source</p><p className="text-sm text-gray-900">{deal.source ?? '—'}</p></div>
           {deal.notes && (
             <div><p className="text-xs text-gray-400 mb-0.5">Notes</p><p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{deal.notes}</p></div>
           )}

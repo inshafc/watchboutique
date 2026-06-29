@@ -207,6 +207,7 @@ export default function EditDealForm({
     cash_amount:       deal.cash_amount?.toString()   ?? '',
     bank_amount:       deal.bank_amount?.toString()   ?? '',
     sales_manager:     deal.sales_manager ?? '',
+    source:            deal.source        ?? '',
     notes:             deal.notes         ?? '',
     commission_amount: deal.commission_amount?.toString() ?? '50000',
   })
@@ -303,6 +304,7 @@ export default function EditDealForm({
         commission_payable: commissionPayable,
         commission_amount:  commissionPayable ? num(form.commission_amount) : null,
         new_client:         newClient,
+        source:             form.source || null,
         closed_at: (form.stage === 'Closed' || form.stage === 'Delivered') && !deal.closed_at
           ? new Date().toISOString()
           : deal.closed_at,
@@ -459,6 +461,17 @@ export default function EditDealForm({
                 )}
               </select>
             </div>
+          </div>
+          <div>
+            <label className={lbl}>Source</label>
+            <select value={form.source} onChange={field('source')} className={inp}>
+              <option value="">— Select —</option>
+              <option value="Referral">Referral</option>
+              <option value="Socials">Socials</option>
+              <option value="Website">Website</option>
+              <option value="Hotline / WhatsApp">Hotline / WhatsApp</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
           <div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
