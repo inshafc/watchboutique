@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 
 const TrendChart = dynamic(() => import('./TrendChart'), {
@@ -122,6 +122,15 @@ export default function DashboardOverview({
 }) {
   const [range, setRange]         = useState<DateRange>('this_month')
   const [hoveredMgr, setHoveredMgr] = useState<number | null>(null)
+  const carouselRef = useRef<HTMLDivElement>(null)
+  const [activeKpi, setActiveKpi] = useState(0)
+
+  function handleKpiScroll() {
+    const el = carouselRef.current
+    if (!el) return
+    const cardWidth = el.scrollWidth / 3
+    setActiveKpi(Math.min(2, Math.max(0, Math.round(el.scrollLeft / cardWidth))))
+  }
   const { profile } = useAuth()
 
   const [start, end]         = getDateBounds(range)
@@ -196,7 +205,7 @@ export default function DashboardOverview({
         <div className="flex-1 min-w-0 py-2">
           <p className="text-[11px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-2">Revenue</p>
           <div className="flex items-baseline flex-wrap">
-            <span className="text-[32px] md:text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
+            <span className="text-[28px] md:text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
               LKR&nbsp;{formatRevenue(curStats.totalSales)}
             </span>
           </div>
@@ -208,45 +217,83 @@ export default function DashboardOverview({
         </div>
 
         {/* Right: 3 mini KPI cards */}
-        <div className="grid grid-cols-3 gap-3 lg:w-[58%] lg:shrink-0">
 
+        {/* Mobile: horizontal swipe carousel (below md) */}
+        <div className="md:hidden w-full">
+          <div
+            ref={carouselRef}
+            className="no-scrollbar flex"
+            style={{ overflowX: 'auto', gap: '12px', scrollSnapType: 'x mandatory', scrollbarWidth: 'none', paddingBottom: '4px' }}
+            onScroll={handleKpiScroll}
+          >
+            {/* Watches Sold */}
+            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Watches Sold</p>
+              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.watchesSold}</p>
+              {tSold > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of {Math.round(tSold)} target</p>}
+              <MiniBar value={curStats.watchesSold} target={tSold} />
+              <div className="mt-2"><AchievePill value={curStats.watchesSold} target={tSold} /></div>
+            </div>
+            {/* GP Margin */}
+            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.08s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">GP Margin</p>
+              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.gpMargin.toFixed(1)}%</p>
+              <p className="text-[10px] text-[#9CA3AF] mt-1">of {GP_PCT_TARGET}% target</p>
+              <MiniBar value={curStats.gpMargin} target={GP_PCT_TARGET} />
+              <div className="mt-2"><AchievePill value={curStats.gpMargin} target={GP_PCT_TARGET} /></div>
+            </div>
+            {/* Gross Profit */}
+            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.16s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Gross Profit</p>
+              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">LKR {fmtCompact(curStats.grossProfit)}</p>
+              {tGP > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of LKR {fmtCompact(tGP)} target</p>}
+              <MiniBar value={curStats.grossProfit} target={tGP} />
+              <div className="mt-2"><AchievePill value={curStats.grossProfit} target={tGP} /></div>
+            </div>
+          </div>
+          {/* Dot indicators */}
+          <div className="flex justify-center gap-2 mt-3">
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                style={{
+                  width: activeKpi === i ? 16 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: activeKpi === i ? '#111111' : '#D1D5DB',
+                  transition: 'all 0.2s ease',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: 3-column grid (md and above) */}
+        <div className="hidden md:grid grid-cols-3 gap-3 lg:w-[58%] lg:shrink-0">
           {/* Watches Sold */}
           <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Watches Sold</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.watchesSold}</p>
-            {tSold > 0 && (
-              <p className="text-[10px] text-[#9CA3AF] mt-1">of {Math.round(tSold)} target</p>
-            )}
+            {tSold > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of {Math.round(tSold)} target</p>}
             <MiniBar value={curStats.watchesSold} target={tSold} />
-            <div className="mt-2">
-              <AchievePill value={curStats.watchesSold} target={tSold} />
-            </div>
+            <div className="mt-2"><AchievePill value={curStats.watchesSold} target={tSold} /></div>
           </div>
-
           {/* GP Margin */}
           <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.08s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">GP Margin</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.gpMargin.toFixed(1)}%</p>
             <p className="text-[10px] text-[#9CA3AF] mt-1">of {GP_PCT_TARGET}% target</p>
             <MiniBar value={curStats.gpMargin} target={GP_PCT_TARGET} />
-            <div className="mt-2">
-              <AchievePill value={curStats.gpMargin} target={GP_PCT_TARGET} />
-            </div>
+            <div className="mt-2"><AchievePill value={curStats.gpMargin} target={GP_PCT_TARGET} /></div>
           </div>
-
           {/* Gross Profit */}
           <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.16s', opacity: 0 }}>
             <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Gross Profit</p>
             <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">LKR {fmtCompact(curStats.grossProfit)}</p>
-            {tGP > 0 && (
-              <p className="text-[10px] text-[#9CA3AF] mt-1">of LKR {fmtCompact(tGP)} target</p>
-            )}
+            {tGP > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of LKR {fmtCompact(tGP)} target</p>}
             <MiniBar value={curStats.grossProfit} target={tGP} />
-            <div className="mt-2">
-              <AchievePill value={curStats.grossProfit} target={tGP} />
-            </div>
+            <div className="mt-2"><AchievePill value={curStats.grossProfit} target={tGP} /></div>
           </div>
-
         </div>
       </div>
 
