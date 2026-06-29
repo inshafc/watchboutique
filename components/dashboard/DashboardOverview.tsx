@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import {
-  type DealRow, type Target, type DateRange,
+  type DealRow, type Target, type DateRange, type AgeingWatch,
   filterDeals, getDateBounds, getPrevBounds, computeStats,
   monthlyTrend, salesByBrand, salesByManager, salesByReferral,
   topClients, clubTwbDeals, newVsExisting, targetForPeriod,
@@ -25,11 +25,8 @@ const BRAND_COLORS = ['#C9A84C', '#0D9488', '#4F46E5', '#BE185D', '#D97706', '#6
 const mgrColor   = (i: number) => MGR_COLORS[i % MGR_COLORS.length]
 const brandColor = (i: number) => BRAND_COLORS[i % BRAND_COLORS.length]
 
-function splitRevenue(n: number): { main: string; tail: string } {
-  const str = Math.round(n).toLocaleString('en-LK')
-  const lastComma = str.lastIndexOf(',')
-  if (lastComma === -1 || str.length < 4) return { main: str, tail: '' }
-  return { main: str.slice(0, lastComma), tail: str.slice(lastComma) }
+function formatRevenue(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function MiniBar({ value, target }: { value: number; target: number }) {
@@ -124,11 +121,13 @@ export default function DashboardOverview({
   deals,
   inventoryValue,
   targets,
+  ageingWatches = [],
 }: {
   deals: DealRow[]
   inventoryValue: number
   targets: Target[]
   sourceSummary?: { source: string; count: number; revenue: number }[]
+  ageingWatches?: AgeingWatch[]
 }) {
   const [range, setRange]         = useState<DateRange>('this_month')
   const [mounted, setMounted]     = useState(false)
@@ -164,7 +163,6 @@ export default function DashboardOverview({
   const maxRefSales       = Math.max(...byReferral.map(r => r.totalSales), 1)
   const maxClientSales    = Math.max(...top5.map(c => c.totalSales), 1)
 
-  const revParts = splitRevenue(curStats.totalSales)
   const rangeLabel = RANGES.find(r => r.value === range)?.label ?? ''
 
   const hour = new Date().getHours()
@@ -211,13 +209,8 @@ export default function DashboardOverview({
           <p className="text-[11px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-2">Revenue</p>
           <div className="flex items-baseline flex-wrap">
             <span className="text-[32px] md:text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
-              LKR&nbsp;{revParts.main}
+              LKR&nbsp;{formatRevenue(curStats.totalSales)}
             </span>
-            {revParts.tail && (
-              <span className="text-[24px] md:text-[36px] font-bold text-[#6B6B6B] tabular-nums leading-none">
-                {revParts.tail}
-              </span>
-            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <AchievePill value={curStats.totalSales} target={tSales} />
@@ -344,13 +337,18 @@ export default function DashboardOverview({
               {byBrand.slice(0, 5).map((b, i) => {
                 const pct = totalBrandRevenue > 0 ? (b.totalSales / totalBrandRevenue) * 100 : 0
                 return (
-                  <div key={b.brand} className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brandColor(i) }} />
-                    <span className="text-[12px] font-medium text-[#111111] flex-1 truncate">{b.brand}</span>
-                    <span className="text-[12px] text-[#6B6B6B] tabular-nums">{fmtLKR(b.totalSales)}</span>
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3F2EF] text-[#6B6B6B] min-w-[36px] text-center">
-                      {pct.toFixed(0)}%
-                    </span>
+                  <div key={b.brand}>
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brandColor(i) }} />
+                      <span className="text-[12px] font-medium text-[#111111] flex-1 truncate">{b.brand}</span>
+                      <span className="text-[12px] text-[#6B6B6B] tabular-nums">{fmtLKR(b.totalSales)}</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3F2EF] text-[#6B6B6B] min-w-[36px] text-center">
+                        {pct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="h-[3px] bg-[#E8E6E1] rounded-sm overflow-hidden">
+                      <div className="h-full bg-[#C9A84C] rounded-sm" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
                 )
               })}
@@ -548,6 +546,53 @@ export default function DashboardOverview({
           </div>
           <p className="text-[11px] text-[#9CA3AF]">Available, on-hold &amp; offered watches</p>
         </div>
+
+        {/* AGEING INVENTORY — full width */}
+        <Card className="md:col-span-12">
+          <div className="flex items-baseline gap-3 mb-4">
+            <CardLabel>Ageing Inventory</CardLabel>
+            <p className="text-[11px] text-[#9CA3AF] -mt-3">Watches in stock over 60 days</p>
+          </div>
+          {ageingWatches.length === 0 ? (
+            <div className="flex items-center gap-2 text-[#16A34A]">
+              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-[13px] font-medium">No ageing inventory — all watches added within 60 days</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[#F3F2EF]">
+                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pr-3 text-[9px]">Watch</th>
+                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Brand</th>
+                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Condition</th>
+                    <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Days in Stock</th>
+                    <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pl-2 text-[9px]">Asking Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ageingWatches.map(w => {
+                    const days = Math.floor((Date.now() - new Date(w.created_at).getTime()) / (1000 * 60 * 60 * 24))
+                    const daysColor = days >= 120 ? 'text-[#DC2626]' : days >= 90 ? 'text-[#EA580C]' : 'text-[#D97706]'
+                    return (
+                      <tr key={w.id} className="border-b border-[#F7F6F3] last:border-0">
+                        <td className="py-2.5 pr-3 font-medium text-[#111111] max-w-[180px] truncate">{w.watch_name}</td>
+                        <td className="py-2.5 px-2 text-[#6B6B6B]">{w.brands?.name ?? '—'}</td>
+                        <td className="py-2.5 px-2 text-[#6B6B6B]">{w.condition ?? '—'}</td>
+                        <td className={`py-2.5 px-2 text-right font-semibold tabular-nums ${daysColor}`}>{days}d</td>
+                        <td className="py-2.5 pl-2 text-right font-medium tabular-nums text-[#111111]">
+                          {w.selling_price ? fmtLKR(w.selling_price) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
 
       </div>
     </div>

@@ -34,6 +34,15 @@ export interface DealRow {
   trade_ins: { value: number | null }[]
 }
 
+export interface AgeingWatch {
+  id: string
+  watch_name: string
+  condition: string | null
+  created_at: string
+  selling_price: number | null
+  brands: { name: string } | null
+}
+
 export interface Target {
   id: string
   metric: string
