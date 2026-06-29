@@ -49,8 +49,6 @@ export default function DealSuccessModal({ type, dealId, watchName, salePrice, c
 
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet" />
-
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
 

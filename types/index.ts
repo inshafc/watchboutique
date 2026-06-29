@@ -153,6 +153,7 @@ export interface Deal {
   commission_payable: boolean
   commission_amount:  number | null
   new_client:         boolean
+  source:             string | null
   sale_date:          string | null
   delivery_status:    string | null
   bank_name:          string | null
