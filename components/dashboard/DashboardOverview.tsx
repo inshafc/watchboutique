@@ -423,8 +423,8 @@ export default function DashboardOverview({
           )}
         </Card>
 
-        {/* CARD D — SALES TREND (8 cols) */}
-        <Card className="md:col-span-8">
+        {/* CARD D1 — SALES TREND (6 cols) */}
+        <Card className="md:col-span-6">
           <CardLabel>Sales Trend — Last 6 Months</CardLabel>
           {mounted ? (
             <ResponsiveContainer width="100%" height={180}>
@@ -433,17 +433,30 @@ export default function DashboardOverview({
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={v => fmtCompact(v)} tick={{ fontSize: 10, fill: '#9CA3AF' }} width={44} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="sales" name="Sales"        stroke="#C9A84C" strokeWidth={2} dot={{ fill: '#C9A84C', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-                <Line type="monotone" dataKey="gp"    name="Gross Profit" stroke="#16A34A" strokeWidth={2} dot={{ fill: '#16A34A', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="sales" name="Sales" stroke="#C9A84C" strokeWidth={2} dot={{ fill: '#C9A84C', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />
           )}
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#C9A84C] rounded" /><span className="text-[10px] text-[#9CA3AF]">Sales</span></div>
-            <div className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#16A34A] rounded" /><span className="text-[10px] text-[#9CA3AF]">Gross Profit</span></div>
-          </div>
+        </Card>
+
+        {/* CARD D2 — GROSS PROFIT TREND (6 cols) */}
+        <Card className="md:col-span-6">
+          <CardLabel>Gross Profit Trend — Last 6 Months</CardLabel>
+          {mounted ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F2EF" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => fmtCompact(v)} tick={{ fontSize: 10, fill: '#9CA3AF' }} width={44} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <Line type="monotone" dataKey="gp" name="Gross Profit" stroke="#16A34A" strokeWidth={2} dot={{ fill: '#16A34A', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />
+          )}
         </Card>
 
         {/* CARD E — LEAD SOURCE (4 cols) */}
@@ -488,7 +501,7 @@ export default function DashboardOverview({
                 </tr>
               </thead>
               <tbody>
-                {byManager.map((m, i) => (
+                {[...byManager].sort((a, b) => b.sold - a.sold).map((m, i) => (
                   <tr key={i} className="border-b border-[#F7F6F3] last:border-0">
                     <td className="py-2.5 pr-3">
                       <div className="flex items-center gap-2">
@@ -522,7 +535,7 @@ export default function DashboardOverview({
                 </tr>
               </thead>
               <tbody>
-                {clubTwb.map((c, i) => (
+                {[...clubTwb].sort((a, b) => b.totalSales - a.totalSales).map((c, i) => (
                   <tr key={i} className="border-b border-[#F7F6F3] last:border-0">
                     <td className="py-2.5 pr-3 font-medium text-[#111111] truncate max-w-[120px]">{c.name}</td>
                     <td className="py-2.5 px-2 text-center text-[#6B6B6B]">{c.clientType ?? '—'}</td>
