@@ -35,52 +35,54 @@ export async function middleware(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = req.nextUrl
 
-  // Unauthenticated → /login
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/change-password'))) {
-    return NextResponse.redirect(new URL('/login', req.url))
+  // 1 & 2 — No session: any protected route → /login
+  if (!user) {
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/change-password')) {
+      return NextResponse.redirect(new URL('/login', req.url))
+    }
+    return res
   }
 
-  if (user) {
-    // Fetch profile once for all authenticated requests
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('role, must_change_password')
-      .eq('id', user.id)
-      .single()
+  // ── From here: session is guaranteed ──────────────────────────────────────
 
-    const mustChange = p?.must_change_password === true
-    const role       = (p?.role ?? 'viewer') as string
+  const { data: p } = await supabase
+    .from('profiles')
+    .select('role, must_change_password')
+    .eq('id', user.id)
+    .single()
 
-    // Must change password → only /change-password is allowed
-    if (mustChange && !pathname.startsWith('/change-password')) {
-      return NextResponse.redirect(new URL('/change-password', req.url))
+  const mustChange = p?.must_change_password === true
+  const role       = (p?.role ?? 'viewer') as string
+
+  // 3 — Session + must change password → /change-password
+  if (mustChange && !pathname.startsWith('/change-password')) {
+    return NextResponse.redirect(new URL('/change-password', req.url))
+  }
+
+  // 4 — Session + password done → redirect away from /change-password
+  if (!mustChange && pathname.startsWith('/change-password')) {
+    const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
+    return NextResponse.redirect(new URL(dest, req.url))
+  }
+
+  // 5 — Already authenticated → off /login
+  if (pathname === '/login') {
+    const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
+    return NextResponse.redirect(new URL(dest, req.url))
+  }
+
+  // 5 — Role-based routing for dashboard routes
+  if (pathname.startsWith('/dashboard')) {
+    const isDashboardRoot = pathname === '/dashboard' || pathname === '/dashboard/'
+
+    if (isDashboardRoot && role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
     }
-
-    // Password already changed → redirect away from /change-password
-    if (!mustChange && pathname.startsWith('/change-password')) {
-      const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
-      return NextResponse.redirect(new URL(dest, req.url))
+    if (SUPER_ADMIN_ONLY.some(r => pathname.startsWith(r)) && role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
     }
-
-    // Already authenticated → off /login
-    if (pathname === '/login') {
-      const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
-      return NextResponse.redirect(new URL(dest, req.url))
-    }
-
-    // Role-based routing for dashboard routes
-    if (pathname.startsWith('/dashboard')) {
-      const isDashboardRoot = pathname === '/dashboard' || pathname === '/dashboard/'
-
-      if (isDashboardRoot && role !== 'super_admin') {
-        return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
-      }
-      if (SUPER_ADMIN_ONLY.some(r => pathname.startsWith(r)) && role !== 'super_admin') {
-        return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
-      }
-      if (VIEWER_BLOCKED.some(r => pathname.startsWith(r)) && role === 'viewer') {
-        return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
-      }
+    if (VIEWER_BLOCKED.some(r => pathname.startsWith(r)) && role === 'viewer') {
+      return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
     }
   }
 
