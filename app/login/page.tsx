@@ -73,7 +73,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-full max-w-[360px]">
 
-          <div className="rounded-3xl overflow-hidden" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="rounded-3xl overflow-hidden animate-scale-in" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}>
 
             {/* Logo + heading */}
             <div className="px-8 pt-10 pb-6 text-center">
@@ -85,7 +85,22 @@ export default function LoginPage() {
                   style={{ height: '56px', width: 'auto', objectFit: 'contain' }}
                 />
               </div>
-              <h1 style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 300, fontSize: '32px', lineHeight: 1.2, color: 'white', margin: 0 }}>
+              {/* Brain activity animation */}
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 24px' }}>
+                <svg width="120" height="40" viewBox="0 0 120 40" style={{ opacity: 0.8 }}>
+                  <line x1="20" y1="20" x2="50" y2="10" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
+                  <line x1="50" y1="10" x2="80" y2="20" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
+                  <line x1="20" y1="20" x2="50" y2="30" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
+                  <line x1="50" y1="30" x2="80" y2="20" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
+                  <line x1="50" y1="10" x2="50" y2="30" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
+                  <circle cx="20" cy="20" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0s' }} />
+                  <circle cx="50" cy="10" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.3s' }} />
+                  <circle cx="50" cy="30" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.6s' }} />
+                  <circle cx="80" cy="20" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.9s' }} />
+                </svg>
+              </div>
+
+              <h1 className="animate-fade-in" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 300, fontSize: '32px', lineHeight: 1.2, color: 'white', margin: 0, animationDelay: '0.1s', opacity: 0 }}>
                 Login
               </h1>
             </div>
