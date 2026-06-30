@@ -71,8 +71,13 @@ export async function PATCH(
     if (!password || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     }
+    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      return NextResponse.json({ error: 'Password must include uppercase, a number, and a symbol' }, { status: 400 })
+    }
     const { error } = await admin.auth.admin.updateUserById(userId, { password })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    // Force user to set their own password on next login
+    await admin.from('profiles').update({ must_change_password: true }).eq('id', userId)
     return NextResponse.json({ success: true })
   }
 

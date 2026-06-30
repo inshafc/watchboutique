@@ -164,17 +164,32 @@ function ResetPasswordModal({
   onClose:  () => void
 }) {
   const [password, setPassword] = useState('')
+  const [step,     setStep]     = useState<'input' | 'confirm' | 'done'>('input')
   const [saving,   setSaving]   = useState(false)
-  const [done,     setDone]     = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
   function genPassword() {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$'
-    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    const digits = Array.from({ length: 4 }, () => Math.floor(Math.random() * 10)).join('')
+    const symbols = '!@#$%^&*'
+    const sym = symbols[Math.floor(Math.random() * symbols.length)]
+    return `TWB${digits}${sym}`
+  }
+
+  function meetsRequirements(pw: string) {
+    return pw.length >= 8 && /[A-Z]/.test(pw) && /[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)
+  }
+
+  function handleContinue() {
+    if (!password) { setError('Enter a new password.'); return }
+    if (!meetsRequirements(password)) {
+      setError('Password must include uppercase, a number, and a symbol')
+      return
+    }
+    setError(null)
+    setStep('confirm')
   }
 
   async function handleReset() {
-    if (!password) { setError('Enter a new password.'); return }
     setSaving(true)
     setError(null)
     const res = await fetch(`/api/admin/users/${userId}`, {
@@ -184,7 +199,7 @@ function ResetPasswordModal({
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Failed.'); setSaving(false); return }
-    setDone(true)
+    setStep('done')
     setSaving(false)
   }
 
@@ -192,46 +207,75 @@ function ResetPasswordModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-gray-900">Reset Password</h3>
+          <h3 className="text-base font-semibold text-gray-900">Reset Password for {userName}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
 
-        {done ? (
-          <>
-            <p className="text-sm text-gray-600 mb-3">Password updated for <strong>{userName}</strong>. Share the new password securely:</p>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-900 select-all mb-5">{password}</div>
-            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors">Done</button>
-          </>
-        ) : (
+        {step === 'input' && (
           <>
             <p className="text-sm text-gray-500 mb-4">Set a new temporary password for <strong>{userName}</strong>.</p>
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="New password"
+                onChange={e => { setPassword(e.target.value); setError(null) }}
+                placeholder="New temporary password"
                 className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
               />
               <button
                 type="button"
-                onClick={() => setPassword(genPassword())}
+                onClick={() => { setPassword(genPassword()); setError(null) }}
                 className="px-3 py-2 text-xs font-semibold bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors shrink-0"
               >
                 Generate
               </button>
             </div>
+            <p className="text-xs text-gray-400 mb-4">Min 8 characters · one uppercase · one number · one symbol</p>
             {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
             <div className="flex gap-2">
               <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Cancel</button>
+              <button
+                onClick={handleContinue}
+                disabled={!password}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-40 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 'confirm' && (
+          <>
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 mb-4">
+              <p className="text-sm text-amber-800">
+                This will immediately invalidate <strong>{userName}</strong>&apos;s current password.
+                They&apos;ll need to log in with the new temporary password and set their own. Continue?
+              </p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-900 select-all mb-5">{password}</div>
+            {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setStep('input')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Back</button>
               <button
                 onClick={handleReset}
                 disabled={saving}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Saving…' : 'Reset Password'}
+                {saving ? 'Resetting…' : 'Confirm Reset'}
               </button>
             </div>
+          </>
+        )}
+
+        {step === 'done' && (
+          <>
+            <p className="text-sm text-gray-600 mb-3">
+              Password reset for <strong>{userName}</strong> — share this with them:
+            </p>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-900 select-all mb-2">{password}</div>
+            <p className="text-xs text-gray-400 mb-5">This is the only place this password is shown.</p>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors">Done</button>
           </>
         )}
       </div>
@@ -357,12 +401,14 @@ export default function UserManagementSection() {
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2 justify-end">
-                          <button
-                            onClick={() => setResetModal({ userId: u.id, userName: u.full_name || u.email })}
-                            className="text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors"
-                          >
-                            Reset PW
-                          </button>
+                          {!isSelf && (
+                            <button
+                              onClick={() => setResetModal({ userId: u.id, userName: u.full_name || u.email })}
+                              className="text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors"
+                            >
+                              Reset PW
+                            </button>
+                          )}
                           {!isSelf && (
                             <button
                               onClick={() => handleToggleStatus(u.id, !u.is_active)}
@@ -409,12 +455,14 @@ export default function UserManagementSection() {
                     >
                       {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                    <button
-                      onClick={() => setResetModal({ userId: u.id, userName: u.full_name || u.email })}
-                      className="text-xs font-medium text-gray-500 hover:text-gray-900 px-2.5 py-1 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
-                    >
-                      Reset PW
-                    </button>
+                    {!isSelf && (
+                      <button
+                        onClick={() => setResetModal({ userId: u.id, userName: u.full_name || u.email })}
+                        className="text-xs font-medium text-gray-500 hover:text-gray-900 px-2.5 py-1 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
+                      >
+                        Reset PW
+                      </button>
+                    )}
                     {!isSelf && (
                       <button
                         onClick={() => handleToggleStatus(u.id, !u.is_active)}
