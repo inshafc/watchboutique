@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { logActivity } from '@/lib/activityLog'
 import type { UserRole } from '@/lib/auth'
 
 interface UserRow {
@@ -69,6 +70,7 @@ function InviteModal({
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Failed to create user.'); setSaving(false); return }
+    void logActivity({ actionType: 'user_created', entityLabel: form.full_name, details: { email: form.email, role: form.role } })
     onSuccess()
     onClose()
   }
@@ -199,6 +201,7 @@ function ResetPasswordModal({
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Failed.'); setSaving(false); return }
+    void logActivity({ actionType: 'password_reset_by_admin', entityLabel: userName })
     setStep('done')
     setSaving(false)
   }
@@ -309,17 +312,21 @@ export default function UserManagementSection() {
 
   async function handleRoleChange(userId: string, role: UserRole) {
     setRoleChanging(userId)
+    const prevRole = users.find(u => u.id === userId)?.role
+    const targetName = users.find(u => u.id === userId)?.full_name ?? ''
     await fetch(`/api/admin/users/${userId}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ action: 'update_role', role }),
     })
+    void logActivity({ actionType: 'role_changed', entityLabel: targetName, details: { from: prevRole, to: role } })
     setRoleChanging(null)
     fetchUsers()
   }
 
   async function handleToggleStatus(userId: string, is_active: boolean) {
     setToggling(userId)
+    const targetName = users.find(u => u.id === userId)?.full_name ?? ''
     const res = await fetch(`/api/admin/users/${userId}`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -327,6 +334,7 @@ export default function UserManagementSection() {
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error ?? 'Failed.') }
+    else { void logActivity({ actionType: is_active ? 'user_activated' : 'user_deactivated', entityLabel: targetName }) }
     setToggling(null)
     fetchUsers()
   }

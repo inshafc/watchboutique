@@ -7,6 +7,7 @@ import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
+import { logActivity } from '@/lib/activityLog'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 
@@ -41,7 +42,7 @@ function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 1
 // ── Types & constants ─────────────────────────────────────────
 
 type SortOption      = 'last_added' | 'oldest_added' | 'sell_desc' | 'sell_asc' | 'buy_desc' | 'name_asc' | 'name_desc'
-type ConditionFilter = 'All' | 'Brand New' | 'Pre-Owned'
+type ConditionFilter = 'All' | 'Unworn' | 'Pre-Owned'
 type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced'
 type ViewMode        = 'list' | 'tile'
 
@@ -153,7 +154,8 @@ export default function WatchInventory({
   const [showSortMenu,    setShowSortMenu]    = useState(false)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [tileMenuId,      setTileMenuId]      = useState<string | null>(null)
+  const [tileMenuId,          setTileMenuId]          = useState<string | null>(null)
+  const [tileDeleteConfirmId, setTileDeleteConfirmId] = useState<string | null>(null)
 
   // Bulk edit
   const [bulkMode,    setBulkMode]    = useState(false)
@@ -277,10 +279,8 @@ export default function WatchInventory({
       list = list.filter(w => w.status === statusFilter)
     }
 
-    if (conditionFilter === 'Brand New') {
-      list = list.filter(w => w.condition === 'Brand New')
-    } else if (conditionFilter === 'Pre-Owned') {
-      list = list.filter(w => w.condition !== 'Brand New')
+    if (conditionFilter !== 'All') {
+      list = list.filter(w => w.condition === conditionFilter)
     }
 
     switch (sort) {
@@ -310,8 +310,7 @@ export default function WatchInventory({
     let list = watches.filter(w => w.watch_status !== 'sourced')
     list = f === 'All' ? list : list.filter(w => !w.is_draft)
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
-    if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
+    if (conditionFilter !== 'All') list = list.filter(w => w.condition === conditionFilter)
     return f === 'All' ? list.length : list.filter(w => w.status === f).length
   }
 
@@ -333,8 +332,7 @@ export default function WatchInventory({
       )
     }
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (conditionFilter === 'Brand New') list = list.filter(w => w.condition === 'Brand New')
-    if (conditionFilter === 'Pre-Owned') list = list.filter(w => w.condition !== 'Brand New')
+    if (conditionFilter !== 'All') list = list.filter(w => w.condition === conditionFilter)
     switch (sort) {
       case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
       case 'sell_asc':     return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
@@ -428,6 +426,7 @@ export default function WatchInventory({
     if (!watch) return
     const supabase = createClient()
     await supabase.from('watches').update({ deleted_at: new Date().toISOString() }).eq('id', watchId)
+    void logActivity({ actionType: 'watch_deleted', entityType: 'watch', entityId: watchId, entityLabel: watch.watch_name })
     setWatches(v => v.filter(w => w.id !== watchId))
     showUndo('Watch deleted', async () => {
       const sb = createClient()
@@ -480,6 +479,7 @@ export default function WatchInventory({
       )
     }
 
+    void logActivity({ actionType: 'watch_duplicated', entityType: 'watch', entityId: newWatch.id, entityLabel: `${watch.watch_name} (Copy)` })
     setWatches(v => [newWatch as WatchWithBrand, ...v])
     router.refresh()
     showUndo('Watch duplicated as draft', async () => {
@@ -493,6 +493,8 @@ export default function WatchInventory({
   function handleShare(e: React.MouseEvent, watchId: string) {
     e.stopPropagation()
     navigator.clipboard.writeText(`${window.location.origin}/dashboard/watches/${watchId}`)
+    const w = watches.find(w => w.id === watchId)
+    void logActivity({ actionType: 'watch_shared', entityType: 'watch', entityId: watchId, entityLabel: w?.watch_name })
   }
 
   // ── Bulk actions ──────────────────────────────────────────
@@ -927,7 +929,7 @@ export default function WatchInventory({
           <div>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Condition</p>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-px flex-nowrap">
-              {(['All', 'Brand New', 'Pre-Owned'] as ConditionFilter[]).map(c => (
+              {(['All', 'Unworn', 'Pre-Owned'] as ConditionFilter[]).map(c => (
                 <button
                   key={c}
                   onClick={() => setConditionFilter(c)}
@@ -1310,21 +1312,37 @@ export default function WatchInventory({
                           <TileBtn title="Copy link" onClick={e => handleShare(e, w.id)}><ShareIcon /></TileBtn>
                           <TileBtn title="Duplicate" onClick={e => handleDuplicate(e, w)}><CopyIcon /></TileBtn>
                           <div className="relative">
-                            <TileBtn title="More options" onClick={e => { e.stopPropagation(); setTileMenuId(tileMenuId === w.id ? null : w.id) }}>
+                            <TileBtn title="More options" onClick={e => { e.stopPropagation(); const next = tileMenuId === w.id ? null : w.id; setTileMenuId(next); if (!next) setTileDeleteConfirmId(null) }}>
                               <DotsIcon />
                             </TileBtn>
                             {tileMenuId === w.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden min-w-[128px]">
+                              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden min-w-[140px]">
                                 <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); router.push(`/dashboard/watches/${w.id}/edit`) }}>
                                   <EditIcon /> Edit
                                 </button>
-                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); handleShare(e, w.id) }}>
-                                  <ShareIcon /> Share
+                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => {
+                                  e.stopPropagation()
+                                  setTileMenuId(null)
+                                  const msg = `*${w.watch_name}*\nRef: ${w.reference ?? '—'}\nPrice: LKR ${w.selling_price?.toLocaleString() ?? '—'}\n\n${window.location.origin}/dashboard/watches/${w.id}`
+                                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                                  void logActivity({ actionType: 'watch_shared', entityType: 'watch', entityId: w.id, entityLabel: w.watch_name })
+                                }}>
+                                  <ShareIcon /> Share via WhatsApp
                                 </button>
                                 <div className="h-px bg-gray-100 mx-2" />
-                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); handleDelete(e, w.id) }}>
-                                  <TrashIcon /> Delete
-                                </button>
+                                {tileDeleteConfirmId === w.id ? (
+                                  <div className="px-3 py-2">
+                                    <p className="text-xs text-gray-500 mb-1.5">Delete this watch?</p>
+                                    <div className="flex gap-1.5">
+                                      <button className="flex-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg px-2 py-1 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); setTileDeleteConfirmId(null); handleDelete(e, w.id) }}>Delete</button>
+                                      <button className="flex-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors" onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(null) }}>Cancel</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors" onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(w.id) }}>
+                                    <TrashIcon /> Delete
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
 import type { Deal, TradeIn, DealExpense, PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
@@ -360,6 +361,7 @@ export default function EditDealForm({
       }
     }
 
+    void logActivity({ actionType: 'sale_updated', entityType: 'deal', entityId: deal.id, entityLabel: selectedWatch?.watch_name ?? watches.find(w => w.id === deal.watch_id)?.watch_name })
     setLoading(false)
     setSuccessModal(true)
     router.refresh()

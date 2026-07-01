@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { LEAD_REFERRALS, CLIENT_TYPES } from '@/types'
 import type { Client, LeadReferral, ClientType, SalesManager } from '@/types'
@@ -266,6 +267,7 @@ export default function EditClientForm({
 
     if (err) { setError(err.message); setLoading(false); return }
 
+    void logActivity({ actionType: 'client_updated', entityType: 'client', entityId: client.id, entityLabel: form.name.trim() })
     router.push(`/dashboard/clients/${client.id}`)
     router.refresh()
   }
@@ -274,6 +276,7 @@ export default function EditClientForm({
     if (!confirm(`Delete ${client.name}? They will be moved to the deleted tab.`)) return
     const supabase = createClient()
     await supabase.from('clients').update({ deleted_at: new Date().toISOString() }).eq('id', client.id)
+    void logActivity({ actionType: 'client_deleted', entityType: 'client', entityId: client.id, entityLabel: client.name })
     router.push('/dashboard/clients')
     router.refresh()
   }

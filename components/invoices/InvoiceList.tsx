@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import type { InvoiceWithItems, InvoiceStatus, InvoiceType } from '@/types'
 
 type Tab      = 'all' | InvoiceStatus | 'deleted'
@@ -162,6 +163,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
   async function handleDelete(inv: InvoiceWithItems) {
     const deletedAt = new Date().toISOString()
     await createClient().from('invoices').update({ deleted_at: deletedAt }).eq('id', inv.id)
+    void logActivity({ actionType: 'invoice_deleted', entityType: 'invoice', entityId: inv.id, entityLabel: inv.invoice_number })
     setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: deletedAt } : i))
     showUndo(`Invoice ${inv.invoice_number} deleted`, async () => {
       await createClient().from('invoices').update({ deleted_at: null }).eq('id', inv.id)

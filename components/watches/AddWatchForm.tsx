@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
@@ -83,7 +84,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     reference:      '',
     serial_number:  '',
     date_on_card:   '',
-    condition:      'Excellent' as WatchCondition,
+    condition:      'Unworn' as WatchCondition,
     set_details:    'Full Set' as WatchSetDetails,
     purchased_from: '',
     purchase_cost:  '',
@@ -231,6 +232,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         }
       }
 
+      void logActivity({ actionType: 'watch_created', entityType: 'watch', entityId: watch.id, entityLabel: form.watch_name.trim() })
       router.push('/dashboard/inventory?highlight=' + watch.id)
     } catch (err) {
       console.error('Watch save error:', err)

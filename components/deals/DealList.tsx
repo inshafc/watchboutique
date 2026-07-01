@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import { getInitials } from '@/lib/client-utils'
 import type { DealWithRelations, DealStage, DealType, SalesManager } from '@/types'
 
@@ -234,6 +235,7 @@ export default function DealList({
     if (!deal) return
     const supabase = createClient()
     await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    void logActivity({ actionType: 'sale_deleted', entityType: 'deal', entityId: id, entityLabel: deal.watches?.watch_name })
     setDeals(ds => ds.filter(d => d.id !== id))
     showUndo('Sale deleted', async () => {
       await createClient().from('deals').update({ deleted_at: null }).eq('id', id)
@@ -331,11 +333,11 @@ export default function DealList({
                 )}
               </button>
 
-              {/* Select — desktop only */}
+              {/* Select */}
               <button
                 onClick={() => { setSelectMode(v => !v); setSelectedIds(new Set()) }}
                 title="Select"
-                className={`hidden md:block p-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                className={`p-2 rounded-xl border transition-colors ${selectMode ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
               >
                 <SelectIcon />
               </button>

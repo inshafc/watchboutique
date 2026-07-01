@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -37,6 +38,7 @@ export default function LoginPage() {
     if (signInError) {
       setError('Invalid email or password.')
       setLoading(false)
+      void logActivity({ actionType: 'login_failed', entityLabel: email })
       return
     }
 
@@ -47,6 +49,7 @@ export default function LoginPage() {
       .eq('id', user!.id)
       .single()
 
+    void logActivity({ actionType: 'login' })
     const role = profile?.role ?? 'viewer'
     router.push(role === 'super_admin' ? '/dashboard' : '/dashboard/inventory')
     router.refresh()

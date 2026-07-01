@@ -149,5 +149,23 @@ export default async function NewInvoicePage({
     }
   }
 
+  // Log invoice creation server-side (fire-and-forget)
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).single()
+      await supabase.from('activity_log').insert({
+        user_id:      user.id,
+        user_name:    profile?.full_name ?? user.email,
+        user_role:    profile?.role      ?? 'unknown',
+        action_type:  'invoice_created',
+        severity:     'standard',
+        entity_type:  'invoice',
+        entity_id:    inv.id,
+        entity_label: invoice_number,
+      })
+    }
+  } catch { /* non-blocking */ }
+
   redirect(`/dashboard/invoices/${inv.id}/edit`)
 }

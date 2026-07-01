@@ -10,12 +10,12 @@ export interface Brand {
 
 // ── Watch enums ──────────────────────────────────────────────
 
-export type WatchCondition  = 'Brand New' | 'Excellent' | 'Good' | 'Fair' | 'Poor'
+export type WatchCondition  = 'Unworn' | 'Pre-Owned'
 export type WatchSetDetails = 'Full Set' | 'Box and Watch' | 'Watch Only'
 export type WatchStatus     = 'Available' | 'On Hold' | 'Sold' | 'Consigned'
 export type WatchStatusNew  = 'Available' | 'On Hold' | 'Offered' | 'Sold'
 
-export const WATCH_CONDITIONS:    WatchCondition[]   = ['Brand New', 'Excellent', 'Good', 'Fair', 'Poor']
+export const WATCH_CONDITIONS:    WatchCondition[]   = ['Unworn', 'Pre-Owned']
 export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Full Set', 'Box and Watch', 'Watch Only']
 export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold', 'Consigned']
 export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']

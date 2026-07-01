@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import {
   type UserRole,
   type Profile,
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     const supabase = createClient()
+    void logActivity({ actionType: 'logout' })
     await supabase.auth.signOut()
     window.location.href = '/login'
   }

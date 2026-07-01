@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { LEAD_REFERRALS, CLIENT_TYPES } from '@/types'
 import type { LeadReferral, ClientType, SalesManager } from '@/types'
@@ -237,6 +238,7 @@ export default function AddClientForm({
 
       if (err) { setError(err.message); setLoading(false); return }
 
+      void logActivity({ actionType: 'client_created', entityType: 'client', entityLabel: form.name.trim() })
       router.push(redirectTo)
       router.refresh()
     } catch (err) {

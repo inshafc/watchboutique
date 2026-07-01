@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import {
@@ -223,6 +224,7 @@ export default function EditWatchForm({
         }
       }
 
+      void logActivity({ actionType: 'watch_updated', entityType: 'watch', entityId: watch.id, entityLabel: watch.watch_name })
       router.push('/dashboard/watches/' + watch.id)
     } catch (err) {
       console.error('Watch update error:', err)
@@ -235,6 +237,7 @@ export default function EditWatchForm({
     if (!confirm('Delete this watch? You can restore it from the Deleted tab.')) return
     const supabase = createClient()
     await supabase.from('watches').update({ deleted_at: new Date().toISOString() }).eq('id', watch.id)
+    void logActivity({ actionType: 'watch_deleted', entityType: 'watch', entityId: watch.id, entityLabel: watch.watch_name })
     router.push('/dashboard/inventory')
   }
 

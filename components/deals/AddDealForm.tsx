@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
 import type { PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
@@ -397,6 +398,7 @@ export default function AddDealForm({
     }
 
     const clientName = clients.find(c => c.id === form.client_id)?.name ?? ''
+    void logActivity({ actionType: 'sale_created', entityType: 'deal', entityId: deal.id, entityLabel: selectedWatch?.watch_name, details: { client: clientName } })
     setLoading(false)
     setSuccessModal({
       dealId:     deal.id,

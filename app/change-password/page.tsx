@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 import { useState } from 'react'
+import { logActivity } from '@/lib/activityLog'
 
 export default function ChangePasswordPage() {
   const [password, setPassword] = useState('')
@@ -48,6 +49,7 @@ export default function ChangePasswordPage() {
           .update({ must_change_password: false })
           .eq('id', user.id)
       }
+      void logActivity({ actionType: 'password_reset_self' })
       window.location.replace('/dashboard')
     } catch (err) {
       setError(String(err))
