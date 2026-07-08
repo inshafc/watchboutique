@@ -25,15 +25,23 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 
 export default async function InvestorDetailPage({ params }: { params: { name: string } }) {
   const supabase = createClient()
-  const investorName = decodeURIComponent(params.name)
+  const investorKey = decodeURIComponent(params.name)
 
-  // Fetch all holdings for this investor
-  const { data: holdingsRaw } = await supabase
-    .from('watch_investors')
-    .select('percentage, watches(id, watch_name, reference, purchase_cost, status, selling_price, created_at)')
-    .eq('investor_name', investorName)
+  // Fetch this investor's display name + all holdings
+  const [investorRecordRes, holdingsRes] = await Promise.all([
+    supabase.from('investor_names').select('key, display_name').eq('key', investorKey).maybeSingle(),
+    supabase
+      .from('watch_investors')
+      .select('percentage, watches(id, watch_name, reference, purchase_cost, status, selling_price, created_at)')
+      .eq('investor_name', investorKey),
+  ])
 
-  if (!holdingsRaw || holdingsRaw.length === 0) notFound()
+  const investorRecord = investorRecordRes.data as { key: string; display_name: string } | null
+  const holdingsRaw = holdingsRes.data
+
+  if (!investorRecord && (!holdingsRaw || holdingsRaw.length === 0)) notFound()
+
+  const investorName = investorRecord?.display_name ?? investorKey
 
   type WatchData = {
     id: string; watch_name: string; reference: string | null
@@ -42,16 +50,18 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
   }
   type Holding = { percentage: number; watches: WatchData | null }
 
-  const holdings = holdingsRaw as unknown as Holding[]
+  const holdings = (holdingsRaw ?? []) as unknown as Holding[]
   const watchIds = holdings.map(h => h.watches?.id).filter(Boolean) as string[]
 
   // Fetch delivered deals for these watches
-  const { data: dealsRaw } = await supabase
-    .from('deals')
-    .select('id, watch_id, sale_price, sale_date, other_costs, other_costs_amount, commission_payable, commission_amount, stage, closed_at')
-    .in('watch_id', watchIds)
-    .eq('stage', 'Delivered')
-    .is('deleted_at', null)
+  const { data: dealsRaw } = watchIds.length > 0
+    ? await supabase
+        .from('deals')
+        .select('id, watch_id, sale_price, sale_date, other_costs, other_costs_amount, commission_payable, commission_amount, stage, closed_at')
+        .in('watch_id', watchIds)
+        .eq('stage', 'Delivered')
+        .is('deleted_at', null)
+    : { data: [] }
 
   type Deal = {
     id: string; watch_id: string | null; sale_price: number | null; sale_date: string | null

@@ -8,6 +8,7 @@ import StageSelector from '@/components/deals/StageSelector'
 import InstallmentTracker from '@/components/deals/InstallmentTracker'
 import DealDetailActions from '@/components/deals/DealDetailActions'
 import GenerateInvoiceButton from '@/components/invoices/GenerateInvoiceButton'
+import { getInvestorDisplayNames } from '@/lib/investor-names'
 import type { DealWithRelations, Installment, DealStage, TradeIn, DealExpense } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -38,7 +39,7 @@ function FinancialRow({ label, value, sub }: { label: string; value: React.React
 export default async function DealDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes, draftInvoiceRes] = await Promise.all([
+  const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes, draftInvoiceRes, investorNames] = await Promise.all([
     supabase
       .from('deals')
       .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
@@ -75,6 +76,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       .is('deleted_at', null)
       .limit(1)
       .maybeSingle(),
+    getInvestorDisplayNames(supabase),
   ])
 
   if (!dealRes.data) notFound()
@@ -256,7 +258,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
             const share = Math.round(grossProfit * (inv.percentage / 100))
             return (
               <div key={inv.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
-                <span className="text-sm text-gray-500">{inv.investor_name}</span>
+                <span className="text-sm text-gray-500">{investorNames.get(inv.investor_name) ?? inv.investor_name}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-gray-400 bg-gray-100 rounded-full px-2 py-0.5 tabular-nums">{inv.percentage}%</span>
                   <span className={`text-sm font-medium tabular-nums ${share >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>

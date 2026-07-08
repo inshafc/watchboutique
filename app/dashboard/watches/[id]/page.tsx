@@ -8,6 +8,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
 import WatchDetailActions from '@/components/watches/WatchDetailActions'
 import { avatarColor, getInitials } from '@/lib/client-utils'
+import { getInvestorDisplayNames } from '@/lib/investor-names'
 import type { WatchWithInvestors } from '@/types'
 
 function formatLKR(n: number | null) {
@@ -32,9 +33,10 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 export default async function WatchDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const [watchRes, dealsRes] = await Promise.all([
+  const [watchRes, dealsRes, investorNames] = await Promise.all([
     supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
     supabase.from('deals').select('id, deal_type, stage, sale_price, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
+    getInvestorDisplayNames(supabase),
   ])
 
   if (!watchRes.data) notFound()
@@ -218,7 +220,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <div className="space-y-2">
               {watch.watch_investors.map(inv => (
                 <div key={inv.id} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 font-medium">{inv.investor_name}</span>
+                  <span className="text-sm text-gray-700 font-medium">{investorNames.get(inv.investor_name) ?? inv.investor_name}</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-gray-900 rounded-full" style={{ width: `${inv.percentage}%` }} />
@@ -262,7 +264,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
                     const share = netProfit * (inv.percentage / 100)
                     return (
                       <tr key={inv.id} className="border-b border-gray-50 last:border-0">
-                        <td className="py-2 font-medium text-gray-700">{inv.investor_name}</td>
+                        <td className="py-2 font-medium text-gray-700">{investorNames.get(inv.investor_name) ?? inv.investor_name}</td>
                         <td className="py-2 text-right text-gray-500 tabular-nums">{inv.percentage}%</td>
                         <td className={`py-2 text-right font-semibold tabular-nums ${share >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {share >= 0 ? '' : '−'}{formatLKR(Math.abs(share))}
