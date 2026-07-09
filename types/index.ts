@@ -19,8 +19,6 @@ export const WATCH_CONDITIONS:    WatchCondition[]   = ['Unworn', 'Pre-Owned']
 export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Full Set', 'Box and Watch', 'Watch Only']
 export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold', 'Consigned']
 export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']
-export const INVESTOR_NAMES = ['TWB', 'Investor 1', 'Investor 2', 'Investor 3'] as const
-export type  InvestorName   = typeof INVESTOR_NAMES[number]
 
 // ── Watch tables ─────────────────────────────────────────────
 
@@ -208,10 +206,11 @@ export interface SalesManager {
 }
 
 export interface InvestorRecord {
-  id:           string
-  key:          string
-  display_name: string
-  is_default:   boolean
+  id:               string
+  key:              string
+  display_name:     string
+  is_default:       boolean
+  amount_invested:  number | null
 }
 
 export interface KPITarget {

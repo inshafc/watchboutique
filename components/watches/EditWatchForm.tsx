@@ -6,22 +6,17 @@ import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import {
   WATCH_CONDITIONS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
-  INVESTOR_NAMES,
   type WatchCondition,
   type WatchSetDetails,
   type WatchStatus,
   type WatchWithInvestors,
   type Brand,
 } from '@/types'
-
-interface InvestorRow {
-  investor_name: string
-  percentage: string
-}
 
 const inp = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -110,21 +105,6 @@ export default function EditWatchForm({
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
   const investorsValid = Math.abs(totalPct - 100) < 0.01
-  const usedNames = new Set(investors.map(i => i.investor_name))
-
-  function addInvestor() {
-    if (investors.length >= 4) return
-    const nextName = INVESTOR_NAMES.find(n => !usedNames.has(n)) ?? INVESTOR_NAMES[0]
-    setInvestors(v => [...v, { investor_name: nextName, percentage: '' }])
-  }
-
-  function removeInvestor(idx: number) {
-    setInvestors(v => v.filter((_, i) => i !== idx))
-  }
-
-  function updateInvestor(idx: number, key: keyof InvestorRow, val: string) {
-    setInvestors(v => v.map((row, i) => (i === idx ? { ...row, [key]: val } : row)))
-  }
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
@@ -392,58 +372,7 @@ export default function EditWatchForm({
       </div>
 
       {/* ── Investors ────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Investors</p>
-        <div className="space-y-2">
-          {investors.map((inv, idx) => {
-            const availableNames = INVESTOR_NAMES.filter(n => n === inv.investor_name || !usedNames.has(n))
-            return (
-              <div key={idx} className="flex items-center gap-2">
-                <select
-                  value={inv.investor_name}
-                  onChange={e => updateInvestor(idx, 'investor_name', e.target.value)}
-                  className={inp}
-                >
-                  {availableNames.map(n => <option key={n}>{n}</option>)}
-                </select>
-                <div className="flex items-center gap-1 shrink-0">
-                  <input
-                    type="number" min="0.01" max="100" step="0.01"
-                    value={inv.percentage}
-                    onChange={e => updateInvestor(idx, 'percentage', e.target.value)}
-                    placeholder="0"
-                    className={`${inp} w-20 text-right`}
-                  />
-                  <span className="text-gray-400 text-sm w-4">%</span>
-                </div>
-                {investors.length > 1 && (
-                  <button type="button" onClick={() => removeInvestor(idx)} className="shrink-0 text-gray-300 hover:text-red-400 transition-colors text-xl w-6 leading-none">
-                    ×
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex items-center justify-between mt-4">
-          <button
-            type="button"
-            onClick={addInvestor}
-            disabled={investors.length >= 4 || investors.length >= INVESTOR_NAMES.length}
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-0"
-          >
-            + Add investor
-          </button>
-          <div className="text-right">
-            <span className={`text-sm font-medium tabular-nums ${investorsValid ? 'text-emerald-600' : 'text-red-500'}`}>
-              {totalPct % 1 === 0 ? totalPct : totalPct.toFixed(2)}% {investorsValid ? '✓' : '(must be 100%)'}
-            </span>
-            {!investorsValid && totalPct < 100 && (
-              <p className="text-xs text-gray-400 mt-0.5">{(100 - totalPct).toFixed(totalPct % 1 === 0 ? 0 : 2)}% remaining</p>
-            )}
-          </div>
-        </div>
-      </div>
+      <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
 
       {/* ── Photos ───────────────────────────────────────── */}
       <div className={card}>

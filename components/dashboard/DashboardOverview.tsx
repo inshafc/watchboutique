@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
 const TrendChart = dynamic(() => import('./TrendChart'), {
@@ -107,23 +108,60 @@ function Empty({ msg = 'No data for this period.' }: { msg?: string }) {
   return <p className="text-[13px] text-[#9CA3AF]">{msg}</p>
 }
 
+type OwnerView = 'twb' | 'twb_investors'
+
+function StoreIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M2 6.25 2.75 2.5h10.5L14 6.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 6.25a1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 6.5V13h10V6.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.4 13V9.5h3.2V13" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function PeopleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="5.5" cy="5.3" r="1.9" />
+      <circle cx="11.2" cy="6" r="1.5" />
+      <path d="M2 13c0-1.93 1.57-3.5 3.5-3.5S9 11.07 9 13" strokeLinecap="round" />
+      <path d="M9.6 9.7c1.62.25 2.9 1.5 2.9 3.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 
 export default function DashboardOverview({
   deals,
-  inventoryValue,
+  inventoryValueAll,
+  inventoryValueTwbOnly,
   targets,
   ageingWatches = [],
+  investorSnapshot,
 }: {
   deals: DealRow[]
-  inventoryValue: number
+  inventoryValueAll: number
+  inventoryValueTwbOnly: number
   targets: Target[]
   sourceSummary?: { source: string; count: number; revenue: number }[]
   ageingWatches?: AgeingWatch[]
+  investorSnapshot: {
+    totalAmountInvested:  number
+    totalCapitalDeployed: number
+    totalProfitReturned:  number
+    activeWatchCount:     number
+  }
 }) {
   const [range, setRange]         = useState<DateRange>('this_month')
+  const [ownerView, setOwnerView] = useState<OwnerView>('twb_investors')
   const [hoveredMgr, setHoveredMgr] = useState<number | null>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
   const [activeKpi, setActiveKpi] = useState(0)
+
+  const inventoryValue = ownerView === 'twb' ? inventoryValueTwbOnly : inventoryValueAll
+  const visibleAgeingWatches = ownerView === 'twb' ? ageingWatches.filter(w => !w.hasInvestors) : ageingWatches
 
   function handleKpiScroll() {
     const el = carouselRef.current
@@ -194,6 +232,62 @@ export default function DashboardOverview({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Ownership view toggle ────────────────────────────── */}
+      <div className="flex items-center justify-end">
+        <div className="inline-flex gap-1 bg-[#EDECE9] rounded-xl p-1">
+          <button
+            onClick={() => setOwnerView('twb')}
+            className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
+              ownerView === 'twb' ? 'bg-white shadow-sm text-[#111111]' : 'text-[#6B6B6B] hover:text-[#111111]'
+            }`}
+          >
+            <StoreIcon className="w-3.5 h-3.5" />
+            TWB
+          </button>
+          <button
+            onClick={() => setOwnerView('twb_investors')}
+            className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
+              ownerView === 'twb_investors' ? 'bg-white shadow-sm text-[#111111]' : 'text-[#6B6B6B] hover:text-[#111111]'
+            }`}
+          >
+            <StoreIcon className="w-3.5 h-3.5" />
+            <PeopleIcon className="w-3.5 h-3.5 -ml-1" />
+            TWB + Investors
+          </button>
+        </div>
+      </div>
+
+      {/* ── Investor snapshot ────────────────────────────────── */}
+      <div
+        className="bg-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6"
+        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
+      >
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Total Invested</p>
+            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalAmountInvested)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Capital Deployed</p>
+            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalCapitalDeployed)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Profit Returned</p>
+            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalProfitReturned)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Active Watches</p>
+            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{investorSnapshot.activeWatchCount}</p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/investors"
+          className="shrink-0 text-[12px] font-semibold text-[#C9A84C] hover:text-[#B08F3D] transition-colors whitespace-nowrap"
+        >
+          View all investors →
+        </Link>
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -573,7 +667,9 @@ export default function DashboardOverview({
             <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-1">Inventory Value</p>
             <p className="text-[22px] font-bold text-[#111111] tabular-nums">{fmtLKR(inventoryValue)}</p>
           </div>
-          <p className="text-[11px] text-[#9CA3AF]">Available, on-hold &amp; offered watches</p>
+          <p className="text-[11px] text-[#9CA3AF]">
+            Available, on-hold &amp; offered watches{ownerView === 'twb' ? ' — TWB-owned only' : ''}
+          </p>
         </div>
 
         {/* AGEING INVENTORY — full width */}
@@ -582,7 +678,7 @@ export default function DashboardOverview({
             <CardLabel>Ageing Inventory</CardLabel>
             <p className="text-[11px] text-[#9CA3AF] -mt-3">Watches in stock over 60 days</p>
           </div>
-          {ageingWatches.length === 0 ? (
+          {visibleAgeingWatches.length === 0 ? (
             <div className="flex items-center gap-2 text-[#16A34A]">
               <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -602,7 +698,7 @@ export default function DashboardOverview({
                   </tr>
                 </thead>
                 <tbody>
-                  {ageingWatches.map(w => {
+                  {visibleAgeingWatches.map(w => {
                     const refDate = w.date_acquired ?? w.created_at
                     const days = Math.floor((Date.now() - new Date(refDate).getTime()) / (1000 * 60 * 60 * 24))
                     const daysColor = days >= 120 ? 'text-[#DC2626]' : days >= 90 ? 'text-[#EA580C]' : 'text-[#D97706]'

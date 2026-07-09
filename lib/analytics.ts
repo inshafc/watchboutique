@@ -42,6 +42,7 @@ export interface AgeingWatch {
   date_acquired: string | null
   selling_price: number | null
   brands: { name: string } | null
+  hasInvestors: boolean
 }
 
 export interface Target {

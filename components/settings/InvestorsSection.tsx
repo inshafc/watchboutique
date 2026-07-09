@@ -2,27 +2,40 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
+import CurrencyInput from '@/components/ui/CurrencyInput'
 import type { InvestorRecord } from '@/types'
 
 const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all'
 const lbl = 'block text-xs font-medium text-gray-500 mb-1'
 
+function formatLKR(n: number | null | undefined) {
+  if (n == null || isNaN(n)) return 'LKR 0'
+  return 'LKR ' + Math.round(n).toLocaleString('en-LK')
+}
+
 export default function InvestorsSection({ initialInvestors }: { initialInvestors: InvestorRecord[] }) {
+  const { role } = useAuth()
+  const isAdmin = role === 'super_admin'
+
   const [investors, setInvestors] = useState(initialInvestors)
   const [adding,    setAdding]    = useState(false)
   const [editing,   setEditing]   = useState<string | null>(null)
-  const [form,      setForm]      = useState({ key: '', display_name: '' })
+  const [form,      setForm]      = useState({ key: '', display_name: '', amount_invested: '' })
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState<string | null>(null)
 
   function startAdd() {
-    setEditing(null); setForm({ key: '', display_name: '' }); setAdding(true); setError(null)
+    setEditing(null); setForm({ key: '', display_name: '', amount_invested: '' }); setAdding(true); setError(null)
   }
   function startEdit(inv: InvestorRecord) {
-    setAdding(false); setEditing(inv.id); setForm({ key: inv.key, display_name: inv.display_name }); setError(null)
+    setAdding(false)
+    setEditing(inv.id)
+    setForm({ key: inv.key, display_name: inv.display_name, amount_invested: inv.amount_invested != null ? String(inv.amount_invested) : '' })
+    setError(null)
   }
   function cancelForm() {
-    setAdding(false); setEditing(null); setForm({ key: '', display_name: '' }); setError(null)
+    setAdding(false); setEditing(null); setForm({ key: '', display_name: '', amount_invested: '' }); setError(null)
   }
 
   async function handleSave() {
@@ -31,17 +44,26 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
     setSaving(true); setError(null)
     const supabase = createClient()
 
+    const amountInvested = form.amount_invested.trim() === '' ? 0 : parseFloat(form.amount_invested)
+
     if (editing) {
+      const payload: { display_name: string; amount_invested?: number } = { display_name: form.display_name.trim() }
+      if (isAdmin) payload.amount_invested = amountInvested
       const { data, error: err } = await supabase
         .from('investor_names')
-        .update({ display_name: form.display_name.trim() })
+        .update(payload)
         .eq('id', editing).select().single()
       if (err) { setError(err.message); setSaving(false); return }
       setInvestors(prev => prev.map(i => i.id === editing ? data as InvestorRecord : i))
     } else {
       const { data, error: err } = await supabase
         .from('investor_names')
-        .insert({ key: form.key.trim(), display_name: form.display_name.trim(), is_default: false })
+        .insert({
+          key: form.key.trim(),
+          display_name: form.display_name.trim(),
+          is_default: false,
+          amount_invested: isAdmin ? amountInvested : 0,
+        })
         .select().single()
       if (err) { setError(err.message); setSaving(false); return }
       setInvestors(prev => [...prev, data as InvestorRecord])
@@ -91,6 +113,13 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
               <input type="text" value={form.display_name} onChange={e => setForm(p => ({ ...p, display_name: e.target.value }))} placeholder="e.g. Khalid Al-Mansouri" className={inp} />
               <p className="text-[11px] text-gray-400 mt-1">Shown on watch detail and investor dashboard</p>
             </div>
+            {isAdmin && (
+              <div className="col-span-2">
+                <label className={lbl}>Amount Invested</label>
+                <CurrencyInput value={form.amount_invested} onChange={v => setForm(p => ({ ...p, amount_invested: v }))} />
+                <p className="text-[11px] text-gray-400 mt-1">Used as the ROI % denominator on the Investors dashboard</p>
+              </div>
+            )}
           </div>
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
           <div className="flex items-center gap-2 mt-4">
@@ -117,12 +146,15 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
                     )}
                   </div>
                   <p className="text-xs text-gray-400 font-mono mt-0.5">{inv.key}</p>
+                  {isAdmin && (
+                    <p className="text-xs text-gray-500 mt-1">Invested: <span className="font-semibold text-gray-700">{formatLKR(inv.amount_invested)}</span></p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => startEdit(inv)} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
                       <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-                      <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+                      <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 1-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
                     </svg>
                   </button>
                   <button onClick={() => handleDelete(inv)} disabled={inv.is_default} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
