@@ -162,6 +162,7 @@ export default function DashboardOverview({
 
   const inventoryValue = ownerView === 'twb' ? inventoryValueTwbOnly : inventoryValueAll
   const visibleAgeingWatches = ownerView === 'twb' ? ageingWatches.filter(w => !w.hasInvestors) : ageingWatches
+  const scopedDeals = ownerView === 'twb' ? deals.filter(d => !d.hasInvestors) : deals
 
   function handleKpiScroll() {
     const el = carouselRef.current
@@ -174,8 +175,8 @@ export default function DashboardOverview({
   const [start, end]         = getDateBounds(range)
   const [prevStart, prevEnd] = getPrevBounds(range)
 
-  const current   = filterDeals(deals, start, end)
-  const prev      = filterDeals(deals, prevStart, prevEnd)
+  const current   = filterDeals(scopedDeals, start, end)
+  const prev      = filterDeals(scopedDeals, prevStart, prevEnd)
   const curStats  = computeStats(current)
   const prevStats = computeStats(prev)
 
@@ -185,7 +186,7 @@ export default function DashboardOverview({
   const tGP    = targetForPeriod(getTarget('gross_profit'), range)
   const GP_PCT_TARGET = 30
 
-  const trend      = monthlyTrend(deals, 6)
+  const trend      = monthlyTrend(scopedDeals, 6)
   const byBrand    = salesByBrand(current)
   const byManager  = salesByManager(current)
   const byReferral = salesByReferral(current)
@@ -260,35 +261,37 @@ export default function DashboardOverview({
       </div>
 
       {/* ── Investor snapshot ────────────────────────────────── */}
-      <div
-        className="bg-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6"
-        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
-      >
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Total Invested</p>
-            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalAmountInvested)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Capital Deployed</p>
-            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalCapitalDeployed)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Profit Returned</p>
-            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalProfitReturned)}</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Active Watches</p>
-            <p className="text-[16px] font-bold text-[#111111] tabular-nums">{investorSnapshot.activeWatchCount}</p>
-          </div>
-        </div>
-        <Link
-          href="/dashboard/investors"
-          className="shrink-0 text-[12px] font-semibold text-[#C9A84C] hover:text-[#B08F3D] transition-colors whitespace-nowrap"
+      {ownerView !== 'twb' && (
+        <div
+          className="bg-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6"
+          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
         >
-          View all investors →
-        </Link>
-      </div>
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Total Invested</p>
+              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalAmountInvested)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Capital Deployed</p>
+              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalCapitalDeployed)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Profit Returned</p>
+              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalProfitReturned)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Active Watches</p>
+              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{investorSnapshot.activeWatchCount}</p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/investors"
+            className="shrink-0 text-[12px] font-semibold text-[#C9A84C] hover:text-[#B08F3D] transition-colors whitespace-nowrap"
+          >
+            View all investors →
+          </Link>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════
           SECTION 1 — REVENUE HERO

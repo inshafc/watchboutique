@@ -22,6 +22,14 @@ export type InvestorStatsResult = {
   totalAmountInvested:  number
 }
 
+// TWB / The Watch Boutique is the business itself, not an investor — never list it as one.
+const TWB_KEYS = new Set(['twb', 'the-watch-boutique', 'the_watch_boutique'])
+function isTwbInvestor(key: string, displayName?: string | null): boolean {
+  if (TWB_KEYS.has(key.trim().toLowerCase())) return true
+  if (displayName && displayName.toLowerCase().includes('watch boutique')) return true
+  return false
+}
+
 export async function getInvestorStats(supabase: ServerSupabase): Promise<InvestorStatsResult> {
   const [investorNamesRes, investorRowsRes, dealsRes] = await Promise.all([
     supabase.from('investor_names').select('key, display_name, amount_invested').order('created_at', { ascending: true }),
@@ -42,8 +50,10 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     commission_payable: boolean; commission_amount: number | null
   }
 
-  const investorNames = (investorNamesRes.data ?? []) as InvestorName[]
-  const rows = (investorRowsRes.data ?? []) as unknown as InvestorRow[]
+  const investorNames = ((investorNamesRes.data ?? []) as InvestorName[])
+    .filter(inv => !isTwbInvestor(inv.key, inv.display_name))
+  const rows = ((investorRowsRes.data ?? []) as unknown as InvestorRow[])
+    .filter(row => !isTwbInvestor(row.investor_name))
   const deals = (dealsRes.data ?? []) as Deal[]
 
   const dealByWatch = new Map<string, Deal>()

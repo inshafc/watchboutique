@@ -17,6 +17,8 @@ export interface DealRow {
   source?: string | null
   sales_manager: string | null
   client_id: string | null
+  watch_id?: string | null
+  hasInvestors?: boolean
   watches: {
     watch_name: string
     reference: string | null
