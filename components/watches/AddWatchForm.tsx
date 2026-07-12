@@ -95,9 +95,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const [brandError,   setBrandError]   = useState<string | null>(null)
 
   const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
-  const [investors,  setInvestors]  = useState<InvestorRow[]>([
-    { investor_name: 'TWB', percentage: '100' },
-  ])
+  const [investors,  setInvestors]  = useState<InvestorRow[]>([])
 
   const [labelNewArrival, setLabelNewArrival] = useState(true)
   const [labelHotSell,    setLabelHotSell]    = useState(false)
@@ -109,7 +107,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = Math.abs(totalPct - 100) < 0.01
+  const investorsValid = investors.length === 0 || Math.abs(totalPct - 100) < 0.01
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }

@@ -95,7 +95,7 @@ export default function EditWatchForm({
           investor_name: i.investor_name,
           percentage:    String(i.percentage),
         }))
-      : [{ investor_name: 'TWB', percentage: '100' }]
+      : []
   )
 
   function field(key: keyof typeof form) {
@@ -104,7 +104,7 @@ export default function EditWatchForm({
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = Math.abs(totalPct - 100) < 0.01
+  const investorsValid = investors.length === 0 || Math.abs(totalPct - 100) < 0.01
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
