@@ -273,6 +273,7 @@ export interface SavedBank {
   account_number: string | null
   branch:         string | null
   swift_code:     string | null
+  address:        string | null
   is_active:      boolean
   created_at:     string
 }

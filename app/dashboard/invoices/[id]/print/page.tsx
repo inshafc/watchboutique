@@ -92,11 +92,11 @@ export default async function InvoicePrintPage({
       .maybeSingle(),
   ])
 
-  let bank: { bank_name: string; account_name: string | null; account_number: string | null; branch: string | null; swift_code: string | null } | null = null
+  let bank: { bank_name: string; account_name: string | null; account_number: string | null; branch: string | null; swift_code: string | null; address: string | null } | null = null
   if (inv.show_bank_details && inv.bank_id) {
     const { data } = await supabase
       .from('saved_banks')
-      .select('bank_name, account_name, account_number, branch, swift_code')
+      .select('bank_name, account_name, account_number, branch, swift_code, address')
       .eq('id', inv.bank_id)
       .single()
     bank = data ?? null

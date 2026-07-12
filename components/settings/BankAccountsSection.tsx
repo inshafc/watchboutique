@@ -8,7 +8,7 @@ const inp  = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px
 const lbl  = 'block text-xs font-medium text-gray-500 mb-1'
 
 function emptyForm() {
-  return { bank_name: '', account_name: '', account_number: '', branch: '', swift_code: '' }
+  return { bank_name: '', account_name: '', account_number: '', branch: '', swift_code: '', address: '' }
 }
 
 export default function BankAccountsSection({ initialBanks }: { initialBanks: SavedBank[] }) {
@@ -18,9 +18,10 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
   const [form, setForm]     = useState(emptyForm())
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState<string | null>(null)
+  const [showAddress, setShowAddress] = useState(false)
 
   function f(key: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) =>
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value }))
   }
 
@@ -28,6 +29,7 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
     setEditing(null)
     setForm(emptyForm())
     setAdding(true)
+    setShowAddress(false)
     setError(null)
   }
 
@@ -40,7 +42,9 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
       account_number: bank.account_number ?? '',
       branch:         bank.branch         ?? '',
       swift_code:     bank.swift_code     ?? '',
+      address:        bank.address        ?? '',
     })
+    setShowAddress(!!bank.address)
     setError(null)
   }
 
@@ -48,6 +52,7 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
     setAdding(false)
     setEditing(null)
     setForm(emptyForm())
+    setShowAddress(false)
     setError(null)
   }
 
@@ -63,6 +68,7 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
       account_number: form.account_number.trim() || null,
       branch:         form.branch.trim()         || null,
       swift_code:     form.swift_code.trim()     || null,
+      address:        form.address.trim()        || null,
     }
 
     if (editing) {
@@ -158,6 +164,26 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
                 <input type="text" value={form.swift_code} onChange={f('swift_code')} className={inp} />
               </div>
             </div>
+            {showAddress ? (
+              <div>
+                <label className={lbl}>Bank Address</label>
+                <textarea
+                  value={form.address}
+                  onChange={f('address')}
+                  placeholder="Branch address (optional)"
+                  rows={2}
+                  className={`${inp} resize-none`}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddress(true)}
+                className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                + Add bank address
+              </button>
+            )}
           </div>
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
           <div className="flex items-center gap-2 mt-4">
@@ -205,6 +231,7 @@ export default function BankAccountsSection({ initialBanks }: { initialBanks: Sa
                       {bank.branch     && <span>Branch: {bank.branch}</span>}
                       {bank.swift_code && <span>SWIFT: {bank.swift_code}</span>}
                     </p>
+                    {bank.address && <p className="whitespace-pre-line text-gray-400">{bank.address}</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

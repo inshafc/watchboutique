@@ -481,7 +481,7 @@ export default function InvoiceEditorClient({
   const invoiceAmtPaid  = num(form.amount_paid)
 
   const previewBank = showBankPicker && form.show_bank_details && selectedBank
-    ? { bank_name: selectedBank.bank_name, account_name: selectedBank.account_name, account_number: selectedBank.account_number, branch: selectedBank.branch, swift_code: selectedBank.swift_code }
+    ? { bank_name: selectedBank.bank_name, account_name: selectedBank.account_name, account_number: selectedBank.account_number, branch: selectedBank.branch, swift_code: selectedBank.swift_code, address: selectedBank.address }
     : null
 
   const saveBtn = (

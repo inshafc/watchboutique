@@ -17,6 +17,7 @@ export interface InvoiceHTMLBank {
   account_number: string | null
   branch:         string | null
   swift_code:     string | null
+  address:        string | null
 }
 
 export interface InvoiceHTMLParams {
@@ -177,6 +178,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
       ${p.bank.account_number ? `<div style="${F}font-size:11px;color:#6b7280;">Account No: ${esc(p.bank.account_number)}</div>`   : ''}
       ${p.bank.branch         ? `<div style="${F}font-size:11px;color:#6b7280;">Branch: ${esc(p.bank.branch)}</div>`               : ''}
       ${p.bank.swift_code     ? `<div style="${F}font-size:11px;color:#6b7280;">SWIFT: ${esc(p.bank.swift_code)}</div>`            : ''}
+      ${p.bank.address        ? `<div style="${F}font-size:11px;color:#6b7280;white-space:pre-wrap;">${esc(p.bank.address)}</div>` : ''}
     </div>` : ''
 
   // ── SIGNATURES ─────────────────────────────────────────────

@@ -19,6 +19,7 @@ export interface PrintBank {
   account_number: string | null
   branch:         string | null
   swift_code:     string | null
+  address:        string | null
 }
 
 export interface FieldVisibility {
@@ -404,6 +405,7 @@ export default function InvoicePrintLayout({
                 {bank.account_number && <p style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#6b7280' }}>Account No: {bank.account_number}</p>}
                 {bank.branch         && <p style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#6b7280' }}>Branch: {bank.branch}</p>}
                 {bank.swift_code     && <p style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#6b7280' }}>SWIFT: {bank.swift_code}</p>}
+                {bank.address        && <p style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#6b7280', whiteSpace: 'pre-wrap' }}>{bank.address}</p>}
               </div>
             )}
           </div>
