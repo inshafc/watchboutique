@@ -251,6 +251,7 @@ export interface DealWithRelations extends Deal {
     status?:       string
     photos?:       string[]
     purchase_cost?: number | null
+    sold_price?:   number | null
     brand_id?:     string | null
     brands?:       { id: string; name: string; color: string | null } | null
   } | null

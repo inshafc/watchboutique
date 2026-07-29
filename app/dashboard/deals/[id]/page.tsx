@@ -42,7 +42,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const [dealRes, installRes, tradeInsRes, expensesRes, invoiceRes, draftInvoiceRes, investorNames] = await Promise.all([
     supabase
       .from('deals')
-      .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
+      .select('*, watches(watch_name, reference, serial_number, status, photos, purchase_cost, sold_price, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb, phone, address)')
       .eq('id', params.id)
       .single(),
     supabase
@@ -104,8 +104,11 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const otherCostsAmt = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
   const commissionAmt = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
 
-  const grossProfit = deal.sale_price != null
-    ? deal.sale_price - watchCost - otherCostsAmt - commissionAmt
+  // sold_price (captured on the watch at the point of sale) is the source of truth;
+  // fall back to the deal's own sale_price for sales recorded before that column existed.
+  const salePrice = deal.watches?.sold_price ?? deal.sale_price
+  const grossProfit = salePrice != null
+    ? salePrice - watchCost - otherCostsAmt - commissionAmt
     : null
 
   return (

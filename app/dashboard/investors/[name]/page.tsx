@@ -32,7 +32,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
     supabase.from('investor_names').select('key, display_name').eq('key', investorKey).maybeSingle(),
     supabase
       .from('watch_investors')
-      .select('percentage, watches(id, watch_name, reference, purchase_cost, status, selling_price, created_at)')
+      .select('percentage, watches(id, watch_name, reference, purchase_cost, status, selling_price, sold_price, created_at)')
       .eq('investor_name', investorKey),
   ])
 
@@ -46,7 +46,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
   type WatchData = {
     id: string; watch_name: string; reference: string | null
     purchase_cost: number | null; status: string
-    selling_price: number | null; created_at: string
+    selling_price: number | null; sold_price: number | null; created_at: string
   }
   type Holding = { percentage: number; watches: WatchData | null }
 
@@ -98,10 +98,13 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
       const deal = dealByWatch.get(watch.id) ?? null
       let netProfit: number | null = null
       let share: number | null = null
-      if (deal && deal.sale_price != null) {
+      // sold_price (captured on the watch at the point of sale) is the source of truth;
+      // fall back to the deal's own sale_price for sales recorded before that column existed.
+      const salePrice = watch.sold_price ?? deal?.sale_price ?? null
+      if (deal && salePrice != null) {
         const otherCosts = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
         const commission = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
-        netProfit = deal.sale_price - cost - otherCosts - commission
+        netProfit = salePrice - cost - otherCosts - commission
         share = netProfit * (h.percentage / 100)
       }
       return { watch, percentage: h.percentage, isSold, capitalInvested, deal, netProfit, share, saleDate: deal?.sale_date ?? deal?.closed_at ?? null }
@@ -246,7 +249,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
                     <td className="px-5 py-3.5 text-right text-gray-500 tabular-nums">{formatDate(r.saleDate)}</td>
                     <td className="px-5 py-3.5 text-right text-gray-500 tabular-nums">{r.percentage}%</td>
                     <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{formatLKR(r.capitalInvested)}</td>
-                    <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{r.deal?.sale_price != null ? formatLKR(r.deal.sale_price) : '—'}</td>
+                    <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{(r.watch.sold_price ?? r.deal?.sale_price) != null ? formatLKR(r.watch.sold_price ?? r.deal!.sale_price) : '—'}</td>
                     <td className={`px-5 py-3.5 text-right font-medium tabular-nums ${r.netProfit == null ? 'text-gray-300' : r.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                       {r.netProfit != null ? (r.netProfit >= 0 ? '+' : '') + formatLKR(r.netProfit) : '—'}
                     </td>

@@ -15,9 +15,12 @@ function formatLKR(n: number | null | undefined) {
 }
 
 function grossProfit(d: DealWithRelations): number | null {
-  if (d.sale_price == null) return null
+  // sold_price (captured on the watch at the point of sale) is the source of truth;
+  // fall back to the deal's own sale_price for sales recorded before that column existed.
+  const salePrice = d.watches?.sold_price ?? d.sale_price
+  if (salePrice == null) return null
   return (
-    d.sale_price
+    salePrice
     - (d.watches?.purchase_cost ?? 0)
     - (d.other_costs ? (d.other_costs_amount ?? 0) : 0)
     - (d.commission_payable ? (d.commission_amount ?? 0) : 0)
@@ -197,7 +200,7 @@ export default function DealList({
     const supabase = createClient()
     const { data } = await supabase
       .from('deals')
-      .select('*, watches(watch_name, reference, status, photos, purchase_cost, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb)')
+      .select('*, watches(watch_name, reference, status, photos, purchase_cost, sold_price, brand_id, brands(id, name, color)), clients(name, avatar_color, is_vip, club_twb)')
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false })
     setDeletedDeals((data ?? []) as DealWithRelations[])

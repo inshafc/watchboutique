@@ -253,7 +253,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         {(() => {
           const deliveredDeal = deals.find(d => d.stage === 'Delivered' && d.sale_price != null)
           if (!deliveredDeal || !watch.watch_investors || watch.watch_investors.length === 0) return null
-          const salePrice   = deliveredDeal.sale_price!
+          // sold_price (captured on the watch at the point of sale) is the source of truth;
+          // fall back to the deal's own sale_price for sales recorded before that column existed.
+          const salePrice   = watch.sold_price ?? deliveredDeal.sale_price!
           const cost        = watch.purchase_cost ?? 0
           const otherCosts  = deliveredDeal.other_costs ? (deliveredDeal.other_costs_amount ?? 0) : 0
           const commission  = deliveredDeal.commission_payable ? (deliveredDeal.commission_amount ?? 0) : 0

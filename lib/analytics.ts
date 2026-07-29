@@ -23,6 +23,7 @@ export interface DealRow {
     watch_name: string
     reference: string | null
     purchase_cost: number | null
+    sold_price?: number | null
     brands: { name: string } | null
   } | null
   clients: {
@@ -56,7 +57,9 @@ export interface Target {
 }
 
 export function computeGP(d: DealRow): number {
-  const sp = d.sale_price ?? 0
+  // sold_price (captured on the watch at the point of sale) is the source of truth;
+  // fall back to the deal's own sale_price for sales recorded before that column existed.
+  const sp = d.watches?.sold_price ?? d.sale_price ?? 0
   const wc = d.watches?.purchase_cost ?? 0
   const oc = d.other_costs ? (d.other_costs_amount ?? 0) : 0
   const ca = d.commission_payable ? (d.commission_amount ?? 0) : 0

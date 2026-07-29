@@ -33,7 +33,7 @@ function isTwbInvestor(key: string, displayName?: string | null): boolean {
 export async function getInvestorStats(supabase: ServerSupabase): Promise<InvestorStatsResult> {
   const [investorNamesRes, investorRowsRes, dealsRes] = await Promise.all([
     supabase.from('investor_names').select('key, display_name, amount_invested').order('created_at', { ascending: true }),
-    supabase.from('watch_investors').select('investor_name, percentage, watches(id, purchase_cost, status)'),
+    supabase.from('watch_investors').select('investor_name, percentage, watches(id, purchase_cost, status, sold_price)'),
     supabase
       .from('deals')
       .select('id, watch_id, sale_price, other_costs, other_costs_amount, commission_payable, commission_amount')
@@ -42,7 +42,7 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
   ])
 
   type InvestorName = { key: string; display_name: string; amount_invested: number | null }
-  type WatchData = { id: string; purchase_cost: number | null; status: string }
+  type WatchData = { id: string; purchase_cost: number | null; status: string; sold_price: number | null }
   type InvestorRow = { investor_name: string; percentage: number; watches: WatchData | null }
   type Deal = {
     id: string; watch_id: string | null; sale_price: number | null
@@ -63,11 +63,15 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
 
   function grossProfitFor(watch: WatchData): number | null {
     const deal = dealByWatch.get(watch.id)
-    if (!deal || deal.sale_price == null) return null
+    if (!deal) return null
+    // sold_price (captured on the watch at the point of sale) is the source of truth;
+    // fall back to the deal's own sale_price for sales recorded before that column existed.
+    const salePrice = watch.sold_price ?? deal.sale_price
+    if (salePrice == null) return null
     const cost = watch.purchase_cost ?? 0
     const otherCosts = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
     const commission = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
-    return deal.sale_price - cost - otherCosts - commission
+    return salePrice - cost - otherCosts - commission
   }
 
   // Group raw holdings by investor key
