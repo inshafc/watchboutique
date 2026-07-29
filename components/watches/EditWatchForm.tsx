@@ -108,7 +108,7 @@ export default function EditWatchForm({
           investor_name: i.investor_name,
           percentage:    String(i.percentage),
         }))
-      : [{ investor_name: 'twb', percentage: '100' }]
+      : []
   )
 
   function field(key: keyof typeof form) {

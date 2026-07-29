@@ -101,7 +101,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const [brandError,   setBrandError]   = useState<string | null>(null)
 
   const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
-  const [investors,  setInvestors]  = useState<InvestorRow[]>([{ investor_name: 'twb', percentage: '100' }])
+  const [investors,  setInvestors]  = useState<InvestorRow[]>([])
 
   const [labelNewArrival, setLabelNewArrival] = useState(true)
   const [labelHotSell,    setLabelHotSell]    = useState(false)
