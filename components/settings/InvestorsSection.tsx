@@ -14,6 +14,13 @@ function formatLKR(n: number | null | undefined) {
   return 'LKR ' + Math.round(n).toLocaleString('en-LK')
 }
 
+// TWB has no default split of its own — its share is always the remainder
+// of whichever real investor is on the watch. Key-based, not is_default:
+// the TWB row's is_default flag is false in the data, same as every other row.
+function isTwb(inv: InvestorRecord) {
+  return inv.key.trim().toLowerCase() === 'twb'
+}
+
 export default function InvestorsSection({ initialInvestors }: { initialInvestors: InvestorRecord[] }) {
   const { role } = useAuth()
   const isAdmin = role === 'super_admin'
@@ -21,34 +28,43 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
   const [investors, setInvestors] = useState(initialInvestors)
   const [adding,    setAdding]    = useState(false)
   const [editing,   setEditing]   = useState<string | null>(null)
-  const [form,      setForm]      = useState({ key: '', display_name: '', amount_invested: '' })
+  const [form,      setForm]      = useState({ key: '', display_name: '', amount_invested: '', default_split_investor_pct: '50' })
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState<string | null>(null)
 
   function startAdd() {
-    setEditing(null); setForm({ key: '', display_name: '', amount_invested: '' }); setAdding(true); setError(null)
+    setEditing(null); setForm({ key: '', display_name: '', amount_invested: '', default_split_investor_pct: '50' }); setAdding(true); setError(null)
   }
   function startEdit(inv: InvestorRecord) {
     setAdding(false)
     setEditing(inv.id)
-    setForm({ key: inv.key, display_name: inv.display_name, amount_invested: inv.amount_invested != null ? String(inv.amount_invested) : '' })
+    setForm({
+      key: inv.key,
+      display_name: inv.display_name,
+      amount_invested: inv.amount_invested != null ? String(inv.amount_invested) : '',
+      default_split_investor_pct: inv.default_split_investor_pct != null ? String(inv.default_split_investor_pct) : '50',
+    })
     setError(null)
   }
   function cancelForm() {
-    setAdding(false); setEditing(null); setForm({ key: '', display_name: '', amount_invested: '' }); setError(null)
+    setAdding(false); setEditing(null); setForm({ key: '', display_name: '', amount_invested: '', default_split_investor_pct: '50' }); setError(null)
   }
 
   async function handleSave() {
     if (!form.display_name.trim()) { setError('Display name is required'); return }
     if (!editing && !form.key.trim()) { setError('Key is required'); return }
+    const splitPct = form.default_split_investor_pct.trim() === '' ? 50 : parseFloat(form.default_split_investor_pct)
+    if (isNaN(splitPct) || splitPct < 0 || splitPct > 100) { setError('Default split must be between 0 and 100'); return }
     setSaving(true); setError(null)
     const supabase = createClient()
 
     const amountInvested = form.amount_invested.trim() === '' ? 0 : parseFloat(form.amount_invested)
 
     if (editing) {
-      const payload: { display_name: string; amount_invested?: number } = { display_name: form.display_name.trim() }
+      const payload: { display_name: string; amount_invested?: number; default_split_investor_pct?: number } = { display_name: form.display_name.trim() }
       if (isAdmin) payload.amount_invested = amountInvested
+      const editingInv = investors.find(i => i.id === editing)
+      if (!editingInv || !isTwb(editingInv)) payload.default_split_investor_pct = splitPct
       const { data, error: err } = await supabase
         .from('investor_names')
         .update(payload)
@@ -63,6 +79,7 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
           display_name: form.display_name.trim(),
           is_default: false,
           amount_invested: isAdmin ? amountInvested : 0,
+          default_split_investor_pct: splitPct,
         })
         .select().single()
       if (err) { setError(err.message); setSaving(false); return }
@@ -120,6 +137,23 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
                 <p className="text-[11px] text-gray-400 mt-1">Used as the ROI % denominator on the Investors dashboard</p>
               </div>
             )}
+            {!(editing && investors.find(i => i.id === editing && isTwb(i))) && (
+              <div className="col-span-2">
+                <label className={lbl}>Default Split</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min="0" max="100" step="0.01"
+                    value={form.default_split_investor_pct}
+                    onChange={e => setForm(p => ({ ...p, default_split_investor_pct: e.target.value }))}
+                    className={`${inp} w-24`}
+                  />
+                  <span className="text-sm text-gray-400">
+                    % — {form.display_name.trim() || 'Investor'} {form.default_split_investor_pct || 0}% / TWB {(100 - (parseFloat(form.default_split_investor_pct) || 0)).toFixed(2).replace(/\.00$/, '')}%
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Default profit split when this investor is picked on a new watch. Only affects future watches.</p>
+              </div>
+            )}
           </div>
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
           <div className="flex items-center gap-2 mt-4">
@@ -148,6 +182,13 @@ export default function InvestorsSection({ initialInvestors }: { initialInvestor
                   <p className="text-xs text-gray-400 font-mono mt-0.5">{inv.key}</p>
                   {isAdmin && (
                     <p className="text-xs text-gray-500 mt-1">Invested: <span className="font-semibold text-gray-700">{formatLKR(inv.amount_invested)}</span></p>
+                  )}
+                  {!isTwb(inv) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Default split: <span className="font-semibold text-gray-700">
+                        {inv.display_name} {inv.default_split_investor_pct ?? 50}% / TWB {100 - (inv.default_split_investor_pct ?? 50)}%
+                      </span>
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

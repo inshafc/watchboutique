@@ -76,7 +76,7 @@ export default function EditWatchForm({
     reference:      watch.reference      ?? '',
     serial_number:  watch.serial_number  ?? '',
     date_on_card:   watch.date_on_card   ?? '',
-    condition:      displayCondition(watch.condition).toLowerCase() as WatchCondition,
+    condition:      displayCondition(watch.condition) as WatchCondition,
     set_details:    normaliseSetDetails(watch.set_details),
     inventory_type: (watch.inventory_type ?? 'twb') as InventoryType,
     consignee_name: watch.consignee_name ?? '',
@@ -117,7 +117,9 @@ export default function EditWatchForm({
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
+  const investorsValid = form.inventory_type === 'consign'
+    ? true
+    : investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
@@ -177,7 +179,7 @@ export default function EditWatchForm({
           set_details:    form.set_details,
           inventory_type: form.inventory_type,
           consignee_name: form.inventory_type === 'consign' ? form.consignee_name.trim() : null,
-          purchased_from: form.purchased_from.trim() || null,
+          purchased_from: form.inventory_type === 'twb' ? (form.purchased_from.trim() || null) : null,
           date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           status:         form.status,
@@ -199,13 +201,15 @@ export default function EditWatchForm({
 
       await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
 
-      const investorRows = investors
-        .filter(i => i.investor_name.trim())
-        .map(i => ({
-          watch_id:      watch.id,
-          investor_name: i.investor_name,
-          percentage:    parseFloat(i.percentage),
-        }))
+      const investorRows = form.inventory_type === 'twb'
+        ? investors
+            .filter(i => i.investor_name.trim())
+            .map(i => ({
+              watch_id:      watch.id,
+              investor_name: i.investor_name,
+              percentage:    parseFloat(i.percentage),
+            }))
+        : []
 
       if (investorRows.length > 0) {
         const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
@@ -443,17 +447,19 @@ export default function EditWatchForm({
               <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" className={inp} />
             </div>
           )}
-          <div>
-            <label className={lbl}>Purchased From</label>
-            <input type="text" value={form.purchased_from} onChange={field('purchased_from')} className={inp} />
-          </div>
+          {form.inventory_type === 'twb' && (
+            <div>
+              <label className={lbl}>Purchased From</label>
+              <input type="text" value={form.purchased_from} onChange={field('purchased_from')} className={inp} />
+            </div>
+          )}
           <div>
             <label className={lbl}>Date Acquired</label>
             <input type="date" value={form.date_acquired} onChange={field('date_acquired')} className={inp} />
             <p className="text-[11px] text-gray-400 mt-1">When was this watch purchased/acquired?</p>
           </div>
           <div>
-            <label className={lbl}>Purchase Cost</label>
+            <label className={lbl}>{form.inventory_type === 'consign' ? 'Consignee Fee' : 'Purchase Cost'}</label>
             <CurrencyInput value={form.purchase_cost} onChange={v => setForm(f => ({ ...f, purchase_cost: v }))} />
           </div>
         </div>
@@ -487,7 +493,9 @@ export default function EditWatchForm({
       </div>
 
       {/* ── Investors ────────────────────────────────────── */}
-      <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
+      {form.inventory_type === 'twb' && (
+        <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
+      )}
 
       {/* ── Photos ───────────────────────────────────────── */}
       <div className={card}>

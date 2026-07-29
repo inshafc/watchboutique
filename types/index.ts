@@ -10,14 +10,18 @@ export interface Brand {
 
 // ── Watch enums ──────────────────────────────────────────────
 
-export type WatchCondition  = 'unworn' | 'pre-owned'
+// NOTE: `condition` on the `watches` table is a Postgres enum (watch_condition),
+// not free text — its members are capitalized ('Unworn', 'Pre-Owned', plus legacy
+// values like 'Excellent'/'Good'/'Brand New'). These two values must match the
+// enum's actual casing or inserts/updates fail at the DB level.
+export type WatchCondition  = 'Unworn' | 'Pre-Owned'
 export type WatchSetDetails = 'Full Set' | 'Box and Watch' | 'Watch Only'
 export type WatchStatus     = 'Available' | 'On Hold' | 'Sold'
 export type WatchStatusNew  = 'Available' | 'On Hold' | 'Offered' | 'Sold'
 export type InventoryType   = 'twb' | 'consign'
 
-export const WATCH_CONDITIONS:    WatchCondition[]   = ['unworn', 'pre-owned']
-export const CONDITION_LABELS: Record<WatchCondition, string> = { 'unworn': 'Unworn', 'pre-owned': 'Pre-Owned' }
+export const WATCH_CONDITIONS:    WatchCondition[]   = ['Unworn', 'Pre-Owned']
+export const CONDITION_LABELS: Record<WatchCondition, string> = { 'Unworn': 'Unworn', 'Pre-Owned': 'Pre-Owned' }
 export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Full Set', 'Box and Watch', 'Watch Only']
 export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold']
 export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']
@@ -213,11 +217,12 @@ export interface SalesManager {
 }
 
 export interface InvestorRecord {
-  id:               string
-  key:              string
-  display_name:     string
-  is_default:       boolean
-  amount_invested:  number | null
+  id:                          string
+  key:                         string
+  display_name:                string
+  is_default:                  boolean
+  amount_invested:             number | null
+  default_split_investor_pct:  number | null
 }
 
 export interface KPITarget {

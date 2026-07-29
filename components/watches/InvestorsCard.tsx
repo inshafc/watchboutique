@@ -11,7 +11,10 @@ export interface InvestorRow {
 interface InvestorOption {
   key: string
   display_name: string
+  default_split_investor_pct: number | null
 }
+
+const TWB_KEY = 'twb'
 
 const inp = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const card = 'bg-card border border-border rounded-xl p-5 md:p-6'
@@ -47,7 +50,7 @@ export default function InvestorsCard({
       const supabase = createClient()
       const { data } = await supabase
         .from('investor_names')
-        .select('key, display_name')
+        .select('key, display_name, default_split_investor_pct')
         .order('created_at', { ascending: true })
       setOptions((data ?? []) as InvestorOption[])
       setOptionsLoading(false)
@@ -61,10 +64,33 @@ export default function InvestorsCard({
     setInvestors(v => v.map((row, i) => (i === idx ? { ...row, [key]: val } : row)))
   }
 
+  // Selecting a real (non-TWB) investor auto-fills their default split and
+  // stamps TWB with the remainder — a one-time convenience at entry, not a
+  // live link. Editing the resulting percentages afterward is unaffected.
+  function applyInvestorSelection(list: InvestorRow[], idx: number, key: string): InvestorRow[] {
+    const option = options.find(o => o.key === key)
+    const investorPct = option?.default_split_investor_pct ?? 50
+    const twbPct = 100 - investorPct
+
+    const withSelection = list.map((row, i) => (i === idx ? { ...row, investor_name: key, percentage: String(investorPct) } : row))
+    const twbIdx = withSelection.findIndex((row, i) => i !== idx && row.investor_name === TWB_KEY)
+    if (twbIdx !== -1) {
+      return withSelection.map((row, i) => (i === twbIdx ? { ...row, percentage: String(twbPct) } : row))
+    }
+    if (withSelection.length < 4) {
+      return [...withSelection, { investor_name: TWB_KEY, percentage: String(twbPct) }]
+    }
+    return withSelection
+  }
+
   function addInvestor() {
     if (investors.length >= 4) return
     const nextOption = options.find(o => !usedKeys.has(o.key)) ?? options[0]
-    setInvestors(v => [...v, { investor_name: nextOption?.key ?? '', percentage: '' }])
+    const key = nextOption?.key ?? ''
+    setInvestors(v => {
+      const next = [...v, { investor_name: key, percentage: '' }]
+      return key && key !== TWB_KEY ? applyInvestorSelection(next, next.length - 1, key) : next
+    })
   }
 
   function removeInvestor(idx: number) {
@@ -79,6 +105,12 @@ export default function InvestorsCard({
       setAddError(null)
       return
     }
+
+    if (value !== TWB_KEY) {
+      setInvestors(v => applyInvestorSelection(v, idx, value))
+      return
+    }
+
     updateInvestor(idx, 'investor_name', value)
   }
 
