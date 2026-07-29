@@ -3,6 +3,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useState } from 'react'
 import { logActivity } from '@/lib/activityLog'
+import PaddleIcon from '@/components/ui/PaddleIcon'
 
 export default function ChangePasswordPage() {
   const [password, setPassword] = useState('')
@@ -61,8 +62,20 @@ export default function ChangePasswordPage() {
     <div style={{ minHeight: '100vh', backgroundColor: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(2).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDIpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2Njg0NTcsImV4cCI6MzUxMDY2ODQ1N30.pulhV5qaPqSacgBey2Og77pQBgdh8kMoaUiIIpm_-sA" alt="TWB Brain" style={{ height: '48px', width: 'auto', objectFit: 'contain' }} />
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '14px',
+              backgroundColor: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+            }}
+          >
+            <PaddleIcon className="w-6 h-6" />
+          </div>
         </div>
         <h1 style={{ color: '#ffffff', fontSize: '28px', fontWeight: 300, textAlign: 'center', marginBottom: '8px' }}>Set Your Password</h1>
         <p style={{ color: '#666', fontSize: '13px', textAlign: 'center', marginBottom: '32px' }}>Please set a new password to continue</p>

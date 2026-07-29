@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
+import PaddleIcon from '@/components/ui/PaddleIcon'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -80,31 +81,28 @@ export default function LoginPage() {
 
             {/* Logo + heading */}
             <div className="px-8 pt-10 pb-6 text-center">
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(2).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDIpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2Njg0NTcsImV4cCI6MzUxMDY2ODQ1N30.pulhV5qaPqSacgBey2Og77pQBgdh8kMoaUiIIpm_-sA"
-                  alt="TWB Brain"
-                  style={{ height: '56px', width: 'auto', objectFit: 'contain' }}
-                />
-              </div>
-              {/* Brain activity animation */}
-              <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 24px' }}>
-                <svg width="120" height="40" viewBox="0 0 120 40" style={{ opacity: 0.8 }}>
-                  <line x1="20" y1="20" x2="50" y2="10" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
-                  <line x1="50" y1="10" x2="80" y2="20" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
-                  <line x1="20" y1="20" x2="50" y2="30" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
-                  <line x1="50" y1="30" x2="80" y2="20" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
-                  <line x1="50" y1="10" x2="50" y2="30" stroke="#C9A84C" strokeWidth="1" opacity="0.3" />
-                  <circle cx="20" cy="20" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0s' }} />
-                  <circle cx="50" cy="10" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.3s' }} />
-                  <circle cx="50" cy="30" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.6s' }} />
-                  <circle cx="80" cy="20" r="3" fill="#C9A84C" className="pulse-node" style={{ animationDelay: '0.9s' }} />
-                </svg>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '16px',
+                    backgroundColor: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <PaddleIcon className="w-7 h-7" />
+                </div>
               </div>
 
+              <p className="animate-fade-in" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 500, fontSize: '13px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#888', margin: '0 0 8px', animationDelay: '0.05s', opacity: 0 }}>
+                Pickleball League
+              </p>
+
               <h1 className="animate-fade-in" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 300, fontSize: '32px', lineHeight: 1.2, color: 'white', margin: 0, animationDelay: '0.1s', opacity: 0 }}>
-                Login
+                Player Login
               </h1>
             </div>
 

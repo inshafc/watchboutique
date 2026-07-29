@@ -11,8 +11,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "The Watch Boutique — ERP",
-  description: "Internal management system for The Watch Boutique (TWB)",
+  title: "Pickleball League | Draw",
+  description: "Pickleball League — player portal.",
 };
 
 export default function RootLayout({

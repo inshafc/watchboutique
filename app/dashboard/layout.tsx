@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 
 import { useAuth } from '@/context/AuthContext'
 import ProfileEditModal from '@/components/ui/ProfileEditModal'
+import PaddleIcon from '@/components/ui/PaddleIcon'
 import type { UserRole } from '@/lib/auth'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -74,13 +75,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const SidebarContent = () => (
     <>
       {/* Brand header */}
-      <div className="flex items-center justify-center px-5 py-5 border-b border-white/8">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(2).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDIpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2Njg0NTcsImV4cCI6MzUxMDY2ODQ1N30.pulhV5qaPqSacgBey2Og77pQBgdh8kMoaUiIIpm_-sA"
-          alt="TWB"
-          style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
-        />
+      <div className="flex items-center justify-center gap-2 px-5 py-5 border-b border-white/8">
+        <div
+          style={{
+            width: '30px',
+            height: '30px',
+            borderRadius: '9px',
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <PaddleIcon className="w-4 h-4" />
+        </div>
+        <span className="text-white text-[13px] font-semibold tracking-wide">Pickleball League</span>
       </div>
 
       {/* Main nav */}
@@ -171,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         ) : (
-          <p className="text-[10px] text-white/20 font-medium px-3 pt-2">TWB ERP · v1</p>
+          <p className="text-[10px] text-white/20 font-medium px-3 pt-2">Pickleball League · v1</p>
         )}
       </div>
     </>
@@ -209,12 +219,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/twb%20Brain%20(2).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby90d2IgQnJhaW4gKDIpLnBuZyIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODI2Njg0NTcsImV4cCI6MzUxMDY2ODQ1N30.pulhV5qaPqSacgBey2Og77pQBgdh8kMoaUiIIpm_-sA"
-            alt="TWB Brain"
-            style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
-          />
+          <div className="flex items-center gap-1.5">
+            <PaddleIcon className="w-5 h-5" />
+            <span className="text-text-primary text-[13px] font-semibold">Pickleball League</span>
+          </div>
           {profile ? (
             <button
               onClick={() => setShowProfileEdit(true)}
