@@ -171,6 +171,10 @@ export default function WatchInventory({
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [undoState,   setUndoState]   = useState<{ message: string; restore: () => Promise<void> } | null>(null)
 
+  // Toast
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
   // Inline confirm for permanent delete
   const [confirmDeleteId,  setConfirmDeleteId]  = useState<string | null>(null)
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -199,7 +203,9 @@ export default function WatchInventory({
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
         setShowSortMenu(false)
       }
-      setTileMenuId(null)
+      if (!(e.target as HTMLElement).closest('[data-tile-menu]')) {
+        setTileMenuId(null)
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -363,6 +369,15 @@ export default function WatchInventory({
 
   // ── Undo ──────────────────────────────────────────────────
 
+  function showToast(message: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast(message)
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null)
+      toastTimerRef.current = null
+    }, 2200)
+  }
+
   function showUndo(message: string, restore: () => Promise<void>) {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     setUndoState({ message, restore })
@@ -492,9 +507,17 @@ export default function WatchInventory({
 
   function handleShare(e: React.MouseEvent, watchId: string) {
     e.stopPropagation()
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard/watches/${watchId}`)
     const w = watches.find(w => w.id === watchId)
-    void logActivity({ actionType: 'watch_shared', entityType: 'watch', entityId: watchId, entityLabel: w?.watch_name })
+    if (!w) return
+    const segments = [
+      w.watch_name,
+      w.condition,
+      w.reference ? `Ref: ${w.reference}` : null,
+    ].filter((s): s is string => Boolean(s && s.trim()))
+    const message = segments.join(' — ')
+    void navigator.clipboard.writeText(message)
+    showToast('Copied to clipboard')
+    void logActivity({ actionType: 'watch_shared', entityType: 'watch', entityId: watchId, entityLabel: w.watch_name })
   }
 
   // ── Bulk actions ──────────────────────────────────────────
@@ -1309,23 +1332,20 @@ export default function WatchInventory({
                           className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150"
                           onClick={e => e.stopPropagation()}
                         >
-                          <TileBtn title="Copy link" onClick={e => handleShare(e, w.id)}><ShareIcon /></TileBtn>
+                          <TileBtn title="Share" onClick={e => handleShare(e, w.id)}><ShareIcon /></TileBtn>
                           <TileBtn title="Duplicate" onClick={e => handleDuplicate(e, w)}><CopyIcon /></TileBtn>
                           <div className="relative">
                             <TileBtn title="More options" onClick={e => { e.stopPropagation(); const next = tileMenuId === w.id ? null : w.id; setTileMenuId(next); if (!next) setTileDeleteConfirmId(null) }}>
                               <DotsIcon />
                             </TileBtn>
                             {tileMenuId === w.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden min-w-[140px]">
+                              <div data-tile-menu className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden min-w-[140px]">
                                 <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); router.push(`/dashboard/watches/${w.id}/edit`) }}>
                                   <EditIcon /> Edit
                                 </button>
                                 <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => {
-                                  e.stopPropagation()
                                   setTileMenuId(null)
-                                  const msg = `*${w.watch_name}*\nRef: ${w.reference ?? '—'}\nPrice: LKR ${w.selling_price?.toLocaleString() ?? '—'}\n\n${window.location.origin}/dashboard/watches/${w.id}`
-                                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-                                  void logActivity({ actionType: 'watch_shared', entityType: 'watch', entityId: w.id, entityLabel: w.watch_name })
+                                  handleShare(e, w.id)
                                 }}>
                                   <ShareIcon /> Share via WhatsApp
                                 </button>
@@ -1664,6 +1684,13 @@ export default function WatchInventory({
               <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Share toast ───────────────────────────────────────── */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+          {toast}
         </div>
       )}
 
