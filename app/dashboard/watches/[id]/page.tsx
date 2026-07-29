@@ -7,8 +7,10 @@ import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
 import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
 import WatchDetailActions from '@/components/watches/WatchDetailActions'
+import DeletedWatchActions from '@/components/watches/DeletedWatchActions'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
+import { displayCondition } from '@/lib/watch-condition'
 import type { WatchWithInvestors } from '@/types'
 
 function formatLKR(n: number | null) {
@@ -42,6 +44,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
   if (!watchRes.data) notFound()
 
   const watch = watchRes.data as WatchWithInvestors
+  const isDeleted = !!watch.deleted_at
   type WatchDeal = {
     id: string
     deal_type: string
@@ -95,7 +98,11 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </Link>
 
       {/* Action buttons */}
-      <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
+      {isDeleted ? (
+        <DeletedWatchActions watchId={watch.id} />
+      ) : (
+        <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
+      )}
 
       {/* Photos */}
       {watch.photos && watch.photos.length > 0 ? (
@@ -165,7 +172,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         {[
           { label: 'Year',      value: extractYear(watch.date_on_card) },
           { label: 'Serial',    value: watch.serial_number },
-          { label: 'Condition', value: watch.condition },
+          { label: 'Condition', value: displayCondition(watch.condition) },
           { label: 'Set',       value: watch.set_details },
           ...(watch.date_acquired ? [{ label: 'Acquired', value: new Date(watch.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' }) }] : []),
         ].map(({ label, value }) => (
@@ -177,13 +184,15 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </div>
 
       {/* Watch Status inline buttons */}
-      <div className="border border-gray-100 rounded-2xl p-5 mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Watch Status</p>
-        <WatchStatusButtons watchId={watch.id} initialStatus={watch.watch_status} />
-      </div>
+      {!isDeleted && (
+        <div className="border border-gray-100 rounded-2xl p-5 mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Watch Status</p>
+          <WatchStatusButtons watchId={watch.id} initialStatus={watch.watch_status} />
+        </div>
+      )}
 
       {/* Record Sale */}
-      {watch.watch_status !== 'Sold' && watch.watch_status !== 'sourced' && (
+      {!isDeleted && watch.watch_status !== 'Sold' && watch.watch_status !== 'sourced' && (
         <Link
           href={`/dashboard/deals/new?watch_id=${watch.id}`}
           className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white text-sm font-semibold px-4 py-3 rounded-xl hover:bg-black transition-colors mb-4"
@@ -198,6 +207,10 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         <div className="border border-gray-100 rounded-2xl p-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Purchase</p>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            <Field label="Inventory Type" value={watch.inventory_type === 'consign' ? 'Consign' : 'TWB'} />
+            {watch.inventory_type === 'consign' && (
+              <Field label="Consignee" value={watch.consignee_name} />
+            )}
             <Field label="Purchased From" value={watch.purchased_from} />
             <Field label="Purchase Cost"  value={formatLKR(watch.purchase_cost)} />
             <Field label="Serial Number"  value={watch.serial_number} />
@@ -210,6 +223,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Status"        value={<StatusBadge status={watch.status} />} />
             <Field label="Selling Price" value={formatLKR(watch.selling_price)} />
+            {watch.status === 'Sold' && (
+              <Field label="Sold Price" value={formatLKR(watch.sold_price ?? null)} />
+            )}
           </div>
         </div>
 
@@ -398,7 +414,11 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       </p>
 
       <div className="mt-6 pt-6 border-t border-gray-100">
-        <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
+        {isDeleted ? (
+          <DeletedWatchActions watchId={watch.id} />
+        ) : (
+          <WatchDetailActions watchId={watch.id} isDraft={watch.is_draft ?? false} watchStatus={watch.watch_status} />
+        )}
       </div>
     </div>
   )

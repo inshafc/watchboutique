@@ -7,13 +7,19 @@ import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
+import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
+import { displayCondition } from '@/lib/watch-condition'
 import {
   WATCH_CONDITIONS,
+  CONDITION_LABELS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
+  INVENTORY_TYPES,
+  INVENTORY_TYPE_LABELS,
   type WatchCondition,
   type WatchSetDetails,
   type WatchStatus,
+  type InventoryType,
   type WatchWithInvestors,
   type Brand,
 } from '@/types'
@@ -60,13 +66,20 @@ export default function EditWatchForm({
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
+  // Sold -> Available void-sale guard
+  const [voidDialog, setVoidDialog]       = useState<{ linkedDealId: string } | null>(null)
+  const [voidActing, setVoidActing]       = useState(false)
+  const [pendingIsDraft, setPendingIsDraft] = useState(false)
+
   const [form, setForm] = useState({
     watch_name:     watch.watch_name,
     reference:      watch.reference      ?? '',
     serial_number:  watch.serial_number  ?? '',
     date_on_card:   watch.date_on_card   ?? '',
-    condition:      watch.condition      as WatchCondition,
+    condition:      displayCondition(watch.condition).toLowerCase() as WatchCondition,
     set_details:    normaliseSetDetails(watch.set_details),
+    inventory_type: (watch.inventory_type ?? 'twb') as InventoryType,
+    consignee_name: watch.consignee_name ?? '',
     purchased_from: watch.purchased_from ?? '',
     date_acquired:  watch.date_acquired  ?? '',
     purchase_cost:  watch.purchase_cost  != null ? String(watch.purchase_cost) : '',
@@ -95,7 +108,7 @@ export default function EditWatchForm({
           investor_name: i.investor_name,
           percentage:    String(i.percentage),
         }))
-      : []
+      : [{ investor_name: 'twb', percentage: '100' }]
   )
 
   function field(key: keyof typeof form) {
@@ -104,7 +117,7 @@ export default function EditWatchForm({
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = investors.length === 0 || Math.abs(totalPct - 100) < 0.01
+  const investorsValid = investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
@@ -113,11 +126,7 @@ export default function EditWatchForm({
     setBrandError(data && data.length > 0 ? 'Brand already exists' : null)
   }
 
-  async function save(isDraft: boolean) {
-    if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
-    if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
-    if (brandError) { setError('Please fix the brand error before saving.'); return }
-
+  async function performSave(isDraft: boolean) {
     setLoading(true)
     setError(null)
 
@@ -166,10 +175,13 @@ export default function EditWatchForm({
           date_on_card:   form.date_on_card           || null,
           condition:      form.condition,
           set_details:    form.set_details,
+          inventory_type: form.inventory_type,
+          consignee_name: form.inventory_type === 'consign' ? form.consignee_name.trim() : null,
           purchased_from: form.purchased_from.trim() || null,
           date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           status:         form.status,
+          watch_status:   form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
           comments:       form.comments.trim()       || null,
           photos,
@@ -211,6 +223,97 @@ export default function EditWatchForm({
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
       setLoading(false)
     }
+  }
+
+  async function save(isDraft: boolean) {
+    if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
+    if (form.inventory_type === 'consign' && !form.consignee_name.trim()) { setError('Consignee name is required for a consigned watch.'); return }
+    if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
+    if (brandError) { setError('Please fix the brand error before saving.'); return }
+
+    // Sold -> non-Sold would silently void the sale. Check for a linked deal first.
+    if (watch.status === 'Sold' && form.status !== 'Sold') {
+      setLoading(true)
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('deals')
+        .select('id')
+        .eq('watch_id', watch.id)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle()
+      setLoading(false)
+
+      if (data) {
+        setPendingIsDraft(isDraft)
+        setVoidDialog({ linkedDealId: data.id })
+        return
+      }
+    }
+
+    await performSave(isDraft)
+  }
+
+  async function handleVoidConfirm() {
+    if (!voidDialog || voidActing) return
+    setVoidActing(true)
+    const supabase = createClient()
+    await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).eq('id', voidDialog.linkedDealId)
+    setVoidDialog(null)
+    setVoidActing(false)
+    await performSave(pendingIsDraft)
+  }
+
+  async function handleVoidDuplicate() {
+    if (!voidDialog || voidActing) return
+    setVoidActing(true)
+    const supabase = createClient()
+
+    const { data: freshWatch } = await supabase.from('watches').select('*').eq('id', watch.id).single()
+    if (!freshWatch) { setVoidActing(false); return }
+
+    const { data: newWatch } = await supabase
+      .from('watches')
+      .insert({
+        watch_name:     freshWatch.watch_name,
+        reference:      freshWatch.reference,
+        serial_number:  freshWatch.serial_number,
+        date_on_card:   freshWatch.date_on_card,
+        condition:      freshWatch.condition,
+        set_details:    freshWatch.set_details,
+        purchased_from: freshWatch.purchased_from,
+        purchase_cost:  freshWatch.purchase_cost,
+        selling_price:  freshWatch.selling_price,
+        currency:       freshWatch.currency,
+        photos:         freshWatch.photos,
+        labels:         freshWatch.labels,
+        comments:       freshWatch.comments,
+        brand_id:       freshWatch.brand_id,
+        inventory_type: freshWatch.inventory_type,
+        consignee_name: freshWatch.consignee_name,
+        is_draft:       true,
+        watch_status:   'Available',
+        status:         'Available',
+      })
+      .select('id')
+      .single()
+
+    if (!newWatch) { setVoidActing(false); return }
+
+    const { data: existingInvestors } = await supabase
+      .from('watch_investors')
+      .select('investor_name, percentage')
+      .eq('watch_id', watch.id)
+
+    if (existingInvestors && existingInvestors.length > 0) {
+      await supabase.from('watch_investors').insert(
+        existingInvestors.map(i => ({ watch_id: newWatch.id, investor_name: i.investor_name, percentage: i.percentage }))
+      )
+    }
+
+    setVoidDialog(null)
+    setVoidActing(false)
+    router.push(`/dashboard/watches/${newWatch.id}/edit`)
   }
 
   async function handleDelete() {
@@ -311,7 +414,7 @@ export default function EditWatchForm({
             <div>
               <label className={lbl}>Condition</label>
               <select value={form.condition} onChange={field('condition')} className={inp}>
-                {WATCH_CONDITIONS.map(c => <option key={c}>{c}</option>)}
+                {WATCH_CONDITIONS.map(c => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
               </select>
             </div>
           </div>
@@ -328,6 +431,18 @@ export default function EditWatchForm({
       <div className={card}>
         <p className={cardTitle}>Purchase</p>
         <div className="space-y-4">
+          <div>
+            <label className={lbl}>Inventory Type</label>
+            <select value={form.inventory_type} onChange={field('inventory_type')} className={inp}>
+              {INVENTORY_TYPES.map(t => <option key={t} value={t}>{INVENTORY_TYPE_LABELS[t]}</option>)}
+            </select>
+          </div>
+          {form.inventory_type === 'consign' && (
+            <div>
+              <label className={lbl}>Consignee Name *</label>
+              <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" className={inp} />
+            </div>
+          )}
           <div>
             <label className={lbl}>Purchased From</label>
             <input type="text" value={form.purchased_from} onChange={field('purchased_from')} className={inp} />
@@ -421,6 +536,15 @@ export default function EditWatchForm({
           Delete
         </button>
       </div>
+
+      {voidDialog && (
+        <VoidSaleDialog
+          acting={voidActing}
+          onDuplicate={handleVoidDuplicate}
+          onVoidSale={handleVoidConfirm}
+          onCancel={() => setVoidDialog(null)}
+        />
+      )}
     </div>
   )
 }

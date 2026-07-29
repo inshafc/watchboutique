@@ -315,7 +315,7 @@ export default function EditDealForm({
     if (updateErr) { setError(updateErr.message); setLoading(false); return }
 
     if (form.stage === 'Delivered' && form.watch_id) {
-      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold' }).eq('id', form.watch_id)
+      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold', sold_price: salePrice }).eq('id', form.watch_id)
     }
 
     // Sync deal_expenses: delete all then reinsert

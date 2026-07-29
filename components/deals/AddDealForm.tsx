@@ -340,7 +340,7 @@ export default function AddDealForm({
     }
 
     if (form.watch_id) {
-      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold' }).eq('id', form.watch_id)
+      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold', sold_price: salePrice }).eq('id', form.watch_id)
     }
 
     if (form.payment_method === 'Installment' && installmentRows.length > 0) {

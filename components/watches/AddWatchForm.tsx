@@ -10,11 +10,15 @@ import CurrencyInput from '@/components/ui/CurrencyInput'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import {
   WATCH_CONDITIONS,
+  CONDITION_LABELS,
   WATCH_SET_DETAILS,
   WATCH_STATUSES,
+  INVENTORY_TYPES,
+  INVENTORY_TYPE_LABELS,
   type WatchCondition,
   type WatchSetDetails,
   type WatchStatus,
+  type InventoryType,
   type Brand,
 } from '@/types'
 
@@ -79,8 +83,10 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     reference:      '',
     serial_number:  '',
     date_on_card:   '',
-    condition:      'Unworn' as WatchCondition,
+    condition:      'unworn' as WatchCondition,
     set_details:    'Full Set' as WatchSetDetails,
+    inventory_type: 'twb' as InventoryType,
+    consignee_name: '',
     purchased_from: '',
     purchase_cost:  '',
     date_acquired:  new Date().toISOString().split('T')[0],
@@ -95,7 +101,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const [brandError,   setBrandError]   = useState<string | null>(null)
 
   const [photoItems, setPhotoItems] = useState<PhotoItem[]>([])
-  const [investors,  setInvestors]  = useState<InvestorRow[]>([])
+  const [investors,  setInvestors]  = useState<InvestorRow[]>([{ investor_name: 'twb', percentage: '100' }])
 
   const [labelNewArrival, setLabelNewArrival] = useState(true)
   const [labelHotSell,    setLabelHotSell]    = useState(false)
@@ -107,7 +113,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = investors.length === 0 || Math.abs(totalPct - 100) < 0.01
+  const investorsValid = investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
@@ -118,6 +124,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
   async function save(isDraft: boolean) {
     if (!form.watch_name.trim()) { setError('Watch name is required.'); return }
+    if (form.inventory_type === 'consign' && !form.consignee_name.trim()) { setError('Consignee name is required for a consigned watch.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
     if (brandError) { setError('Please fix the brand error before saving.'); return }
 
@@ -152,6 +159,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           date_on_card:   form.date_on_card           || null,
           condition:      form.condition,
           set_details:    form.set_details,
+          inventory_type: form.inventory_type,
+          consignee_name: form.inventory_type === 'consign' ? form.consignee_name.trim() : null,
           purchased_from: form.purchased_from.trim() || null,
           date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
@@ -309,7 +318,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
             <div>
               <label className={lbl}>Condition</label>
               <select value={form.condition} onChange={field('condition')} className={inp}>
-                {WATCH_CONDITIONS.map(c => <option key={c}>{c}</option>)}
+                {WATCH_CONDITIONS.map(c => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
               </select>
             </div>
           </div>
@@ -326,6 +335,18 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       <div className={card}>
         <p className={cardTitle}>Purchase</p>
         <div className="space-y-4">
+          <div>
+            <label className={lbl}>Inventory Type</label>
+            <select value={form.inventory_type} onChange={field('inventory_type')} className={inp}>
+              {INVENTORY_TYPES.map(t => <option key={t} value={t}>{INVENTORY_TYPE_LABELS[t]}</option>)}
+            </select>
+          </div>
+          {form.inventory_type === 'consign' && (
+            <div>
+              <label className={lbl}>Consignee Name *</label>
+              <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" className={inp} />
+            </div>
+          )}
           <div>
             <label className={lbl}>Purchased From</label>
             <input type="text" value={form.purchased_from} onChange={field('purchased_from')} placeholder="Seller name or source" className={inp} />

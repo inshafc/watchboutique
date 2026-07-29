@@ -10,15 +10,19 @@ export interface Brand {
 
 // ── Watch enums ──────────────────────────────────────────────
 
-export type WatchCondition  = 'Unworn' | 'Pre-Owned'
+export type WatchCondition  = 'unworn' | 'pre-owned'
 export type WatchSetDetails = 'Full Set' | 'Box and Watch' | 'Watch Only'
-export type WatchStatus     = 'Available' | 'On Hold' | 'Sold' | 'Consigned'
+export type WatchStatus     = 'Available' | 'On Hold' | 'Sold'
 export type WatchStatusNew  = 'Available' | 'On Hold' | 'Offered' | 'Sold'
+export type InventoryType   = 'twb' | 'consign'
 
-export const WATCH_CONDITIONS:    WatchCondition[]   = ['Unworn', 'Pre-Owned']
+export const WATCH_CONDITIONS:    WatchCondition[]   = ['unworn', 'pre-owned']
+export const CONDITION_LABELS: Record<WatchCondition, string> = { 'unworn': 'Unworn', 'pre-owned': 'Pre-Owned' }
 export const WATCH_SET_DETAILS:   WatchSetDetails[]  = ['Full Set', 'Box and Watch', 'Watch Only']
-export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold', 'Consigned']
+export const WATCH_STATUSES:      WatchStatus[]      = ['Available', 'On Hold', 'Sold']
 export const WATCH_STATUS_NEW:    WatchStatusNew[]   = ['Available', 'On Hold', 'Offered', 'Sold']
+export const INVENTORY_TYPES:     InventoryType[]    = ['twb', 'consign']
+export const INVENTORY_TYPE_LABELS: Record<InventoryType, string> = { twb: 'TWB', consign: 'Consign' }
 
 // ── Watch tables ─────────────────────────────────────────────
 
@@ -46,6 +50,9 @@ export interface Watch {
   labels?:        string[]
   is_draft?:      boolean
   date_acquired?: string | null
+  inventory_type?: InventoryType | null
+  consignee_name?: string | null
+  sold_price?:     number | null
 }
 
 export interface WatchWithBrand extends Watch {

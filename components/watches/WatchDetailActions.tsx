@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 
 function CheckIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 function DraftIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg> }
@@ -82,7 +83,7 @@ export default function WatchDetailActions({
       setDialog({ linkedDealId: data.id })
     } else {
       setBusy(true)
-      await supabase.from('watches').update({ watch_status: 'Available', status: 'Available' }).eq('id', watchId)
+      await supabase.from('watches').update({ watch_status: 'Available', status: 'Available', sold_price: null }).eq('id', watchId)
       setBusy(false)
       setToast('Watch marked as Available')
       setTimeout(() => setToast(null), 4000)
@@ -95,7 +96,7 @@ export default function WatchDetailActions({
     setActing(true)
     const supabase = createClient()
     await supabase.from('deals').update({ deleted_at: new Date().toISOString() }).eq('id', dialog.linkedDealId)
-    await supabase.from('watches').update({ watch_status: 'Available', status: 'Available' }).eq('id', watchId)
+    await supabase.from('watches').update({ watch_status: 'Available', status: 'Available', sold_price: null }).eq('id', watchId)
     setDialog(null)
     setActing(false)
     setToast('Sale removed — watch is now available')
@@ -126,6 +127,8 @@ export default function WatchDetailActions({
       labels:         watch.labels,
       comments:       watch.comments,
       brand_id:       watch.brand_id,
+      inventory_type: watch.inventory_type,
+      consignee_name: watch.consignee_name,
       is_draft:       true,
       watch_status:   'Available',
       status:         'Available',
@@ -213,45 +216,12 @@ export default function WatchDetailActions({
       </div>
 
       {dialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !acting && setDialog(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
-            <h3 className="text-base font-bold text-gray-900 mb-2">This watch has a completed sale</h3>
-            <p className="text-sm text-gray-500 mb-6">Choose how you&apos;d like to proceed:</p>
-
-            <div className="space-y-2">
-              <button
-                onClick={handleDialogDuplicate}
-                disabled={acting}
-                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 text-left"
-              >
-                <span className="text-sm font-semibold text-gray-900">Duplicate</span>
-                <span className="text-xs text-gray-400 mt-0.5">Create a draft copy of this watch. Original stays as Sold.</span>
-              </button>
-
-              <button
-                onClick={handleDialogRemoveSale}
-                disabled={acting}
-                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50 text-left"
-              >
-                <span className="text-sm font-semibold text-gray-900">Remove Sale</span>
-                <span className="text-xs text-gray-400 mt-0.5">Soft-delete the linked sale and mark watch as Available.</span>
-              </button>
-
-              <button
-                onClick={() => setDialog(null)}
-                disabled={acting}
-                className="w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-
-            {acting && (
-              <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
-            )}
-          </div>
-        </div>
+        <VoidSaleDialog
+          acting={acting}
+          onDuplicate={handleDialogDuplicate}
+          onVoidSale={handleDialogRemoveSale}
+          onCancel={() => setDialog(null)}
+        />
       )}
     </>
   )

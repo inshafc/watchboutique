@@ -8,6 +8,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
+import { displayCondition } from '@/lib/watch-condition'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 
@@ -75,7 +76,7 @@ function ConditionIcon({ condition }: { condition?: string | null }) {
 
 type SortOption      = 'last_added' | 'oldest_added' | 'sell_desc' | 'sell_asc' | 'buy_desc' | 'name_asc' | 'name_desc'
 type ConditionFilter = 'All' | 'Unworn' | 'Pre-Owned'
-type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced'
+type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced' | 'Consigned'
 type ViewMode        = 'list' | 'tile'
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -235,6 +236,7 @@ export default function WatchInventory({
     watchesWithDeals: Array<{ watchId: string; watchName: string; dealId: string }>
   } | null>(null)
   const [bulkAvailableActing, setBulkAvailableActing] = useState(false)
+  const [confirmingBulkVoid, setConfirmingBulkVoid] = useState(false)
 
   // Undo
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -317,6 +319,10 @@ export default function WatchInventory({
       list = list.filter(w => w.watch_status === 'sourced')
     } else if (statusFilter === 'Drafts') {
       list = list.filter(w => w.is_draft && w.watch_status !== 'sourced')
+    } else if (statusFilter === 'Consigned') {
+      // Consignment is an ownership type, not a status — a consigned watch can be
+      // Available/On Hold/Sold and still shows here, same as it does in its status tab.
+      list = list.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
     } else {
       list = list.filter(w => w.watch_status !== 'sourced')
       if (statusFilter !== 'All') {
@@ -335,12 +341,12 @@ export default function WatchInventory({
     }
 
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (statusFilter !== 'All' && statusFilter !== 'Deleted' && statusFilter !== 'Drafts' && statusFilter !== 'Sourced') {
+    if (statusFilter !== 'All' && statusFilter !== 'Deleted' && statusFilter !== 'Drafts' && statusFilter !== 'Sourced' && statusFilter !== 'Consigned') {
       list = list.filter(w => w.status === statusFilter)
     }
 
     if (conditionFilter !== 'All') {
-      list = list.filter(w => w.condition === conditionFilter)
+      list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     }
 
     switch (sort) {
@@ -367,10 +373,16 @@ export default function WatchInventory({
       if (brandId) list = list.filter(w => w.brand_id === brandId)
       return list.length
     }
+    if (f === 'Consigned') {
+      let list = watches.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
+      if (brandId) list = list.filter(w => w.brand_id === brandId)
+      if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
+      return list.length
+    }
     let list = watches.filter(w => w.watch_status !== 'sourced')
     list = f === 'All' ? list : list.filter(w => !w.is_draft)
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (conditionFilter !== 'All') list = list.filter(w => w.condition === conditionFilter)
+    if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     return f === 'All' ? list.length : list.filter(w => w.status === f).length
   }
 
@@ -392,7 +404,7 @@ export default function WatchInventory({
       )
     }
     if (brandId) list = list.filter(w => w.brand_id === brandId)
-    if (conditionFilter !== 'All') list = list.filter(w => w.condition === conditionFilter)
+    if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     switch (sort) {
       case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
       case 'sell_asc':     return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
@@ -527,6 +539,8 @@ export default function WatchInventory({
         photos:         watch.photos,
         labels:         watch.labels,
         brand_id:       watch.brand_id,
+        inventory_type: watch.inventory_type,
+        consignee_name: watch.consignee_name,
         is_draft:       true,
       })
       .select()
@@ -565,7 +579,7 @@ export default function WatchInventory({
     if (!w) return
     const segments = [
       w.watch_name,
-      w.condition,
+      displayCondition(w.condition),
       w.reference ? `Ref: ${w.reference}` : null,
     ].filter((s): s is string => Boolean(s && s.trim()))
     const message = segments.join(' — ')
@@ -577,8 +591,9 @@ export default function WatchInventory({
   // ── Bulk actions ──────────────────────────────────────────
 
   async function bulkDelete() {
-    const supabase = createClient()
     const ids = Array.from(selectedIds)
+    if (!confirm(`Delete ${ids.length} ${ids.length === 1 ? 'watch' : 'watches'}? You can restore from the Deleted tab.`)) return
+    const supabase = createClient()
     const snapshot = watches.filter(w => ids.includes(w.id))
     await supabase.from('watches').update({ deleted_at: new Date().toISOString() }).in('id', ids)
     setWatches(v => v.filter(w => !ids.includes(w.id)))
@@ -596,27 +611,51 @@ export default function WatchInventory({
   async function bulkDuplicate() {
     const supabase = createClient()
     const selected = watches.filter(w => selectedIds.has(w.id))
-    const rows = selected.map(w => ({
-      watch_name:     `${w.watch_name} (Copy)`,
-      reference:      w.reference,
-      serial_number:  w.serial_number,
-      date_on_card:   w.date_on_card,
-      condition:      w.condition,
-      set_details:    w.set_details,
-      purchased_from: w.purchased_from,
-      purchase_cost:  w.purchase_cost,
-      currency:       w.currency,
-      status:         'Available' as WatchStatus,
-      watch_status:   'Available',
-      selling_price:  w.selling_price,
-      comments:       w.comments,
-      photos:         w.photos,
-      labels:         w.labels,
-      brand_id:       w.brand_id,
-      is_draft:       true,
-    }))
-    const { data } = await supabase.from('watches').insert(rows).select()
-    if (data) setWatches(v => [...(data as WatchWithBrand[]), ...v])
+    const newWatches: WatchWithBrand[] = []
+
+    for (const w of selected) {
+      const { data: newWatch } = await supabase
+        .from('watches')
+        .insert({
+          watch_name:     `${w.watch_name} (Copy)`,
+          reference:      w.reference,
+          serial_number:  w.serial_number,
+          date_on_card:   w.date_on_card,
+          condition:      w.condition,
+          set_details:    w.set_details,
+          purchased_from: w.purchased_from,
+          purchase_cost:  w.purchase_cost,
+          currency:       w.currency,
+          status:         'Available' as WatchStatus,
+          watch_status:   'Available',
+          selling_price:  w.selling_price,
+          comments:       w.comments,
+          photos:         w.photos,
+          labels:         w.labels,
+          brand_id:       w.brand_id,
+          inventory_type: w.inventory_type,
+          consignee_name: w.consignee_name,
+          is_draft:       true,
+        })
+        .select()
+        .single()
+
+      if (!newWatch) continue
+      newWatches.push(newWatch as WatchWithBrand)
+
+      const { data: investors } = await supabase
+        .from('watch_investors')
+        .select('investor_name, percentage')
+        .eq('watch_id', w.id)
+
+      if (investors && investors.length > 0) {
+        await supabase.from('watch_investors').insert(
+          investors.map(i => ({ watch_id: newWatch.id, investor_name: i.investor_name, percentage: i.percentage }))
+        )
+      }
+    }
+
+    if (newWatches.length > 0) setWatches(v => [...newWatches, ...v])
     exitBulkMode()
   }
 
@@ -693,12 +732,13 @@ export default function WatchInventory({
     // Sold watches without a linked deal: update directly
     if (soldWithoutDeal.length > 0) {
       const noDealsIds = soldWithoutDeal.map(w => w.id)
-      await supabase.from('watches').update({ status: 'Available', watch_status: 'Available' }).in('id', noDealsIds)
+      await supabase.from('watches').update({ status: 'Available', watch_status: 'Available', sold_price: null }).in('id', noDealsIds)
       setWatches(v => v.map(w => noDealsIds.includes(w.id) ? { ...w, status: 'Available' as WatchStatus, watch_status: 'Available' } : w))
     }
 
     if (watchesWithDeals.length > 0) {
       // Show dialog — don't exit bulk mode yet
+      setConfirmingBulkVoid(false)
       setBulkAvailableDialog({ watchesWithDeals })
     } else {
       exitBulkMode()
@@ -730,6 +770,8 @@ export default function WatchInventory({
         labels:         w.labels,
         comments:       w.comments,
         brand_id:       w.brand_id,
+        inventory_type: w.inventory_type,
+        consignee_name: w.consignee_name,
         is_draft:       true,
         watch_status:   'Available',
         status:         'Available',
@@ -747,6 +789,7 @@ export default function WatchInventory({
 
     setBulkAvailableDialog(null)
     setBulkAvailableActing(false)
+    setConfirmingBulkVoid(false)
     exitBulkMode()
 
     if (count === 1 && newWatchId) {
@@ -765,7 +808,7 @@ export default function WatchInventory({
     for (const { watchId: wId, dealId } of bulkAvailableDialog.watchesWithDeals) {
       // Delete sale first, then update watch
       await supabase.from('deals').update({ deleted_at: now }).eq('id', dealId)
-      await supabase.from('watches').update({ watch_status: 'Available', status: 'Available' }).eq('id', wId)
+      await supabase.from('watches').update({ watch_status: 'Available', status: 'Available', sold_price: null }).eq('id', wId)
     }
 
     const updatedIds = bulkAvailableDialog.watchesWithDeals.map(x => x.watchId)
@@ -775,6 +818,7 @@ export default function WatchInventory({
 
     setBulkAvailableDialog(null)
     setBulkAvailableActing(false)
+    setConfirmingBulkVoid(false)
     exitBulkMode()
     showUndo(
       `${updatedIds.length} ${updatedIds.length === 1 ? 'sale' : 'sales'} removed — watches marked Available`,
@@ -1038,7 +1082,7 @@ export default function WatchInventory({
           )}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1 overflow-x-auto pb-px">
-              {(['All', ...WATCH_STATUSES, 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => {
+              {(['All', ...WATCH_STATUSES, 'Consigned', 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => {
                 const c = TAB_COLORS[f]
                 const isActive = statusFilter === f
                 return (
@@ -1131,8 +1175,12 @@ export default function WatchInventory({
                     const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                     const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                     return (
-                      <tr key={w.id} className="group">
-                        <td className="px-4 py-3 sticky left-0 bg-white">
+                      <tr
+                        key={w.id}
+                        className="group cursor-pointer hover:bg-gray-50/80 transition-colors"
+                        onClick={() => router.push(`/dashboard/watches/${w.id}`)}
+                      >
+                        <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-gray-50/80 transition-colors">
                           {w.photos && w.photos.length > 0 ? (
                             <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 opacity-50" />
                           ) : (
@@ -1155,7 +1203,7 @@ export default function WatchInventory({
                             ? new Date(w.deleted_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                             : '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-2 justify-end">
                             <button
                               onClick={() => handleRestore(w.id)}
@@ -1577,7 +1625,7 @@ export default function WatchInventory({
                           )}
                         </td>
                         <td className="px-4 py-3 text-gray-500 text-xs tabular-nums hidden sm:table-cell">{displayDate(w.date_on_card)}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden md:table-cell">{w.condition}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden md:table-cell">{displayCondition(w.condition)}</td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden lg:table-cell">{w.set_details}</td>
                         <td className="px-4 py-3"><StatusBadge status={w.watch_status ?? w.status} /></td>
                         <td className="px-4 py-3 text-right text-gray-400 font-mono text-xs tabular-nums hidden sm:table-cell">{formatLKR(w.purchase_cost)}</td>
@@ -1672,52 +1720,81 @@ export default function WatchInventory({
             onClick={() => !bulkAvailableActing && setBulkAvailableDialog(null)}
           />
           <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
-            <h3 className="text-base font-bold text-gray-900 mb-1">
-              {bulkAvailableDialog.watchesWithDeals.length === 1
-                ? 'This watch has a completed sale'
-                : `${bulkAvailableDialog.watchesWithDeals.length} watches have linked sales`}
-            </h3>
-            <p className="text-sm text-gray-500 mb-5">Choose how you&apos;d like to proceed:</p>
+            {!confirmingBulkVoid ? (
+              <>
+                <h3 className="text-base font-bold text-gray-900 mb-1">
+                  {bulkAvailableDialog.watchesWithDeals.length === 1
+                    ? 'This watch has a completed sale'
+                    : `${bulkAvailableDialog.watchesWithDeals.length} watches have linked sales`}
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">Choose how you&apos;d like to proceed:</p>
 
-            {bulkAvailableDialog.watchesWithDeals.length === 1 && (
-              <p className="text-xs text-gray-400 mb-4 font-medium truncate">
-                {bulkAvailableDialog.watchesWithDeals[0].watchName}
-              </p>
+                {bulkAvailableDialog.watchesWithDeals.length === 1 && (
+                  <p className="text-xs text-gray-400 mb-4 font-medium truncate">
+                    {bulkAvailableDialog.watchesWithDeals[0].watchName}
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  <button
+                    onClick={handleBulkAvailableDuplicate}
+                    disabled={bulkAvailableActing}
+                    className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 text-left"
+                  >
+                    <span className="text-sm font-semibold text-gray-900">Duplicate</span>
+                    <span className="text-xs text-gray-400 mt-0.5">
+                      Create draft {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'copy' : 'copies'}. Originals stay as Sold.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setConfirmingBulkVoid(true)}
+                    disabled={bulkAvailableActing}
+                    className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors disabled:opacity-50 text-left"
+                  >
+                    <span className="text-sm font-semibold text-gray-900">Void Sale</span>
+                    <span className="text-xs text-gray-400 mt-0.5">
+                      Delete linked {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale' : 'sales'} and mark as Available.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setBulkAvailableDialog(null)}
+                    disabled={bulkAvailableActing}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-base font-bold text-gray-900 mb-2">
+                  Void {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'this sale' : `${bulkAvailableDialog.watchesWithDeals.length} sales`}?
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  This permanently deletes the {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale record' : 'sale records'} — it can&apos;t be undone.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleBulkAvailableRemoveSale}
+                    disabled={bulkAvailableActing}
+                    className="w-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+                  >
+                    {bulkAvailableActing ? 'Voiding…' : 'Yes, void the sale' + (bulkAvailableDialog.watchesWithDeals.length === 1 ? '' : 's')}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingBulkVoid(false)}
+                    disabled={bulkAvailableActing}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
             )}
 
-            <div className="space-y-2">
-              <button
-                onClick={handleBulkAvailableDuplicate}
-                disabled={bulkAvailableActing}
-                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50 text-left"
-              >
-                <span className="text-sm font-semibold text-gray-900">Duplicate</span>
-                <span className="text-xs text-gray-400 mt-0.5">
-                  Create draft {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'copy' : 'copies'}. Originals stay as Sold.
-                </span>
-              </button>
-
-              <button
-                onClick={handleBulkAvailableRemoveSale}
-                disabled={bulkAvailableActing}
-                className="w-full flex flex-col items-start px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50 text-left"
-              >
-                <span className="text-sm font-semibold text-gray-900">Remove Sale</span>
-                <span className="text-xs text-gray-400 mt-0.5">
-                  Soft-delete linked {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale' : 'sales'} and mark as Available.
-                </span>
-              </button>
-
-              <button
-                onClick={() => setBulkAvailableDialog(null)}
-                disabled={bulkAvailableActing}
-                className="w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-
-            {bulkAvailableActing && (
+            {bulkAvailableActing && !confirmingBulkVoid && (
               <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
             )}
           </div>
