@@ -208,11 +208,12 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Purchase</p>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Inventory Type" value={watch.inventory_type === 'consign' ? 'Consign' : 'TWB'} />
-            {watch.inventory_type === 'consign' && (
+            {watch.inventory_type === 'consign' ? (
               <Field label="Consignee" value={watch.consignee_name} />
+            ) : (
+              <Field label="Purchased From" value={watch.purchased_from} />
             )}
-            <Field label="Purchased From" value={watch.purchased_from} />
-            <Field label="Purchase Cost"  value={formatLKR(watch.purchase_cost)} />
+            <Field label={watch.inventory_type === 'consign' ? 'Consignee Fee' : 'Purchase Cost'} value={formatLKR(watch.purchase_cost)} />
             <Field label="Serial Number"  value={watch.serial_number} />
           </div>
         </div>

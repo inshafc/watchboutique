@@ -237,7 +237,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <main className="flex-1 overflow-auto" style={{ backgroundColor: '#F7F6F3' }}>
-          <div key={pathname} className="animate-fade-in">
+          {/* animate-fade-in-fast (opacity only, no transform) — animate-fade-in's
+              translateY, even at rest via its forwards fill, establishes a new
+              containing block for any position:fixed descendant (dialogs, toasts,
+              the bulk action bar, the mobile FAB), pushing them off-screen on any
+              page taller than the viewport. */}
+          <div key={pathname} className="animate-fade-in-fast">
             {children}
           </div>
         </main>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -1713,7 +1714,12 @@ export default function WatchInventory({
       )}
 
       {/* ── Bulk mark-available dialog ────────────────────────── */}
-      {bulkAvailableDialog && (
+      {bulkAvailableDialog && createPortal(
+        // Portal straight to <body>: the dashboard layout wraps every page in an
+        // .animate-fade-in div whose forwards-filled transform establishes a new
+        // containing block for position:fixed descendants, which pushes this
+        // dialog off-screen (centers against full page height, not viewport)
+        // without the portal.
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -1798,7 +1804,8 @@ export default function WatchInventory({
               <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Share toast ───────────────────────────────────────── */}

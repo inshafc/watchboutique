@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function VoidSaleDialog({
   acting,
@@ -15,7 +16,12 @@ export default function VoidSaleDialog({
 }) {
   const [confirmingVoid, setConfirmingVoid] = useState(false)
 
-  return (
+  // Portal straight to <body>: the dashboard layout wraps every page in an
+  // .animate-fade-in div whose forwards-filled transform (even translateY(0)
+  // at rest) establishes a new containing block for position:fixed
+  // descendants, so without this the dialog centers against the full page
+  // height instead of the viewport and ends up rendered off-screen.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !acting && onCancel()} />
       <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
@@ -85,6 +91,7 @@ export default function VoidSaleDialog({
           <div className="mt-3 text-center text-xs text-gray-400">Working…</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
