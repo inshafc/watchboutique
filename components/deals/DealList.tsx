@@ -47,7 +47,19 @@ const TYPE_COLORS: Record<DealType, string> = {
   Trade:    'bg-amber-50 text-amber-600',
 }
 
-const STAGES: DealStage[] = ['Inquiry', 'Offer', 'Delivered']
+const STAGES: DealStage[] = ['Delivered', 'Inquiry', 'Offer']
+
+const STAGE_TAB_COLORS: Record<DealStage | 'All' | 'Deleted', { text: string; activeBg: string; activeText: string }> = {
+  All:         { text: 'text-text-primary',    activeBg: 'bg-gray-900', activeText: 'text-white' },
+  Delivered:   { text: 'text-positive',        activeBg: 'bg-green-50', activeText: 'text-positive' },
+  Inquiry:     { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Offer:       { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Idle:        { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Negotiation: { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Closed:      { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Lost:        { text: 'text-text-secondary',  activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
+  Deleted:     { text: 'text-negative',        activeBg: 'bg-red-50',  activeText: 'text-negative' },
+}
 
 function StageBadge({ stage }: { stage: DealStage }) {
   return (
@@ -121,7 +133,7 @@ export default function DealList({
   const router = useRouter()
   const [deals,        setDeals]        = useState(initialDeals)
   const [search,       setSearch]       = useState('')
-  const [stage,        setStage]        = useState<StageFilter>('All')
+  const [stage,        setStage]        = useState<StageFilter>('Delivered')
   const [brandFilter,  setBrandFilter]  = useState<string | null>(null)
   const [vipFilter,    setVipFilter]    = useState(false)
   const [clubFilter,   setClubFilter]   = useState(false)
@@ -470,28 +482,30 @@ export default function DealList({
       )}
 
       {/* ── Stage tabs ─────────────────────────────────────── */}
-      <div className="flex gap-0 border-b border-gray-100 px-4 md:px-8 overflow-x-auto">
-        {(['All', ...STAGES, 'Deleted'] as StageFilter[]).map(s => (
-          <button
-            key={s}
-            onClick={() => setStage(s)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              stage === s
-                ? s === 'Deleted' ? 'border-red-400 text-red-600' : 'border-gray-900 text-gray-900'
-                : s === 'Deleted' ? 'border-transparent text-gray-300 hover:text-red-500' : 'border-transparent text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            {s}
-            {s !== 'All' && s !== 'Deleted' && (
-              <span className="ml-1.5 text-xs text-gray-300 tabular-nums">
-                {deals.filter(d => d.stage === s).length}
-              </span>
-            )}
-            {s === 'Deleted' && deletedDeals !== null && (
-              <span className="ml-1.5 text-xs text-red-300 tabular-nums">{deletedDeals.length}</span>
-            )}
-          </button>
-        ))}
+      <div className="flex items-center gap-1 px-4 md:px-8 overflow-x-auto pb-px">
+        {(['All', ...STAGES, 'Deleted'] as StageFilter[]).map(s => {
+          const c = STAGE_TAB_COLORS[s]
+          const isActive = stage === s
+          return (
+            <button
+              key={s}
+              onClick={() => setStage(s)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
+                isActive ? `${c.activeBg} ${c.activeText} font-medium` : `${c.text} hover:bg-gray-100`
+              }`}
+            >
+              {s}
+              {s !== 'All' && s !== 'Deleted' && (
+                <span className={`text-xs tabular-nums ${isActive ? 'opacity-70' : 'opacity-60'}`}>
+                  {deals.filter(d => d.stage === s).length}
+                </span>
+              )}
+              {s === 'Deleted' && deletedDeals !== null && (
+                <span className={`text-xs tabular-nums ${isActive ? 'opacity-70' : 'opacity-60'}`}>{deletedDeals.length}</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Deleted view ───────────────────────────────────── */}

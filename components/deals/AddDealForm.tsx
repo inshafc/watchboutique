@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
-import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
+import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS, LEAD_REFERRALS } from '@/types'
 import type { PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
@@ -42,7 +42,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
 }
 
 export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
-export type ClientOption = { id: string; name: string; sales_manager?: string | null }
+export type ClientOption = { id: string; name: string; sales_manager?: string | null; lead_referral?: string | null }
 
 function WatchPicker({
   watches,
@@ -91,7 +91,7 @@ function WatchPicker({
               <span className="text-gray-900 font-medium truncate block">{selected.watch_name}</span>
               {selected.reference && <span className="text-xs text-gray-400">{selected.reference}</span>}
             </div>
-            <span className="text-xs text-gray-400 shrink-0">{selected.status}</span>
+            <span className={`text-xs shrink-0 ${selected.status === 'On Hold' ? 'font-medium text-amber-600' : 'text-gray-400'}`}>{selected.status}</span>
           </>
         ) : (
           <span className="text-gray-400">— Select a watch —</span>
@@ -140,6 +140,8 @@ function WatchPicker({
                     </div>
                     {isSold ? (
                       <span className="text-[10px] font-bold bg-gray-300 text-white rounded px-1.5 py-0.5 shrink-0">SOLD</span>
+                    ) : w.status === 'On Hold' ? (
+                      <span className="text-xs font-medium text-amber-600 shrink-0">{w.status}</span>
                     ) : (
                       <span className="text-xs text-gray-400 shrink-0">{w.status}</span>
                     )}
@@ -224,7 +226,6 @@ export default function AddDealForm({
   const [otherCosts,        setOtherCosts]        = useState(false)
   const [expenseRows,       setExpenseRows]       = useState<ExpenseRow[]>([{ ...DEFAULT_EXPENSE }])
   const [commissionPayable, setCommissionPayable] = useState(false)
-  const [newClient,         setNewClient]         = useState(false)
 
   const [tradeInRows,     setTradeInRows]     = useState<TradeInRow[]>([{ ...DEFAULT_TRADE_IN }])
   const [installmentRows, setInstallmentRows] = useState<InstallmentRow[]>([{ amount: '', due_date: '', notes: '' }])
@@ -312,7 +313,7 @@ export default function AddDealForm({
         other_costs_amount: otherCosts ? otherCostsAmt : null,
         commission_payable: commissionPayable,
         commission_amount:  commissionPayable ? num(form.commission_amount) : null,
-        new_client:         newClient,
+        new_client:         false,
         source:             form.source || null,
         closed_at:          new Date().toISOString(),
       })
@@ -464,6 +465,12 @@ export default function AddDealForm({
             {selectedWatch?.purchase_cost != null && (
               <p className="text-xs text-gray-400 mt-1.5">Cost price: {formatLKR(selectedWatch.purchase_cost)}</p>
             )}
+            {selectedWatch?.status === 'On Hold' && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-sm text-amber-700 mt-2">
+                <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1.5 1.5 13h13L8 1.5z" strokeLinejoin="round"/><path d="M8 6.5v3.5" strokeLinecap="round"/><circle cx="8" cy="11.8" r="0.6" fill="currentColor" stroke="none"/></svg>
+                This watch is On Hold — confirm before proceeding.
+              </div>
+            )}
           </div>
           <div>
             <label className={lbl}>Client *</label>
@@ -476,6 +483,7 @@ export default function AddDealForm({
                   ...f,
                   client_id: id,
                   sales_manager: c?.sales_manager ?? f.sales_manager,
+                  source: c?.lead_referral ?? f.source,
                 }))
               }}
               className={inp} required
@@ -520,23 +528,8 @@ export default function AddDealForm({
             <label className={lbl}>Source</label>
             <select value={form.source} onChange={field('source')} className={inp}>
               <option value="">— Select —</option>
-              <option value="Referral">Referral</option>
-              <option value="Socials">Socials</option>
-              <option value="Website">Website</option>
-              <option value="Hotline / WhatsApp">Hotline / WhatsApp</option>
-              <option value="Other">Other</option>
+              {LEAD_REFERRALS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
-          </div>
-          <div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={newClient}
-                onChange={e => setNewClient(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-              />
-              <span className="text-sm text-gray-700">New Client</span>
-            </label>
           </div>
         </div>
       </div>
