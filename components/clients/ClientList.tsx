@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient as supabase } from '@/lib/supabase/client'
 import { avatarColor, getInitials } from '@/lib/client-utils'
+import type { ClientBadgeType } from '@/lib/client-badges'
 import type { Client } from '@/types'
 
 export { avatarColor, getInitials }
@@ -34,15 +35,57 @@ export function TypeBadge({ type }: { type: string | null }) {
   if (!type) return null
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap ${
-      type === 'Retail' ? 'bg-sky-50 text-sky-700 ring-sky-200' : 'bg-orange-50 text-orange-700 ring-orange-200'
+      type === 'Retail' ? 'bg-sky-50 text-sky-700 ring-sky-200' : 'bg-[#F5EDE4] text-[#8B5E34] ring-[#E0C9A6]'
     }`}>
       {type}
     </span>
   )
 }
 
+function StarIcon() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 4.6 4.9.4-3.7 3.2 1.1 4.8L8 11.5l-4.1 2.5 1.1-4.8L1.3 6l4.9-.4z"/></svg> }
+
 export function ClubTWBBadge() {
-  return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 whitespace-nowrap">★ Club TWB</span>
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 whitespace-nowrap">
+      <StarIcon /> Club TWB
+    </span>
+  )
+}
+
+// Type-slot badge: Club TWB (tier) takes priority over the plain Retail/Reseller
+// client_type label — only one shows, per the redesigned tile's single badge slot.
+function ClientTypeSlotBadge({ client }: { client: Client }) {
+  const isClubTwb = client.club_twb || client.status_tier === 'Club TWB'
+  if (isClubTwb) return <ClubTWBBadge />
+  return <TypeBadge type={client.client_type} />
+}
+
+function FireIcon() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15c-3 0-5-2-5-4.8C3 7.5 5 5.8 5.3 3.5c.1-.6.9-.8 1.2-.3.5.8.7 1.8.5 2.6C8.3 4.6 9 2.8 8.7 1.2c-.1-.5.5-.9.9-.5C11.5 2.5 13 5 13 8c0 4-2.5 7-5 7zm0-1.5c1.7 0 3-1.3 3-3.2 0-1-.4-1.8-1-2.5-.2.7-.7 1.2-1.4 1.2-.9 0-1.5-.8-1.3-1.7-.9.7-1.5 1.8-1.5 3 0 1.9 1.3 3.2 3 3.2z"/></svg> }
+function SleepIcon() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M13.5 9.5A6 6 0 1 1 6.5 2.5a5 5 0 1 0 7 7z"/></svg> }
+function SparkleIcon() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.2 4.8L14 7l-4.8 1.2L8 13l-1.2-4.8L2 7l4.8-1.2z"/></svg> }
+
+function BehavioralBadge({ type }: { type: ClientBadgeType }) {
+  if (type === 'hot') {
+    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-red-50 text-red-600 ring-1 ring-inset ring-red-200 whitespace-nowrap"><FireIcon /> Hot</span>
+  }
+  if (type === 'dormant') {
+    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200 whitespace-nowrap"><SleepIcon /> Dormant</span>
+  }
+  return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-violet-50 text-violet-600 ring-1 ring-inset ring-violet-200 whitespace-nowrap"><SparkleIcon /> New</span>
+}
+
+function PersonAvatar({ name }: { name: string }) {
+  return (
+    <div className="relative w-14 h-14 rounded-full shrink-0 overflow-hidden" style={{ backgroundColor: '#EDEBE6' }}>
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+        <circle cx="28" cy="21" r="10" fill="#CFCBC1" />
+        <path d="M8 54c0-12 9-20 20-20s20 8 20 20" fill="#CFCBC1" />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: '#57544C' }}>
+        {getInitials(name)}
+      </span>
+    </div>
+  )
 }
 
 export function VIPBadge() {
@@ -79,6 +122,10 @@ function ListIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fil
 function GridIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
 function FilterIcon()  { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg> }
 function DotsIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg> }
+function MoneyIcon()    { return <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1.5" y="4" width="13" height="8" rx="1.5"/><circle cx="8" cy="8" r="2"/><path d="M4 6.5v3M12 6.5v3" strokeLinecap="round"/></svg> }
+function WatchIconSm()  { return <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6.5 1.5h3M6.5 14.5h3" strokeLinecap="round"/></svg> }
+function CalendarIcon() { return <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3" strokeLinecap="round"/></svg> }
+function PhoneIconSm()  { return <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2.5h2l1 3-1.5 1.2a8 8 0 0 0 3.8 3.8L10.5 9l3 1v2c0 1-1 1.5-1.5 1.5C7 13.5 2.5 9 2.5 4c0-.5.5-1.5 1.5-1.5z" strokeLinejoin="round" strokeLinecap="round"/></svg> }
 
 function ActionBtn({ children, title, onClick, danger = false }: { children: React.ReactNode; title: string; onClick: (e: React.MouseEvent) => void; danger?: boolean }) {
   return (
@@ -110,10 +157,13 @@ function formatLKR(n: number) { return 'LKR ' + n.toLocaleString('en-LK') }
 export default function ClientList({
   clients: initial,
   clientSales = {},
+  clientDealCounts = {},
+  clientBadges = {},
 }: {
   clients: Client[]
   clientSales?: Record<string, number>
   clientDealCounts?: Record<string, number>
+  clientBadges?: Record<string, ClientBadgeType>
 }) {
   const router = useRouter()
   const [clients, setClients]     = useState(initial)
@@ -576,7 +626,12 @@ export default function ClientList({
           {visible.length > 0 && view === 'grid' && (
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((c, idx) => {
-                const totalSales = clientSales[c.id] ?? 0
+                const totalSales  = clientSales[c.id] ?? 0
+                const watchCount  = clientDealCounts[c.id] ?? 0
+                const badge       = clientBadges[c.id]
+                const isClubTwb   = c.club_twb || c.status_tier === 'Club TWB'
+                const phone       = c.phone ?? c.whatsapp
+                const dateAdded   = new Date(c.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                 return (
                   <div
                     key={c.id}
@@ -584,6 +639,8 @@ export default function ClientList({
                     className={`bg-white border rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden card-hover ${
                       selectMode && selectedIds.has(c.id)
                         ? 'border-gray-900 ring-2 ring-gray-900/10'
+                        : isClubTwb
+                        ? 'border-[#C9A84C]/50 club-twb-glow'
                         : 'border-[#E8E6E1]'
                     }`}
                     style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
@@ -621,40 +678,33 @@ export default function ClientList({
                       </div>
                     )}
 
-                    {/* Card body */}
-                    <div className="p-5">
-                      {/* Avatar centered */}
-                      <div className="flex justify-center mb-3">
-                        <div className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-semibold text-white shrink-0" style={{ backgroundColor: '#C9A84C' }}>
-                          {getInitials(c.name)}
+                    {/* Card body — left-aligned horizontal */}
+                    <div className="p-5 flex gap-3">
+                      <PersonAvatar name={c.name} />
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#111] truncate" style={{ fontSize: '16px' }}>{c.name}</p>
+
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1.5 mb-2.5">
+                          <ClientTypeSlotBadge client={c} />
+                          {badge && <BehavioralBadge type={badge} />}
                         </div>
-                      </div>
 
-                      {/* Name */}
-                      <p className="text-center font-semibold text-[#111] truncate mb-1" style={{ fontSize: '15px' }}>{c.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 tabular-nums">
+                          <span className="flex items-center gap-1"><MoneyIcon />{formatLKR(totalSales)}</span>
+                          <span className="text-gray-300">·</span>
+                          <span className="flex items-center gap-1"><WatchIconSm />{watchCount}</span>
+                        </div>
 
-                      {/* Badges centered */}
-                      <div className="flex items-center justify-center gap-1 flex-wrap mb-3">
-                        {c.is_draft && <DraftBadge />}
-                        <TypeBadge type={c.client_type} />
-                        {c.labels?.includes('political')     && <PoliticalBadge />}
-                        {c.labels?.includes('at_risk')       && <AtRiskBadge />}
-                        {c.labels?.includes('high_potential') && <HighPotentialBadge />}
-                      </div>
-
-                      {/* Divider */}
-                      <div className="h-px bg-[#E8E6E1] mb-3" />
-
-                      {/* Bottom row */}
-                      <div className="flex items-center justify-between gap-2">
-                        {totalSales > 0 ? (
-                          <span className="text-xs font-semibold tabular-nums" style={{ color: '#C9A84C' }}>{formatLKR(totalSales)}</span>
-                        ) : (
-                          <span className="text-xs text-gray-300">No sales</span>
-                        )}
-                        {(c.phone ?? c.whatsapp) && (
-                          <span className="text-[11px] text-gray-400 truncate">{c.phone ?? c.whatsapp}</span>
-                        )}
+                        <div className="flex items-center gap-2 text-xs text-gray-400 min-w-0">
+                          <span className="flex items-center gap-1 shrink-0"><CalendarIcon />{dateAdded}</span>
+                          {phone && (
+                            <>
+                              <span className="text-gray-300 shrink-0">·</span>
+                              <span className="flex items-center gap-1 truncate"><PhoneIconSm />{phone}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
