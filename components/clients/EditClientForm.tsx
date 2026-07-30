@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
+import { COUNTRIES, DEFAULT_COUNTRY, type Country } from '@/lib/countries'
+import PhoneCountryPicker from '@/components/clients/PhoneCountryPicker'
 import { LEAD_REFERRALS, CLIENT_TYPES } from '@/types'
 import type { Client, LeadReferral, ClientType, SalesManager } from '@/types'
 
@@ -13,15 +15,6 @@ const inp = 'w-full bg-card border border-border text-text-primary rounded-lg px
 const lbl = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
 const card = 'bg-card border border-border rounded-xl p-5 md:p-6'
 const cardTitle = 'text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] mb-4'
-
-const PHONE_COUNTRIES = [
-  { code: '+94',  flag: '🇱🇰', name: 'Sri Lanka',   id: 'LK' },
-  { code: '+44',  flag: '🇬🇧', name: 'UK',           id: 'GB' },
-  { code: '+1',   flag: '🇺🇸', name: 'US',           id: 'US' },
-  { code: '+971', flag: '🇦🇪', name: 'UAE',          id: 'AE' },
-  { code: '+91',  flag: '🇮🇳', name: 'India',        id: 'IN' },
-  { code: '+61',  flag: '🇦🇺', name: 'Australia',    id: 'AU' },
-]
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -63,16 +56,19 @@ function MonthDayPicker({
   )
 }
 
-function detectCountry(phone: string | null) {
-  if (!phone) return PHONE_COUNTRIES[0]
-  if (phone.startsWith('+94') || phone.startsWith('0')) return PHONE_COUNTRIES[0]
-  for (const c of PHONE_COUNTRIES) {
+// Longest-code-first so e.g. '+1268...' (Antigua) matches before the generic '+1' (US/Canada).
+const COUNTRIES_BY_CODE_LENGTH = [...COUNTRIES].sort((a, b) => b.code.length - a.code.length)
+
+function detectCountry(phone: string | null): Country {
+  if (!phone) return DEFAULT_COUNTRY
+  if (phone.startsWith('+94') || phone.startsWith('0')) return DEFAULT_COUNTRY
+  for (const c of COUNTRIES_BY_CODE_LENGTH) {
     if (phone.startsWith(c.code)) return c
   }
-  return PHONE_COUNTRIES[0]
+  return DEFAULT_COUNTRY
 }
 
-function extractNumber(phone: string | null, country: typeof PHONE_COUNTRIES[number]) {
+function extractNumber(phone: string | null, country: Country) {
   if (!phone) return ''
   if (country.id === 'LK') {
     if (phone.startsWith('+94')) {
@@ -155,24 +151,11 @@ export default function EditClientForm({
 
   // Phone
   const initCountry = detectCountry(client.phone)
-  const [phoneCountry,      setPhoneCountry]      = useState(initCountry)
-  const [phoneNumber,       setPhoneNumber]        = useState(extractNumber(client.phone, initCountry))
-  const [phoneError,        setPhoneError]         = useState<string | null>(null)
-  const [showCountryPicker, setShowCountryPicker]  = useState(false)
-  const phonePickerRef = useRef<HTMLDivElement>(null)
+  const [phoneCountry, setPhoneCountry] = useState(initCountry)
+  const [phoneNumber,  setPhoneNumber]  = useState(extractNumber(client.phone, initCountry))
+  const [phoneError,   setPhoneError]   = useState<string | null>(null)
 
   const [emailError, setEmailError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!showCountryPicker) return
-    function close(e: MouseEvent) {
-      if (phonePickerRef.current && !phonePickerRef.current.contains(e.target as Node)) {
-        setShowCountryPicker(false)
-      }
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [showCountryPicker])
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -368,37 +351,10 @@ export default function EditClientForm({
           <div>
             <label className={lbl}>Phone</label>
             <div className="flex gap-2">
-              <div ref={phonePickerRef} className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowCountryPicker(v => !v)}
-                  className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 h-full"
-                >
-                  <span className="text-base leading-none">{phoneCountry.flag}</span>
-                  {phoneCountry.id !== 'LK' && (
-                    <span className="text-gray-600 text-xs font-medium">{phoneCountry.code}</span>
-                  )}
-                  <svg className="w-3 h-3 text-gray-400" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
-                  </svg>
-                </button>
-                {showCountryPicker && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[200px] overflow-hidden">
-                    {PHONE_COUNTRIES.map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => { setPhoneCountry(c); setShowCountryPicker(false); setPhoneError(null) }}
-                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-gray-50 transition-colors text-left ${phoneCountry.id === c.id ? 'bg-gray-50' : ''}`}
-                      >
-                        <span className="text-base">{c.flag}</span>
-                        <span className="text-gray-400 text-xs w-10 shrink-0">{c.code}</span>
-                        <span className="text-gray-700">{c.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <PhoneCountryPicker
+                value={phoneCountry}
+                onChange={c => { setPhoneCountry(c); setPhoneError(null) }}
+              />
               <input
                 type="tel"
                 value={phoneNumber}

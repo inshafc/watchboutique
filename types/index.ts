@@ -76,10 +76,10 @@ export interface WatchWithInvestors extends Watch {
 
 // ── Client CRM ───────────────────────────────────────────────
 
-export type LeadReferral = 'Socials' | 'Referral' | 'Website' | 'Hotline'
+export type LeadReferral = 'Socials' | 'Referral' | 'Website' | 'Hotline' | 'Personal Contact' | 'Existing Customer'
 export type ClientType   = 'Retail'  | 'Reseller'
 
-export const LEAD_REFERRALS: LeadReferral[] = ['Socials', 'Referral', 'Website', 'Hotline']
+export const LEAD_REFERRALS: LeadReferral[] = ['Socials', 'Referral', 'Website', 'Hotline', 'Personal Contact', 'Existing Customer']
 export const CLIENT_TYPES:   ClientType[]   = ['Retail', 'Reseller']
 
 export interface Client {
