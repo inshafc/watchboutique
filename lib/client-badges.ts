@@ -7,6 +7,10 @@ const DORMANT_WINDOW_DAYS = 180 // ~6 months
 const NEW_WINDOW_DAYS = 30
 const HOT_MIN_PURCHASES = 2
 
+// Clients bulk-imported on 2026-06-30 aren't genuinely new — exclude that cohort
+// regardless of the rolling 30-day window.
+const NEW_CREATED_AT_FLOOR = new Date('2026-07-01T00:00:00Z').getTime()
+
 export type ClientBadgeType = 'hot' | 'dormant' | 'new'
 
 export interface ClientBadgeDeal {
@@ -62,7 +66,11 @@ export function getClientBadge(
   }
 
   const addedAt = new Date(client.created_at).getTime()
-  if (!Number.isNaN(addedAt) && now - addedAt <= NEW_WINDOW_DAYS * DAY_MS) {
+  if (
+    !Number.isNaN(addedAt) &&
+    now - addedAt <= NEW_WINDOW_DAYS * DAY_MS &&
+    addedAt >= NEW_CREATED_AT_FLOOR
+  ) {
     return 'new'
   }
 
