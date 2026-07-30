@@ -274,6 +274,10 @@ export default function EditDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
+    if (form.stage === 'Delivered' && !form.sales_manager.trim()) {
+      setError('Sales Manager is required before a sale can be Delivered — commission is calculated from this field.')
+      return
+    }
 
     if (form.payment_method === 'Cash + Bank' && salePrice != null && !cashBankValid) {
       setError(`Cash + Bank total (${formatLKR(cashBankTotal)}) must equal the sale price (${formatLKR(salePrice)}).`)
@@ -453,7 +457,7 @@ export default function EditDealForm({
               <p className="text-[11px] text-gray-400 mt-1">Defaults to today — edit to backdate or post-date</p>
             </div>
             <div>
-              <label className={lbl}>Sales Manager</label>
+              <label className={lbl}>Sales Manager{form.stage === 'Delivered' ? ' *' : ''}</label>
               <select value={form.sales_manager} onChange={field('sales_manager')} className={inp}>
                 <option value="">— Select —</option>
                 {salesManagers.map(sm => (
@@ -463,6 +467,9 @@ export default function EditDealForm({
                   <option value={form.sales_manager}>{form.sales_manager}</option>
                 )}
               </select>
+              {form.stage === 'Delivered' && !form.sales_manager.trim() && (
+                <p className="text-[11px] text-amber-600 mt-1">Required to keep this sale Delivered.</p>
+              )}
             </div>
           </div>
           <div>

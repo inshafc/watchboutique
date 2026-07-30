@@ -274,6 +274,7 @@ export default function AddDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
+    if (!form.sales_manager.trim()) { setError('Sales Manager is required — commission is calculated from this field.'); return }
 
     if (form.payment_method === 'Installment') {
       const invalid = installmentRows.some(r => !r.amount || isNaN(parseFloat(r.amount.replace(/,/g, ''))))
@@ -516,7 +517,7 @@ export default function AddDealForm({
             </div>
           </div>
           <div>
-            <label className={lbl}>Sales Manager</label>
+            <label className={lbl}>Sales Manager *</label>
             <select value={form.sales_manager} onChange={field('sales_manager')} className={inp}>
               <option value="">— Select —</option>
               {salesManagers.map(sm => (

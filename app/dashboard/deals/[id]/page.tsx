@@ -207,7 +207,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
 
       {/* Stage selector */}
       <div className="border border-gray-100 rounded-2xl p-5 mb-4">
-        <StageSelector dealId={deal.id} initialStage={deal.stage as DealStage} watchId={deal.watch_id} />
+        <StageSelector dealId={deal.id} initialStage={deal.stage as DealStage} watchId={deal.watch_id} salesManager={deal.sales_manager} />
         {deal.closed_at && (
           <p className="text-xs text-gray-400 mt-3">
             Closed {formatDate(deal.closed_at)}

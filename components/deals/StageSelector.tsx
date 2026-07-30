@@ -30,16 +30,26 @@ export default function StageSelector({
   dealId,
   initialStage,
   watchId,
+  salesManager,
 }: {
   dealId: string
   initialStage: DealStage
   watchId?: string | null
+  salesManager?: string | null
 }) {
   const [stage,   setStage]   = useState<DealStage>(initialStage)
   const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
 
   async function update(newStage: DealStage) {
     if (newStage === stage) return
+
+    if (newStage === 'Delivered' && !salesManager?.trim()) {
+      setError('Sales Manager is required before this can be Delivered — edit the sale to set one first.')
+      return
+    }
+    setError(null)
+
     setLoading(true)
     const supabase = createClient()
     await supabase
@@ -80,6 +90,7 @@ export default function StageSelector({
           </button>
         ))}
       </div>
+      {error && <p className="text-xs text-amber-600 mt-2">{error}</p>}
     </div>
   )
 }
