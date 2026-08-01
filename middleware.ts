@@ -8,11 +8,15 @@ const SUPER_ADMIN_ONLY = [
   '/dashboard/settings',
 ]
 
-const VIEWER_BLOCKED = [
+// viewer and inventory_clerk can't reach sales/invoicing, on top of the
+// super-admin-only routes above.
+const SALES_INVOICE_RESTRICTED = [
   ...SUPER_ADMIN_ONLY,
   '/dashboard/deals',
   '/dashboard/invoices',
 ]
+
+const LIMITED_ROLES = ['viewer', 'inventory_clerk']
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req })
@@ -81,7 +85,7 @@ export async function middleware(req: NextRequest) {
     if (SUPER_ADMIN_ONLY.some(r => pathname.startsWith(r)) && role !== 'super_admin') {
       return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
     }
-    if (VIEWER_BLOCKED.some(r => pathname.startsWith(r)) && role === 'viewer') {
+    if (SALES_INVOICE_RESTRICTED.some(r => pathname.startsWith(r)) && LIMITED_ROLES.includes(role)) {
       return NextResponse.redirect(new URL('/dashboard/inventory', req.url))
     }
   }

@@ -19,9 +19,9 @@ export const PERMISSIONS = {
   view_settings:          ['super_admin'],
   manage_users:           ['super_admin'],
   view_kpi_targets:       ['super_admin'],
-  view_inventory:         ['super_admin', 'enterer', 'viewer'],
+  view_inventory:         ['super_admin', 'enterer', 'viewer', 'inventory_clerk'],
   view_financial_details: ['super_admin', 'enterer'],
-  add_edit_watch:         ['super_admin', 'enterer'],
+  add_edit_watch:         ['super_admin', 'enterer', 'inventory_clerk'],
   delete_watch:           ['super_admin'],
   view_sales:             ['super_admin', 'enterer'],
   record_sale:            ['super_admin', 'enterer'],
@@ -29,8 +29,8 @@ export const PERMISSIONS = {
   view_invoices:          ['super_admin', 'enterer'],
   generate_invoice:       ['super_admin', 'enterer'],
   delete_invoice:         ['super_admin'],
-  view_clients:           ['super_admin', 'enterer', 'viewer'],
-  add_edit_client:        ['super_admin', 'enterer'],
+  view_clients:           ['super_admin', 'enterer', 'viewer', 'inventory_clerk'],
+  add_edit_client:        ['super_admin', 'enterer', 'inventory_clerk'],
   delete_client:          ['super_admin'],
 } as const
 

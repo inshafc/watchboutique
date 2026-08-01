@@ -16,9 +16,10 @@ interface UserRow {
 }
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'super_admin', label: 'Admin'   },
-  { value: 'enterer',     label: 'Enterer' },
-  { value: 'viewer',      label: 'Viewer'  },
+  { value: 'super_admin',     label: 'Admin'           },
+  { value: 'enterer',         label: 'Enterer'         },
+  { value: 'viewer',          label: 'Viewer'          },
+  { value: 'inventory_clerk', label: 'Inventory Clerk' },
 ]
 
 const ROLE_BADGE: Record<UserRole, string> = {

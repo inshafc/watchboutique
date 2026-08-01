@@ -24,20 +24,18 @@ function CloseIcon()     { return <svg className="w-5 h-5" viewBox="0 0 20 20" f
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
-type Permission = 'super_admin' | 'enterer' | 'viewer'
-
 const NAV = [
-  { label: 'Dashboard', href: '/dashboard',           Icon: HomeIcon,       exact: true,  roles: ['super_admin'] as Permission[] },
-  { label: 'Inventory', href: '/dashboard/inventory', Icon: GridIcon,       exact: false, roles: ['super_admin', 'enterer', 'viewer'] as Permission[] },
-  { label: 'Clients',   href: '/dashboard/clients',   Icon: PeopleIcon,     exact: false, roles: ['super_admin', 'enterer', 'viewer'] as Permission[] },
-  { label: 'Sales',     href: '/dashboard/deals',     Icon: TagIcon,        exact: false, roles: ['super_admin', 'enterer'] as Permission[] },
-  { label: 'Invoices',  href: '/dashboard/invoices',  Icon: ReceiptIcon,    exact: false, roles: ['super_admin', 'enterer'] as Permission[] },
-  { label: 'Analytics', href: '/dashboard/analytics', Icon: ChartIcon,      exact: false, roles: ['super_admin'] as Permission[] },
-  { label: 'Investors', href: '/dashboard/investors', Icon: TrendingUpIcon, exact: false, roles: ['super_admin'] as Permission[] },
+  { label: 'Dashboard', href: '/dashboard',           Icon: HomeIcon,       exact: true,  roles: ['super_admin'] as UserRole[] },
+  { label: 'Inventory', href: '/dashboard/inventory', Icon: GridIcon,       exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
+  { label: 'Clients',   href: '/dashboard/clients',   Icon: PeopleIcon,     exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
+  { label: 'Sales',     href: '/dashboard/deals',     Icon: TagIcon,        exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
+  { label: 'Invoices',  href: '/dashboard/invoices',  Icon: ReceiptIcon,    exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
+  { label: 'Analytics', href: '/dashboard/analytics', Icon: ChartIcon,      exact: false, roles: ['super_admin'] as UserRole[] },
+  { label: 'Investors', href: '/dashboard/investors', Icon: TrendingUpIcon, exact: false, roles: ['super_admin'] as UserRole[] },
 ]
 
 const BOTTOM_NAV = [
-  { label: 'Settings', href: '/dashboard/settings', Icon: GearIcon, exact: false, roles: ['super_admin'] as Permission[] },
+  { label: 'Settings', href: '/dashboard/settings', Icon: GearIcon, exact: false, roles: ['super_admin'] as UserRole[] },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,8 +68,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [profileToast])
 
-  const visibleNav       = loading || !role ? NAV       : NAV.filter(n => n.roles.includes(role as Permission))
-  const visibleBottomNav = loading || !role ? BOTTOM_NAV : BOTTOM_NAV.filter(n => n.roles.includes(role as Permission))
+  const visibleNav       = loading || !role ? NAV       : NAV.filter(n => n.roles.includes(role))
+  const visibleBottomNav = loading || !role ? BOTTOM_NAV : BOTTOM_NAV.filter(n => n.roles.includes(role))
 
   const SidebarContent = () => (
     <>
