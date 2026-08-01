@@ -11,6 +11,7 @@ import type { PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
 import CurrencyAndRateFields from '@/components/deals/CurrencyAndRateFields'
+import WatchInvestorSplit from '@/components/deals/WatchInvestorSplit'
 
 const inp  = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl  = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -42,7 +43,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
   )
 }
 
-export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
+export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[]; inventory_type?: string | null }
 export type ClientOption = { id: string; name: string; sales_manager?: string | null; sales_manager_id?: string | null; lead_referral?: string | null }
 
 function WatchPicker({
@@ -673,6 +674,15 @@ export default function AddDealForm({
           )}
         </div>
       </div>
+
+      <WatchInvestorSplit
+        watchId={selectedWatch?.id}
+        purchaseCost={selectedWatch?.purchase_cost}
+        inventoryType={selectedWatch?.inventory_type}
+        salePrice={salePrice}
+        currency={form.currency}
+        exchangeRate={form.exchange_rate}
+      />
 
       {/* ── Payment ──────────────────────────────────────────── */}
       <div className={card}>

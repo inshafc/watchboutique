@@ -13,7 +13,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
     supabase.from('deals').select('*').eq('id', params.id).single(),
     supabase.from('trade_ins').select('*').eq('deal_id', params.id).order('created_at'),
     supabase.from('deal_expenses').select('*').eq('deal_id', params.id).order('created_at'),
-    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').is('deleted_at', null).order('watch_name'),
+    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos, inventory_type').is('deleted_at', null).order('watch_name'),
     supabase.from('clients').select('id, name, sales_manager, sales_manager_id').is('deleted_at', null).order('name'),
     supabase.from('sales_managers').select('*').order('name'),
   ])
@@ -23,7 +23,7 @@ export default async function EditDealPage({ params }: { params: { id: string } 
   const deal          = dealRes.data as Deal
   const tradeIns      = (tradeInsRes.data ?? []) as TradeIn[]
   const expenses      = (expensesRes.data ?? []) as DealExpense[]
-  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
+  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[]; inventory_type: string | null }[]
   const clients       = (clientsRes.data ?? []) as { id: string; name: string; sales_manager: string | null; sales_manager_id: string | null }[]
   const salesManagers = (smRes.data ?? []) as SalesManager[]
 

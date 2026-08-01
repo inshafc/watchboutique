@@ -13,12 +13,12 @@ export default async function NewDealPage({
   const supabase = createClient()
 
   const [watchesRes, clientsRes, smRes] = await Promise.all([
-    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos').is('deleted_at', null).order('watch_name'),
+    supabase.from('watches').select('id, watch_name, reference, status, purchase_cost, photos, inventory_type').is('deleted_at', null).order('watch_name'),
     supabase.from('clients').select('id, name, sales_manager, sales_manager_id, lead_referral').is('deleted_at', null).order('name'),
     supabase.from('sales_managers').select('*').order('name'),
   ])
 
-  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }[]
+  const watches       = (watchesRes.data ?? []) as { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[]; inventory_type: string | null }[]
   const clients       = (clientsRes.data ?? []) as { id: string; name: string; sales_manager: string | null; sales_manager_id: string | null; lead_referral: string | null }[]
   const salesManagers = (smRes.data ?? []) as SalesManager[]
 
