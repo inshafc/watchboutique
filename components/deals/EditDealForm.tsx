@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
-import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS } from '@/types'
+import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS, LEAD_REFERRALS } from '@/types'
 import type { Deal, TradeIn, DealExpense, PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
@@ -478,11 +478,7 @@ export default function EditDealForm({
             <label className={lbl}>Source</label>
             <select value={form.source} onChange={field('source')} className={inp}>
               <option value="">— Select —</option>
-              <option value="Referral">Referral</option>
-              <option value="Socials">Socials</option>
-              <option value="Website">Website</option>
-              <option value="Hotline / WhatsApp">Hotline / WhatsApp</option>
-              <option value="Other">Other</option>
+              {LEAD_REFERRALS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
