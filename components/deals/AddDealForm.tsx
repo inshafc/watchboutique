@@ -42,7 +42,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
 }
 
 export type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
-export type ClientOption = { id: string; name: string; sales_manager?: string | null; lead_referral?: string | null }
+export type ClientOption = { id: string; name: string; sales_manager?: string | null; sales_manager_id?: string | null; lead_referral?: string | null }
 
 function WatchPicker({
   watches,
@@ -218,11 +218,11 @@ export default function AddDealForm({
     bank_name:         '',
     cash_amount:       '',
     bank_amount:       '',
-    sales_manager:     '',
     source:            '',
     notes:             '',
     commission_amount: '50000',
   })
+  const [salesManagerId,    setSalesManagerId]    = useState('')
   const [otherCosts,        setOtherCosts]        = useState(false)
   const [expenseRows,       setExpenseRows]       = useState<ExpenseRow[]>([{ ...DEFAULT_EXPENSE }])
   const [commissionPayable, setCommissionPayable] = useState(false)
@@ -274,7 +274,7 @@ export default function AddDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
-    if (!form.sales_manager.trim()) { setError('Select a sales manager before delivering — required for commission.'); return }
+    if (!salesManagerId) { setError('Select a sales manager before delivering — required for commission.'); return }
 
     if (form.payment_method === 'Installment') {
       const invalid = installmentRows.some(r => !r.amount || isNaN(parseFloat(r.amount.replace(/,/g, ''))))
@@ -295,6 +295,8 @@ export default function AddDealForm({
     try {
     const supabase = createClient()
 
+    const salesManagerName = salesManagers.find(sm => sm.id === salesManagerId)?.name ?? null
+
     const { data: deal, error: dealErr } = await supabase
       .from('deals')
       .insert({
@@ -307,7 +309,8 @@ export default function AddDealForm({
         bank_name:          showBankDropdown && form.bank_name ? form.bank_name : null,
         cash_amount:        showCashBankInputs ? num(form.cash_amount) : null,
         bank_amount:        showCashBankInputs ? num(form.bank_amount) : null,
-        sales_manager:      form.sales_manager.trim() || null,
+        sales_manager:      salesManagerName,
+        sales_manager_id:   salesManagerId || null,
         notes:              form.notes.trim() || null,
         sale_date:          form.sale_date || null,
         other_costs:        otherCosts,
@@ -480,10 +483,10 @@ export default function AddDealForm({
               onChange={e => {
                 const id = e.target.value
                 const c = clients.find(cl => cl.id === id)
+                setSalesManagerId(c?.sales_manager_id ?? '')
                 setForm(f => ({
                   ...f,
                   client_id: id,
-                  sales_manager: c?.sales_manager ?? '',
                   source: c?.lead_referral ?? '',
                 }))
               }}
@@ -518,10 +521,10 @@ export default function AddDealForm({
           </div>
           <div>
             <label className={lbl}>Sales Manager *</label>
-            <select value={form.sales_manager} onChange={field('sales_manager')} className={inp}>
+            <select value={salesManagerId} onChange={e => setSalesManagerId(e.target.value)} className={inp}>
               <option value="">— Select —</option>
               {salesManagers.map(sm => (
-                <option key={sm.id} value={sm.name}>{sm.name}</option>
+                <option key={sm.id} value={sm.id}>{sm.name}</option>
               ))}
             </select>
           </div>

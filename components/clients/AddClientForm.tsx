@@ -203,6 +203,7 @@ export default function AddClientForm({
         phone:         buildFullPhone(),
         address:       form.address.trim() || null,
         sales_manager: salesManagerName,
+        sales_manager_id: salesManagerId || null,
         profile_notes: form.notes.trim()   || null,
         is_vip:        statusTier === 'VIP',
         club_twb:      statusTier === 'Club TWB',

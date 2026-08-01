@@ -131,7 +131,7 @@ export default function EditClientForm({
     notes:   client.profile_notes ?? client.notes ?? '',
   })
 
-  const initialSmId = salesManagers.find(sm => sm.name === client.sales_manager)?.id ?? ''
+  const initialSmId = client.sales_manager_id ?? salesManagers.find(sm => sm.name === client.sales_manager)?.id ?? ''
   const [salesManagerId, setSalesManagerId] = useState<string>(initialSmId)
   const [statusTier,     setStatusTier]     = useState<'General' | 'VIP' | 'Club TWB'>(initStatusTier(client))
   const existingLabels = client.labels ?? []
@@ -234,6 +234,7 @@ export default function EditClientForm({
         phone:         buildFullPhone(),
         address:       form.address.trim() || null,
         sales_manager: salesManagerName,
+        sales_manager_id: salesManagerId || null,
         profile_notes: form.notes.trim()   || null,
         is_vip:        statusTier === 'VIP',
         club_twb:      statusTier === 'Club TWB',

@@ -42,7 +42,7 @@ function SubtleToggle({ label, checked, onChange }: { label: string; checked: bo
 }
 
 type WatchOption  = { id: string; watch_name: string; reference: string | null; status: string; purchase_cost: number | null; photos?: string[] }
-type ClientOption = { id: string; name: string; sales_manager?: string | null }
+type ClientOption = { id: string; name: string; sales_manager?: string | null; sales_manager_id?: string | null }
 
 function WatchPicker({
   watches,
@@ -207,11 +207,13 @@ export default function EditDealForm({
     bank_name:         deal.bank_name     ?? '',
     cash_amount:       deal.cash_amount?.toString()   ?? '',
     bank_amount:       deal.bank_amount?.toString()   ?? '',
-    sales_manager:     deal.sales_manager ?? '',
     source:            deal.source        ?? '',
     notes:             deal.notes         ?? '',
     commission_amount: deal.commission_amount?.toString() ?? '50000',
   })
+  const [salesManagerId, setSalesManagerId] = useState(
+    deal.sales_manager_id ?? salesManagers.find(sm => sm.name === deal.sales_manager)?.id ?? ''
+  )
   const [otherCosts,        setOtherCosts]        = useState(deal.other_costs ?? false)
   const [expenseRows,       setExpenseRows]       = useState<ExpenseRow[]>(
     initialExpenses.length > 0
@@ -274,7 +276,7 @@ export default function EditDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
-    if (form.stage === 'Delivered' && !form.sales_manager.trim()) {
+    if (form.stage === 'Delivered' && !salesManagerId) {
       setError('Select a sales manager before delivering — required for commission.')
       return
     }
@@ -289,6 +291,8 @@ export default function EditDealForm({
 
     const supabase = createClient()
 
+    const salesManagerName = salesManagers.find(sm => sm.id === salesManagerId)?.name ?? null
+
     const { error: updateErr } = await supabase
       .from('deals')
       .update({
@@ -301,7 +305,8 @@ export default function EditDealForm({
         bank_name:          showBankDropdown && form.bank_name ? form.bank_name : null,
         cash_amount:        showCashBankInputs ? num(form.cash_amount) : null,
         bank_amount:        showCashBankInputs ? num(form.bank_amount) : null,
-        sales_manager:      form.sales_manager.trim() || null,
+        sales_manager:      salesManagerName,
+        sales_manager_id:   salesManagerId || null,
         notes:              form.notes.trim() || null,
         sale_date:          form.sale_date || null,
         other_costs:        otherCosts,
@@ -414,10 +419,10 @@ export default function EditDealForm({
               onChange={e => {
                 const id = e.target.value
                 const c = clients.find(cl => cl.id === id)
+                setSalesManagerId(c?.sales_manager_id ?? '')
                 setForm(f => ({
                   ...f,
                   client_id: id,
-                  sales_manager: c?.sales_manager ?? '',
                 }))
               }}
               className={inp} required
@@ -458,16 +463,13 @@ export default function EditDealForm({
             </div>
             <div>
               <label className={lbl}>Sales Manager{form.stage === 'Delivered' ? ' *' : ''}</label>
-              <select value={form.sales_manager} onChange={field('sales_manager')} className={inp}>
+              <select value={salesManagerId} onChange={e => setSalesManagerId(e.target.value)} className={inp}>
                 <option value="">— Select —</option>
                 {salesManagers.map(sm => (
-                  <option key={sm.id} value={sm.name}>{sm.name}</option>
+                  <option key={sm.id} value={sm.id}>{sm.name}</option>
                 ))}
-                {form.sales_manager && !salesManagers.some(sm => sm.name === form.sales_manager) && (
-                  <option value={form.sales_manager}>{form.sales_manager}</option>
-                )}
               </select>
-              {form.stage === 'Delivered' && !form.sales_manager.trim() && (
+              {form.stage === 'Delivered' && !salesManagerId && (
                 <p className="text-[11px] text-amber-600 mt-1">Required to keep this sale Delivered.</p>
               )}
             </div>

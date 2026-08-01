@@ -97,6 +97,7 @@ export interface Client {
   lead_referral: LeadReferral | null
   client_type: ClientType | null
   sales_manager: string | null
+  sales_manager_id?: string | null
   avatar_color: string | null
   created_at: string
   deleted_at?:   string | null
@@ -156,6 +157,7 @@ export interface Deal {
   currency:           string
   notes:              string | null
   sales_manager:      string | null
+  sales_manager_id?:  string | null
   closed_at:          string | null
   created_at:         string
   other_costs:        boolean
