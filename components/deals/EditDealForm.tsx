@@ -621,6 +621,8 @@ export default function EditDealForm({
         salePrice={salePrice}
         currency={form.currency}
         exchangeRate={form.exchange_rate}
+        commissionAmt={commissionAmt}
+        otherCostsAmt={otherCostsAmt}
       />
 
       {/* ── Payment ──────────────────────────────────────────── */}

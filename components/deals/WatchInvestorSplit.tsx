@@ -18,8 +18,11 @@ function formatLKR(n: number) {
 
 // Read-only — pulls the watch's stamped watch_investors split (set at
 // inventory-add time) and shows each investor's profit share for THIS sale.
-// Profit = sold_price − purchase_cost, converted to LKR first via the sale's
-// exchange_rate when the sale currency isn't LKR (investor books are LKR).
+// Net profit = sold_price − purchase_cost − commission − other costs, split
+// by the stamped percentages — the same formula lib/investor-stats.ts and
+// the watch detail page use post-close. Sold_price is converted to LKR
+// first via the sale's exchange_rate when the sale currency isn't LKR
+// (investor books are LKR); costs are entered directly in LKR on the form.
 export default function WatchInvestorSplit({
   watchId,
   purchaseCost,
@@ -27,6 +30,8 @@ export default function WatchInvestorSplit({
   salePrice,
   currency,
   exchangeRate,
+  commissionAmt,
+  otherCostsAmt,
 }: {
   watchId: string | null | undefined
   purchaseCost: number | null | undefined
@@ -34,6 +39,8 @@ export default function WatchInvestorSplit({
   salePrice: number | null
   currency: string
   exchangeRate: string
+  commissionAmt: number
+  otherCostsAmt: number
 }) {
   const [rows, setRows]       = useState<InvestorRow[]>([])
   const [loaded, setLoaded]   = useState(false)
@@ -79,7 +86,7 @@ export default function WatchInvestorSplit({
   let profitLKR: number | null = null
   if (hasRate && salePrice != null && purchaseCost != null) {
     const salePriceLKR = needsRate ? salePrice * rate : salePrice
-    profitLKR = salePriceLKR - purchaseCost
+    profitLKR = salePriceLKR - purchaseCost - commissionAmt - otherCostsAmt
   }
 
   return (
