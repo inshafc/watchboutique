@@ -27,7 +27,7 @@ export default function DealDetailActions({ deal }: { deal: DealWithRelations })
       .insert({
         watch_id: deal.watch_id, client_id: deal.client_id, deal_type: deal.deal_type,
         stage: 'Inquiry', offered_price: deal.offered_price, sale_price: deal.sale_price,
-        payment_method: deal.payment_method, currency: deal.currency, notes: deal.notes,
+        payment_method: deal.payment_method, currency: deal.currency, exchange_rate: deal.exchange_rate, notes: deal.notes,
         sales_manager: deal.sales_manager, other_costs: deal.other_costs ?? false,
         other_costs_amount: deal.other_costs_amount, commission_payable: deal.commission_payable ?? false,
         commission_amount: deal.commission_amount, new_client: deal.new_client ?? false,
