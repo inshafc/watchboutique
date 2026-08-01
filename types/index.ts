@@ -136,11 +136,13 @@ export type DealType          = 'Sale' | 'Purchase' | 'Trade'
 export type DealStage         = 'Idle' | 'Inquiry' | 'Offer' | 'Negotiation' | 'Closed' | 'Delivered' | 'Lost'
 export type PaymentMethod     = 'Cash' | 'Cash + Bank' | 'Bank Transfer' | 'Installment'
 export type InstallmentStatus = 'Pending' | 'Paid' | 'Overdue'
+export type DealCurrency      = 'LKR' | 'INR' | 'USD' | 'AUD' | 'SGD' | 'HKD' | 'EUR'
 
 export const DEAL_TYPES:           DealType[]          = ['Sale', 'Trade']
 export const DEAL_STAGES:          DealStage[]         = ['Idle', 'Inquiry', 'Offer', 'Delivered']
 export const PAYMENT_METHODS:      PaymentMethod[]     = ['Cash', 'Cash + Bank', 'Bank Transfer', 'Installment']
 export const INSTALLMENT_STATUSES: InstallmentStatus[] = ['Pending', 'Paid', 'Overdue']
+export const DEAL_CURRENCIES:      DealCurrency[]      = ['LKR', 'INR', 'USD', 'AUD', 'SGD', 'HKD', 'EUR']
 
 export interface Deal {
   id:                 string
@@ -155,6 +157,7 @@ export interface Deal {
   commission:         number | null
   payment_method:     PaymentMethod | null
   currency:           string
+  exchange_rate:      number | null
   notes:              string | null
   sales_manager:      string | null
   sales_manager_id?:  string | null

@@ -10,6 +10,7 @@ import { DEAL_STAGES, PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS, LEAD
 import type { Deal, TradeIn, DealExpense, PaymentMethod, SalesManager } from '@/types'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
+import CurrencyAndRateFields from '@/components/deals/CurrencyAndRateFields'
 
 const inp  = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl  = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -210,6 +211,8 @@ export default function EditDealForm({
     source:            deal.source        ?? '',
     notes:             deal.notes         ?? '',
     commission_amount: deal.commission_amount?.toString() ?? '50000',
+    currency:          deal.currency        || 'LKR',
+    exchange_rate:     deal.exchange_rate?.toString() ?? '',
   })
   const [salesManagerId, setSalesManagerId] = useState(
     deal.sales_manager_id ?? salesManagers.find(sm => sm.name === deal.sales_manager)?.id ?? ''
@@ -280,6 +283,10 @@ export default function EditDealForm({
       setError('Select a sales manager before delivering — required for commission.')
       return
     }
+    if (form.currency !== 'LKR' && (!form.exchange_rate.trim() || isNaN(parseFloat(form.exchange_rate)) || parseFloat(form.exchange_rate) <= 0)) {
+      setError('Enter an exchange rate to LKR before saving.')
+      return
+    }
 
     if (form.payment_method === 'Cash + Bank' && salePrice != null && !cashBankValid) {
       setError(`Cash + Bank total (${formatLKR(cashBankTotal)}) must equal the sale price (${formatLKR(salePrice)}).`)
@@ -301,6 +308,8 @@ export default function EditDealForm({
         deal_type:          form.deal_type,
         stage:              form.stage,
         sale_price:         num(form.sale_price),
+        currency:           form.currency,
+        exchange_rate:      form.currency === 'LKR' ? null : num(form.exchange_rate),
         payment_method:     form.payment_method || null,
         bank_name:          showBankDropdown && form.bank_name ? form.bank_name : null,
         cash_amount:        showCashBankInputs ? num(form.cash_amount) : null,
@@ -506,6 +515,14 @@ export default function EditDealForm({
               onChange={v => setForm(f => ({ ...f, sale_price: v }))}
             />
           </div>
+
+          <CurrencyAndRateFields
+            currency={form.currency}
+            onCurrencyChange={v => setForm(f => ({ ...f, currency: v, exchange_rate: v === 'LKR' ? '' : f.exchange_rate }))}
+            exchangeRate={form.exchange_rate}
+            onExchangeRateChange={v => setForm(f => ({ ...f, exchange_rate: v }))}
+            salePrice={salePrice}
+          />
 
           <div className="flex gap-2 flex-wrap">
             <SubtleToggle label="Other Costs"        checked={otherCosts}        onChange={setOtherCosts} />
