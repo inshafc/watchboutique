@@ -1,5 +1,7 @@
 // Shared analytics utilities for Dashboard and Analytics pages
 
+import { dealSalePriceLKR } from '@/lib/deal-currency'
+
 export type DateRange = 'this_month' | 'last_month' | 'last_3' | 'last_6' | 'this_year'
 
 export interface DealRow {
@@ -7,6 +9,8 @@ export interface DealRow {
   deal_type: string
   stage: string
   sale_price: number | null
+  currency?: string | null
+  exchange_rate?: number | null
   sale_date: string | null
   created_at: string
   other_costs: boolean
@@ -58,8 +62,9 @@ export interface Target {
 
 export function computeGP(d: DealRow): number {
   // sold_price (captured on the watch at the point of sale) is the source of truth;
-  // fall back to the deal's own sale_price for sales recorded before that column existed.
-  const sp = d.watches?.sold_price ?? d.sale_price ?? 0
+  // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+  // before that column existed.
+  const sp = d.watches?.sold_price ?? dealSalePriceLKR(d) ?? 0
   const wc = d.watches?.purchase_cost ?? 0
   const oc = d.other_costs ? (d.other_costs_amount ?? 0) : 0
   const ca = d.commission_payable ? (d.commission_amount ?? 0) : 0

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 
 function formatLKR(n: number | null | undefined) {
   if (n == null || isNaN(n)) return 'LKR 0'
@@ -57,7 +58,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
   const { data: dealsRaw } = watchIds.length > 0
     ? await supabase
         .from('deals')
-        .select('id, watch_id, sale_price, sale_date, other_costs, other_costs_amount, commission_payable, commission_amount, stage, closed_at')
+        .select('id, watch_id, sale_price, currency, exchange_rate, sale_date, other_costs, other_costs_amount, commission_payable, commission_amount, stage, closed_at')
         .in('watch_id', watchIds)
         .eq('stage', 'Delivered')
         .is('deleted_at', null)
@@ -65,6 +66,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
 
   type Deal = {
     id: string; watch_id: string | null; sale_price: number | null; sale_date: string | null
+    currency: string | null; exchange_rate: number | null
     other_costs: boolean; other_costs_amount: number | null
     commission_payable: boolean; commission_amount: number | null
     stage: string; closed_at: string | null
@@ -83,6 +85,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
     isSold: boolean
     capitalInvested: number
     deal: Deal | null
+    salePrice: number | null
     netProfit: number | null
     share: number | null
     saleDate: string | null
@@ -99,15 +102,16 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
       let netProfit: number | null = null
       let share: number | null = null
       // sold_price (captured on the watch at the point of sale) is the source of truth;
-      // fall back to the deal's own sale_price for sales recorded before that column existed.
-      const salePrice = watch.sold_price ?? deal?.sale_price ?? null
+      // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+      // before that column existed.
+      const salePrice = watch.sold_price ?? dealSalePriceLKR(deal)
       if (deal && salePrice != null) {
         const otherCosts = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
         const commission = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
         netProfit = salePrice - cost - otherCosts - commission
         share = netProfit * (h.percentage / 100)
       }
-      return { watch, percentage: h.percentage, isSold, capitalInvested, deal, netProfit, share, saleDate: deal?.sale_date ?? deal?.closed_at ?? null }
+      return { watch, percentage: h.percentage, isSold, capitalInvested, deal, salePrice, netProfit, share, saleDate: deal?.sale_date ?? deal?.closed_at ?? null }
     })
 
   const activeWatches = watchRows.filter(r => !r.isSold)
@@ -249,7 +253,7 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
                     <td className="px-5 py-3.5 text-right text-gray-500 tabular-nums">{formatDate(r.saleDate)}</td>
                     <td className="px-5 py-3.5 text-right text-gray-500 tabular-nums">{r.percentage}%</td>
                     <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{formatLKR(r.capitalInvested)}</td>
-                    <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{(r.watch.sold_price ?? r.deal?.sale_price) != null ? formatLKR(r.watch.sold_price ?? r.deal!.sale_price) : '—'}</td>
+                    <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{r.salePrice != null ? formatLKR(r.salePrice) : '—'}</td>
                     <td className={`px-5 py-3.5 text-right font-medium tabular-nums ${r.netProfit == null ? 'text-gray-300' : r.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                       {r.netProfit != null ? (r.netProfit >= 0 ? '+' : '') + formatLKR(r.netProfit) : '—'}
                     </td>

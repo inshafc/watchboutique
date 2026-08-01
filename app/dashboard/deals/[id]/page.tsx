@@ -9,6 +9,7 @@ import InstallmentTracker from '@/components/deals/InstallmentTracker'
 import DealDetailActions from '@/components/deals/DealDetailActions'
 import GenerateInvoiceButton from '@/components/invoices/GenerateInvoiceButton'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { DealWithRelations, Installment, DealStage, TradeIn, DealExpense } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -105,8 +106,9 @@ export default async function DealDetailPage({ params }: { params: { id: string 
   const commissionAmt = deal.commission_payable ? (deal.commission_amount ?? 0) : 0
 
   // sold_price (captured on the watch at the point of sale) is the source of truth;
-  // fall back to the deal's own sale_price for sales recorded before that column existed.
-  const salePrice = deal.watches?.sold_price ?? deal.sale_price
+  // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+  // before that column existed.
+  const salePrice = deal.watches?.sold_price ?? dealSalePriceLKR(deal)
   const grossProfit = salePrice != null
     ? salePrice - watchCost - otherCostsAmt - commissionAmt
     : null

@@ -11,6 +11,7 @@ import DeletedWatchActions from '@/components/watches/DeletedWatchActions'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
 import { displayCondition } from '@/lib/watch-condition'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { WatchWithInvestors } from '@/types'
 
 function formatLKR(n: number | null) {
@@ -37,7 +38,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
 
   const [watchRes, dealsRes, investorNames] = await Promise.all([
     supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
-    supabase.from('deals').select('id, deal_type, stage, sale_price, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
+    supabase.from('deals').select('id, deal_type, stage, sale_price, currency, exchange_rate, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
     getInvestorDisplayNames(supabase),
   ])
 
@@ -50,6 +51,8 @@ export default async function WatchDetailPage({ params }: { params: { id: string
     deal_type: string
     stage: string
     sale_price: number | null
+    currency: string | null
+    exchange_rate: number | null
     offered_price: number | null
     closed_at: string | null
     other_costs: boolean
@@ -255,8 +258,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
           const deliveredDeal = deals.find(d => d.stage === 'Delivered' && d.sale_price != null)
           if (!deliveredDeal || !watch.watch_investors || watch.watch_investors.length === 0) return null
           // sold_price (captured on the watch at the point of sale) is the source of truth;
-          // fall back to the deal's own sale_price for sales recorded before that column existed.
-          const salePrice   = watch.sold_price ?? deliveredDeal.sale_price!
+          // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+          // before that column existed.
+          const salePrice   = watch.sold_price ?? dealSalePriceLKR(deliveredDeal)!
           const cost        = watch.purchase_cost ?? 0
           const otherCosts  = deliveredDeal.other_costs ? (deliveredDeal.other_costs_amount ?? 0) : 0
           const commission  = deliveredDeal.commission_payable ? (deliveredDeal.commission_amount ?? 0) : 0

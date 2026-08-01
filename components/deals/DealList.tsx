@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import { getInitials } from '@/lib/client-utils'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { DealWithRelations, DealStage, DealType, SalesManager } from '@/types'
 
 function formatLKR(n: number | null | undefined) {
@@ -16,8 +17,9 @@ function formatLKR(n: number | null | undefined) {
 
 function grossProfit(d: DealWithRelations): number | null {
   // sold_price (captured on the watch at the point of sale) is the source of truth;
-  // fall back to the deal's own sale_price for sales recorded before that column existed.
-  const salePrice = d.watches?.sold_price ?? d.sale_price
+  // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+  // before that column existed.
+  const salePrice = d.watches?.sold_price ?? dealSalePriceLKR(d)
   if (salePrice == null) return null
   return (
     salePrice

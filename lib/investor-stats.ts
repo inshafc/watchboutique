@@ -1,4 +1,5 @@
 import type { createClient } from '@/lib/supabase/server'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 
 type ServerSupabase = ReturnType<typeof createClient>
 
@@ -36,7 +37,7 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     supabase.from('watch_investors').select('investor_name, percentage, watches(id, purchase_cost, status, sold_price)'),
     supabase
       .from('deals')
-      .select('id, watch_id, sale_price, other_costs, other_costs_amount, commission_payable, commission_amount')
+      .select('id, watch_id, sale_price, currency, exchange_rate, other_costs, other_costs_amount, commission_payable, commission_amount')
       .eq('stage', 'Delivered')
       .is('deleted_at', null),
   ])
@@ -46,6 +47,7 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
   type InvestorRow = { investor_name: string; percentage: number; watches: WatchData | null }
   type Deal = {
     id: string; watch_id: string | null; sale_price: number | null
+    currency: string | null; exchange_rate: number | null
     other_costs: boolean; other_costs_amount: number | null
     commission_payable: boolean; commission_amount: number | null
   }
@@ -65,8 +67,9 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     const deal = dealByWatch.get(watch.id)
     if (!deal) return null
     // sold_price (captured on the watch at the point of sale) is the source of truth;
-    // fall back to the deal's own sale_price for sales recorded before that column existed.
-    const salePrice = watch.sold_price ?? deal.sale_price
+    // fall back to the deal's own sale_price, converted to LKR, for sales recorded
+    // before that column existed.
+    const salePrice = watch.sold_price ?? dealSalePriceLKR(deal)
     if (salePrice == null) return null
     const cost = watch.purchase_cost ?? 0
     const otherCosts = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
