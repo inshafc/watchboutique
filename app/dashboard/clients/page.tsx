@@ -3,6 +3,7 @@ export const revalidate = 60
 import { createClient } from '@/lib/supabase/server'
 import ClientList from '@/components/clients/ClientList'
 import { getClientBadge, type ClientBadgeDeal, type ClientBadgeType } from '@/lib/client-badges'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { Client } from '@/types'
 
 export default async function ClientsPage() {
@@ -12,7 +13,7 @@ export default async function ClientsPage() {
     supabase.from('clients').select('id, name, whatsapp, email, phone, instagram, is_vip, club_twb, notes, profile_notes, address, lead_referral, client_type, sales_manager, avatar_color, created_at, deleted_at, labels, is_draft, birthday, anniversary, status_tier').is('deleted_at', null).order('name', { ascending: true }),
     supabase
       .from('deals')
-      .select('client_id, sale_price, stage, closed_at, sale_date, created_at, watch_id, watches(is_draft, deleted_at)')
+      .select('client_id, sale_price, currency, exchange_rate, stage, closed_at, sale_date, created_at, watch_id, watches(is_draft, deleted_at)')
       .is('deleted_at', null),
   ])
 
@@ -21,6 +22,8 @@ export default async function ClientsPage() {
   type DealRow = {
     client_id: string | null
     sale_price: number | null
+    currency: string | null
+    exchange_rate: number | null
     stage: string
     closed_at: string | null
     sale_date: string | null
@@ -46,13 +49,14 @@ export default async function ClientsPage() {
     }
     ;(dealsByClient[raw.client_id] ??= []).push(deal)
 
+    const salePriceLKR = dealSalePriceLKR(raw)
     if (
       (raw.stage === 'Closed' || raw.stage === 'Delivered') &&
-      raw.sale_price != null &&
+      salePriceLKR != null &&
       !watch?.is_draft &&
       !watch?.deleted_at
     ) {
-      clientSales[raw.client_id] = (clientSales[raw.client_id] ?? 0) + raw.sale_price
+      clientSales[raw.client_id] = (clientSales[raw.client_id] ?? 0) + salePriceLKR
       clientDealCounts[raw.client_id] = (clientDealCounts[raw.client_id] ?? 0) + 1
     }
   }

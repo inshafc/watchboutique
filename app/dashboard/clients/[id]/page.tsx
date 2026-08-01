@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import WishlistSection from '@/components/clients/WishlistSection'
 import ContactLogSection from '@/components/clients/ContactLogSection'
 import { avatarColor, getInitials } from '@/lib/client-utils'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { Client, Wishlist, ContactLog, DealWithRelations } from '@/types'
 
 function TypeBadge({ type }: { type: string }) {
@@ -124,7 +125,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const notes = client.profile_notes ?? client.notes
 
   const closedDeals     = deals.filter(d => ['Closed', 'Delivered'].includes(d.stage))
-  const totalSalesValue = closedDeals.reduce((sum, d) => sum + (d.sale_price ?? 0), 0)
+  const totalSalesValue = closedDeals.reduce((sum, d) => sum + (dealSalePriceLKR(d) ?? 0), 0)
   const watchesSold     = closedDeals.length
   const rating          = clientRating(watchesSold, client.club_twb)
 
@@ -286,8 +287,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                 Closed:      'bg-emerald-50 text-emerald-700',
                 Lost:        'bg-red-50 text-red-600',
               }
-              const gp = deal.sale_price != null
-                ? deal.sale_price - (deal.trade_value ?? 0) - (deal.adjustment ?? 0) - (deal.commission ?? 0)
+              const salePriceLKR = dealSalePriceLKR(deal)
+              const gp = salePriceLKR != null
+                ? salePriceLKR - (deal.trade_value ?? 0) - (deal.adjustment ?? 0) - (deal.commission ?? 0)
                 : null
               return (
                 <Link
@@ -310,9 +312,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                     </div>
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    {deal.sale_price != null && (
+                    {salePriceLKR != null && (
                       <p className="text-sm font-medium text-gray-900 tabular-nums">
-                        LKR {deal.sale_price.toLocaleString('en-LK')}
+                        LKR {salePriceLKR.toLocaleString('en-LK')}
                       </p>
                     )}
                     {gp != null && (

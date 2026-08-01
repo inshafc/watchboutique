@@ -226,7 +226,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
       <div className="border border-gray-100 rounded-2xl p-5 mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Financials</p>
         {deal.offered_price != null && <FinancialRow label="Offered Price" value={formatLKR(deal.offered_price)} />}
-        <FinancialRow label="Sale Price" value={formatLKR(deal.sale_price)} />
+        <FinancialRow label="Sale Price" value={formatLKR(dealSalePriceLKR(deal))} />
         {watchCost > 0 && <FinancialRow label="Watch Cost" value={`− ${formatLKR(watchCost)}`} sub />}
         {deal.other_costs && expenses.length > 0 && expenses.map(exp => (
           <FinancialRow

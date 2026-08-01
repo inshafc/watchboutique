@@ -109,7 +109,7 @@ export function getPrevBounds(range: DateRange): [Date, Date] {
 
 export function computeStats(deals: DealRow[]) {
   const watchesSold = deals.length
-  const totalSales  = deals.reduce((s, d) => s + (d.sale_price ?? 0), 0)
+  const totalSales  = deals.reduce((s, d) => s + (dealSalePriceLKR(d) ?? 0), 0)
   const grossProfit = deals.reduce((s, d) => s + computeGP(d), 0)
   const gpMargin    = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0
   const resellerPct = watchesSold > 0
@@ -128,7 +128,7 @@ export function monthlyTrend(allDeals: DealRow[], count: number) {
     const slice = filterDeals(allDeals, start, end)
     return {
       month: d.toLocaleDateString('en', { month: 'short', year: '2-digit' }),
-      sales: slice.reduce((s, x) => s + (x.sale_price ?? 0), 0),
+      sales: slice.reduce((s, x) => s + (dealSalePriceLKR(x) ?? 0), 0),
       gp:    slice.reduce((s, x) => s + computeGP(x), 0),
       count: slice.length,
     }
@@ -142,7 +142,7 @@ export function salesByBrand(deals: DealRow[]) {
     const e = map.get(brand) ?? { sold: 0, totalSales: 0, gp: 0, commission: 0 }
     map.set(brand, {
       sold: e.sold + 1,
-      totalSales: e.totalSales + (d.sale_price ?? 0),
+      totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0),
       gp: e.gp + computeGP(d),
       commission: e.commission + (d.commission_payable ? (d.commission_amount ?? 0) : 0),
     })
@@ -159,7 +159,7 @@ export function salesByManager(deals: DealRow[]) {
     const e = map.get(mgr) ?? { sold: 0, totalSales: 0, commission: 0 }
     map.set(mgr, {
       sold: e.sold + 1,
-      totalSales: e.totalSales + (d.sale_price ?? 0),
+      totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0),
       commission: e.commission + (d.commission_payable ? (d.commission_amount ?? 0) : 0),
     })
   }
@@ -173,7 +173,7 @@ export function salesByReferral(deals: DealRow[]) {
   for (const d of deals) {
     const ref = d.clients?.lead_referral ?? 'Unknown'
     const e = map.get(ref) ?? { count: 0, totalSales: 0 }
-    map.set(ref, { count: e.count + 1, totalSales: e.totalSales + (d.sale_price ?? 0) })
+    map.set(ref, { count: e.count + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0) })
   }
   return Array.from(map.entries())
     .map(([source, v]) => ({ source, ...v, avgSale: v.count > 0 ? v.totalSales / v.count : 0 }))
@@ -185,7 +185,7 @@ export function topClients(deals: DealRow[], limit = 5) {
   for (const d of deals) {
     if (!d.client_id || !d.clients) continue
     const e = map.get(d.client_id) ?? { name: d.clients.name, clientType: d.clients.client_type, sold: 0, totalSales: 0, gp: 0 }
-    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (d.sale_price ?? 0), gp: e.gp + computeGP(d) })
+    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0), gp: e.gp + computeGP(d) })
   }
   return Array.from(map.values()).sort((a, b) => b.totalSales - a.totalSales).slice(0, limit)
 }
@@ -195,7 +195,7 @@ export function clubTwbDeals(deals: DealRow[]) {
   for (const d of deals) {
     if (!d.client_id || !d.clients?.club_twb) continue
     const e = map.get(d.client_id) ?? { name: d.clients.name, clientType: d.clients.client_type, sold: 0, totalSales: 0 }
-    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (d.sale_price ?? 0) })
+    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0) })
   }
   return Array.from(map.values()).sort((a, b) => b.totalSales - a.totalSales)
 }
@@ -204,8 +204,8 @@ export function newVsExisting(deals: DealRow[]) {
   const newDeals  = deals.filter(d => d.new_client)
   const existDeals = deals.filter(d => !d.new_client)
   return [
-    { type: 'New',      sold: newDeals.length,   totalSales: newDeals.reduce((s, d) => s + (d.sale_price ?? 0), 0),   gp: newDeals.reduce((s, d) => s + computeGP(d), 0) },
-    { type: 'Existing', sold: existDeals.length, totalSales: existDeals.reduce((s, d) => s + (d.sale_price ?? 0), 0), gp: existDeals.reduce((s, d) => s + computeGP(d), 0) },
+    { type: 'New',      sold: newDeals.length,   totalSales: newDeals.reduce((s, d) => s + (dealSalePriceLKR(d) ?? 0), 0),   gp: newDeals.reduce((s, d) => s + computeGP(d), 0) },
+    { type: 'Existing', sold: existDeals.length, totalSales: existDeals.reduce((s, d) => s + (dealSalePriceLKR(d) ?? 0), 0), gp: existDeals.reduce((s, d) => s + computeGP(d), 0) },
   ]
 }
 

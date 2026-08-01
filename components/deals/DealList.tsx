@@ -182,8 +182,8 @@ export default function DealList({
 
   const sorted = [...filtered].sort((a, b) => {
     switch (sort) {
-      case 'price_desc': return (b.sale_price ?? 0) - (a.sale_price ?? 0)
-      case 'price_asc':  return (a.sale_price ?? 0) - (b.sale_price ?? 0)
+      case 'price_desc': return (dealSalePriceLKR(b) ?? 0) - (dealSalePriceLKR(a) ?? 0)
+      case 'price_asc':  return (dealSalePriceLKR(a) ?? 0) - (dealSalePriceLKR(b) ?? 0)
       case 'name_asc':   return (a.watches?.watch_name ?? '').localeCompare(b.watches?.watch_name ?? '')
       case 'name_desc':  return (b.watches?.watch_name ?? '').localeCompare(a.watches?.watch_name ?? '')
       default:           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -595,8 +595,9 @@ export default function DealList({
           {sorted.length > 0 && view === 'tile' && (
             <div className={`px-4 md:px-8 py-5 grid gap-4 ${gridColsClass}`}>
               {sorted.map((deal, idx) => {
-                const gp       = grossProfit(deal)
-                const selected = selectedIds.has(deal.id)
+                const gp          = grossProfit(deal)
+                const salePriceLKR = dealSalePriceLKR(deal)
+                const selected    = selectedIds.has(deal.id)
                 return (
                   <div
                     key={deal.id}
@@ -653,7 +654,7 @@ export default function DealList({
                         </div>
                       )}
                       <div>
-                        {deal.sale_price != null && <p className="text-sm font-bold text-gray-900 tabular-nums">{formatLKR(deal.sale_price)}</p>}
+                        {salePriceLKR != null && <p className="text-sm font-bold text-gray-900 tabular-nums">{formatLKR(salePriceLKR)}</p>}
                         {gp != null && <p className={`text-xs font-medium tabular-nums ${gp >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{gp >= 0 ? '+' : ''}{formatLKR(gp)} profit</p>}
                       </div>
                     </div>
@@ -673,6 +674,7 @@ export default function DealList({
                   ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                   : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                 const photo = deal.watches?.photos?.[0] ?? null
+                const salePriceLKR = dealSalePriceLKR(deal)
                 return (
                   <div
                     key={deal.id}
@@ -712,7 +714,7 @@ export default function DealList({
                     {/* PRICE: top right */}
                     <div className="shrink-0 text-right pt-0.5">
                       <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>
-                        {formatLKR(deal.sale_price ?? deal.offered_price)}
+                        {formatLKR(salePriceLKR ?? deal.offered_price)}
                       </p>
                     </div>
                   </div>
@@ -754,12 +756,13 @@ export default function DealList({
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {sorted.map(deal => {
-                    const gp       = grossProfit(deal)
-                    const saleDate = deal.sale_date
+                    const gp          = grossProfit(deal)
+                    const salePriceLKR = dealSalePriceLKR(deal)
+                    const saleDate    = deal.sale_date
                       ? new Date(deal.sale_date).toLocaleDateString('en-LK', { dateStyle: 'medium' })
                       : new Date(deal.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
-                    const selected = selectedIds.has(deal.id)
-                    const photo    = deal.watches?.photos?.[0] ?? null
+                    const selected    = selectedIds.has(deal.id)
+                    const photo       = deal.watches?.photos?.[0] ?? null
                     return (
                       <tr
                         key={deal.id}
@@ -812,7 +815,7 @@ export default function DealList({
                           <TypeBadge type={deal.deal_type} />
                         </td>
                         <td className="px-3 py-3.5 hidden md:table-cell text-right">
-                          <span className="text-sm text-gray-900 tabular-nums">{formatLKR(deal.sale_price ?? deal.offered_price)}</span>
+                          <span className="text-sm text-gray-900 tabular-nums">{formatLKR(salePriceLKR ?? deal.offered_price)}</span>
                           {gp != null && <p className={`text-xs tabular-nums ${gp >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{gp >= 0 ? '+' : ''}{formatLKR(gp)}</p>}
                         </td>
                         <td className="px-3 py-3.5 pr-4 md:pr-8" onClick={e => e.stopPropagation()}>

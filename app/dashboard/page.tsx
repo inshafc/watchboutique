@@ -3,6 +3,7 @@ export const revalidate = 60
 import { createClient } from '@/lib/supabase/server'
 import nextDynamic from 'next/dynamic'
 import { getInvestorStats } from '@/lib/investor-stats'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { DealRow, Target, AgeingWatch } from '@/lib/analytics'
 
 // TWB / The Watch Boutique is the business itself, not an investor — a watch_investors
@@ -80,7 +81,7 @@ export default async function DashboardPage() {
   for (const d of delivered) {
     const key = d.source ?? 'Unknown'
     const e = sourceMap.get(key) ?? { count: 0, revenue: 0 }
-    sourceMap.set(key, { count: e.count + 1, revenue: e.revenue + (d.sale_price ?? 0) })
+    sourceMap.set(key, { count: e.count + 1, revenue: e.revenue + (dealSalePriceLKR(d) ?? 0) })
   }
   const sourceSummary = Array.from(sourceMap.entries()).map(([source, v]) => ({ source, ...v }))
 

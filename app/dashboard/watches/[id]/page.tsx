@@ -356,9 +356,9 @@ export default async function WatchDetailPage({ params }: { params: { id: string
                       </div>
                     </div>
                     <div className="text-right shrink-0 ml-3">
-                      {(deal.sale_price ?? deal.offered_price) != null && (
+                      {(dealSalePriceLKR(deal) ?? deal.offered_price) != null && (
                         <p className="text-sm font-medium text-gray-900 tabular-nums">
-                          {formatLKR(deal.sale_price ?? deal.offered_price)}
+                          {formatLKR(dealSalePriceLKR(deal) ?? deal.offered_price)}
                         </p>
                       )}
                     </div>
