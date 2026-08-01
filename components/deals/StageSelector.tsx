@@ -45,7 +45,7 @@ export default function StageSelector({
     if (newStage === stage) return
 
     if (newStage === 'Delivered' && !salesManager?.trim()) {
-      setError('Sales Manager is required before this can be Delivered — edit the sale to set one first.')
+      setError('Select a sales manager before delivering — required for commission. Edit the sale to set one.')
       return
     }
     setError(null)

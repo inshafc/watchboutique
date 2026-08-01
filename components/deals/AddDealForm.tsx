@@ -274,7 +274,7 @@ export default function AddDealForm({
     e.preventDefault()
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
-    if (!form.sales_manager.trim()) { setError('Sales Manager is required — commission is calculated from this field.'); return }
+    if (!form.sales_manager.trim()) { setError('Select a sales manager before delivering — required for commission.'); return }
 
     if (form.payment_method === 'Installment') {
       const invalid = installmentRows.some(r => !r.amount || isNaN(parseFloat(r.amount.replace(/,/g, ''))))
@@ -483,8 +483,8 @@ export default function AddDealForm({
                 setForm(f => ({
                   ...f,
                   client_id: id,
-                  sales_manager: c?.sales_manager ?? f.sales_manager,
-                  source: c?.lead_referral ?? f.source,
+                  sales_manager: c?.sales_manager ?? '',
+                  source: c?.lead_referral ?? '',
                 }))
               }}
               className={inp} required

@@ -275,7 +275,7 @@ export default function EditDealForm({
     if (!form.watch_id)  { setError('Please select a watch.');  return }
     if (!form.client_id) { setError('Please select a client.'); return }
     if (form.stage === 'Delivered' && !form.sales_manager.trim()) {
-      setError('Sales Manager is required before a sale can be Delivered — commission is calculated from this field.')
+      setError('Select a sales manager before delivering — required for commission.')
       return
     }
 
@@ -417,7 +417,7 @@ export default function EditDealForm({
                 setForm(f => ({
                   ...f,
                   client_id: id,
-                  sales_manager: c?.sales_manager ?? f.sales_manager,
+                  sales_manager: c?.sales_manager ?? '',
                 }))
               }}
               className={inp} required
