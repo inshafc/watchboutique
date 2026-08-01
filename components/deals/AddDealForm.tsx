@@ -355,7 +355,11 @@ export default function AddDealForm({
     }
 
     if (form.watch_id) {
-      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold', sold_price: salePrice }).eq('id', form.watch_id)
+      // watches.sold_price is always LKR — foreign-currency sales convert via
+      // the entered exchange rate before persisting; deals keeps the original
+      // foreign amount/currency/rate for the invoice.
+      const soldPriceLKR = form.currency === 'LKR' ? salePrice : (salePrice ?? 0) * (num(form.exchange_rate) ?? 0)
+      await supabase.from('watches').update({ status: 'Sold', watch_status: 'Sold', sold_price: soldPriceLKR }).eq('id', form.watch_id)
     }
 
     if (form.payment_method === 'Installment' && installmentRows.length > 0) {
