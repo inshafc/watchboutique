@@ -22,16 +22,20 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 ]
 
 const ROLE_BADGE: Record<UserRole, string> = {
-  super_admin: 'bg-gray-900 text-white',
-  enterer:     'bg-blue-50 text-blue-700',
-  viewer:      'bg-gray-100 text-gray-500',
+  super_admin:     'bg-gray-900 text-white',
+  enterer:         'bg-blue-50 text-blue-700',
+  viewer:          'bg-gray-100 text-gray-500',
+  inventory_clerk: 'bg-gray-100 text-gray-500',
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  super_admin: 'Admin',
-  enterer:     'Enterer',
-  viewer:      'Viewer',
+  super_admin:     'Admin',
+  enterer:         'Enterer',
+  viewer:          'Viewer',
+  inventory_clerk: 'Inventory Clerk',
 }
+
+const DEFAULT_ROLE_BADGE_CLS = 'bg-gray-100 text-gray-500'
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
@@ -450,8 +454,8 @@ export default function UserManagementSection() {
                       <p className="text-sm font-semibold text-gray-900">{u.full_name || u.email}</p>
                       <p className="text-xs text-gray-400">{u.email}</p>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>
-                      {ROLE_LABEL[u.role]}
+                    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role] ?? DEFAULT_ROLE_BADGE_CLS}`}>
+                      {ROLE_LABEL[u.role] ?? u.role}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">

@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'enterer' | 'viewer'
+export type UserRole = 'super_admin' | 'enterer' | 'viewer' | 'inventory_clerk'
 
 export interface Profile {
   id:                   string
@@ -39,7 +39,8 @@ export function hasPermission(role: UserRole, permission: keyof typeof PERMISSIO
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  super_admin: 'Admin',
-  enterer:     'Enterer',
-  viewer:      'Viewer',
+  super_admin:     'Admin',
+  enterer:         'Enterer',
+  viewer:          'Viewer',
+  inventory_clerk: 'Inventory Clerk',
 }

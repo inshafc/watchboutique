@@ -47,9 +47,10 @@ function initials(name: string): string {
 }
 
 const ROLE_BADGE: Record<UserRole, { label: string; cls: string }> = {
-  super_admin: { label: 'Admin',   cls: 'bg-gold text-white' },
-  enterer:     { label: 'Enterer', cls: 'bg-white/10 text-white/70' },
-  viewer:      { label: 'Viewer',  cls: 'bg-white/10 text-white/70' },
+  super_admin:     { label: 'Admin',            cls: 'bg-gold text-white' },
+  enterer:         { label: 'Enterer',          cls: 'bg-white/10 text-white/70' },
+  viewer:          { label: 'Viewer',           cls: 'bg-white/10 text-white/70' },
+  inventory_clerk: { label: 'Inventory Clerk',  cls: 'bg-white/10 text-white/70' },
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -171,9 +172,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-semibold text-white truncate">{profile.full_name || profile.email}</p>
-                <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${ROLE_BADGE[role].cls}`}>
-                  {ROLE_BADGE[role].label}
-                </span>
+                {(() => {
+                  const badge = ROLE_BADGE[role] ?? ROLE_BADGE.viewer
+                  return (
+                    <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                  )
+                })()}
               </div>
               <svg className="w-3 h-3 shrink-0 text-white/30" viewBox="0 0 12 12" fill="currentColor">
                 <path d={showProfileMenu ? 'M6 4L2 8h8L6 4z' : 'M6 8L2 4h8L6 8z'}/>

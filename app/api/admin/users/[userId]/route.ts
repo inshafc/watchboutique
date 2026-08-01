@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { UserRole } from '@/lib/auth'
+
+const VALID_ROLES: UserRole[] = ['super_admin', 'enterer', 'viewer', 'inventory_clerk']
 
 async function requireSuperAdmin() {
   const supabase = createClient()
@@ -32,7 +35,7 @@ export async function PATCH(
 
   if (body.action === 'update_role') {
     const { role } = body
-    if (!['super_admin', 'enterer', 'viewer'].includes(role)) {
+    if (!VALID_ROLES.includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
     const { error } = await admin
