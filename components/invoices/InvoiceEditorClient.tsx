@@ -9,6 +9,11 @@ import { generateInvoiceHTML } from '@/lib/generateInvoiceHTML'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 // invoice-photos bucket must exist in Supabase storage with public access
 import InvoicePrintLayout from './InvoicePrintLayout'
+import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
+import { useIdleLock } from '@/lib/hooks/useIdleLock'
+import DraftBanner from '@/components/drafts/DraftBanner'
+import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
+import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
 import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
 
 const inp      = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
@@ -138,7 +143,7 @@ export default function InvoiceEditorClient({
   clients?:        ClientForInvoice[]
   logoUrl?:        string | null
 }) {
-  const { profile } = useAuth()
+  const { profile, setInactivityLogoutSuspended } = useAuth()
   const isViewer = profile?.role === 'viewer'
 
   const [savedOnce, setSavedOnce] = useState(
@@ -214,6 +219,36 @@ export default function InvoiceEditorClient({
     }
     return [emptyItem()]
   })
+
+  // ── Draft autosave + idle lock ──────────────────────────────
+  // The drafts table is one row per user per module (not per invoice), so
+  // stamp which invoice this draft belongs to and ignore/discard it if it
+  // turns out to be for a different invoice than the one currently open.
+  const draftState = useMemo(() => ({
+    invoiceId: invoice.id, form, items, fieldVisibility,
+  }), [invoice.id, form, items, fieldVisibility])
+
+  const draft = useAutosaveDraft('invoice', draftState)
+  const isStaleDraft = draft.status === 'prompt' && draft.pendingDraft?.invoiceId !== invoice.id
+
+  useEffect(() => {
+    if (isStaleDraft) void draft.discard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaleDraft])
+
+  useEffect(() => {
+    setInactivityLogoutSuspended(true)
+    return () => setInactivityLogoutSuspended(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const { locked, resume } = useIdleLock(4 * 60 * 1000, () => { void draft.saveNow() })
+
+  function applyDraft(d: typeof draftState) {
+    setForm(d.form)
+    setItems(d.items)
+    setFieldVisibility(d.fieldVisibility)
+  }
 
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
@@ -427,6 +462,7 @@ export default function InvoiceEditorClient({
     }
 
     void logActivity({ actionType: 'invoice_updated', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number })
+    await draft.clearDraft()
     setSaving(false)
     setSaved(true)
     setSavedOnce(true)
@@ -435,7 +471,7 @@ export default function InvoiceEditorClient({
       sourcingPromptedRef.current = true
       setSourcingPromptOpen(true)
     }
-  }, [form, items, invoice.id, showBankPicker, fieldVisibility])
+  }, [form, items, invoice.id, showBankPicker, fieldVisibility, draft])
 
   const handleAddToSourcedOrders = useCallback(async () => {
     setSourcingAdding(true)
@@ -531,6 +567,7 @@ export default function InvoiceEditorClient({
 
   return (
     <div className="flex flex-col lg:flex-row min-h-full">
+      {locked && <IdleLockOverlay onResume={resume} />}
 
       {/* ── Left panel: form ────────────────────────────────── */}
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
@@ -567,6 +604,7 @@ export default function InvoiceEditorClient({
                   </button>
                 </>
               )}
+              <DraftSaveIndicator status={draft.saveStatus} />
               <button
                 type="button"
                 onClick={handleSave}
@@ -599,6 +637,16 @@ export default function InvoiceEditorClient({
             </div>
           )}
         </div>
+
+        {draft.status === 'prompt' && !isStaleDraft && (
+          <div className="mx-6 mt-4">
+            <DraftBanner
+              updatedAt={draft.pendingDraftUpdatedAt}
+              onRestore={() => { const d = draft.restore(); if (d) applyDraft(d) }}
+              onDiscard={() => void draft.discard()}
+            />
+          </div>
+        )}
 
         {error && (
           <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">{error}</div>

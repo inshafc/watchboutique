@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -9,6 +9,11 @@ import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
+import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
+import { useIdleLock } from '@/lib/hooks/useIdleLock'
+import DraftBanner from '@/components/drafts/DraftBanner'
+import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
+import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -51,7 +56,7 @@ function num(s: string) { return parseFloat(s.replace(/,/g, '')) }
 
 export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const router = useRouter()
-  const { profile } = useAuth()
+  const { profile, setInactivityLogoutSuspended } = useAuth()
   const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -109,6 +114,35 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const [labelNewArrival, setLabelNewArrival] = useState(true)
   const [labelHotSell,    setLabelHotSell]    = useState(false)
   const [labelExpensive,  setLabelExpensive]  = useState(false)
+
+  // ── Draft autosave + idle lock ──────────────────────────────
+  // Photos are intentionally excluded — File objects aren't serializable to
+  // jsonb, so a restored draft never carries attached-but-unsaved photos;
+  // the user re-attaches them after restoring.
+  const draftState = useMemo(() => ({
+    form, brandId, newBrandName, investors, labelNewArrival, labelHotSell, labelExpensive,
+  }), [form, brandId, newBrandName, investors, labelNewArrival, labelHotSell, labelExpensive])
+
+  const draft = useAutosaveDraft('inventory', draftState)
+
+  useEffect(() => {
+    setInactivityLogoutSuspended(true)
+    return () => setInactivityLogoutSuspended(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const { locked, resume } = useIdleLock(4 * 60 * 1000, () => { void draft.saveNow() })
+
+  function applyDraft(d: typeof draftState) {
+    setForm(d.form)
+    setBrandId(d.brandId)
+    setNewBrandName(d.newBrandName)
+    setShowNewBrand(!!d.newBrandName)
+    setInvestors(d.investors)
+    setLabelNewArrival(d.labelNewArrival)
+    setLabelHotSell(d.labelHotSell)
+    setLabelExpensive(d.labelExpensive)
+  }
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -230,6 +264,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       }
 
       void logActivity({ actionType: 'watch_created', entityType: 'watch', entityId: watch.id, entityLabel: form.watch_name.trim() })
+      await draft.clearDraft()
       router.push('/dashboard/inventory?highlight=' + watch.id)
     } catch (err) {
       console.error('Watch save error:', err)
@@ -243,6 +278,20 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
   return (
     <div className="space-y-4">
+      {locked && <IdleLockOverlay onResume={resume} />}
+
+      {draft.status === 'prompt' && (
+        <DraftBanner
+          updatedAt={draft.pendingDraftUpdatedAt}
+          onRestore={() => { const d = draft.restore(); if (d) applyDraft(d) }}
+          onDiscard={() => void draft.discard()}
+        />
+      )}
+
+      <div className="flex justify-end">
+        <DraftSaveIndicator status={draft.saveStatus} />
+      </div>
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}

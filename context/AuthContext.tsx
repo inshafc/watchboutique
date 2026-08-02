@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
@@ -19,6 +19,7 @@ interface AuthContextType {
   hasPermission:   (permission: keyof typeof PERMISSIONS) => boolean
   signOut:         () => Promise<void>
   refreshProfile:  () => Promise<void>
+  setInactivityLogoutSuspended: (suspended: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   hasPermission:   () => false,
   signOut:         async () => {},
   refreshProfile:  async () => {},
+  setInactivityLogoutSuspended: () => {},
 })
 
 const INACTIVITY_TIMEOUT = 3 * 60 * 1000 // 3 minutes
@@ -37,6 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,    setUser]    = useState<User    | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Suspended by new-entry forms (AddWatchForm, AddDealForm,
+  // InvoiceEditorClient) while mounted, so their own longer form-idle-lock
+  // timer is what governs an idle user there, not this global logout.
+  const suspendedRef = useRef(false)
+  const timerRef      = useRef<ReturnType<typeof setTimeout>>()
+  const resetTimerRef = useRef<() => void>(() => {})
 
   const fetchProfile = useCallback(async (userId: string) => {
     const supabase = createClient()
@@ -51,15 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient()
-    let timer: NodeJS.Timeout
 
     const resetTimer = () => {
-      clearTimeout(timer)
-      timer = setTimeout(async () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      if (suspendedRef.current) return
+      timerRef.current = setTimeout(async () => {
         await supabase.auth.signOut()
         window.location.replace('/login')
       }, INACTIVITY_TIMEOUT)
     }
+    resetTimerRef.current = resetTimer
 
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const
     events.forEach(e => window.addEventListener(e, resetTimer))
@@ -85,11 +95,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => {
-      clearTimeout(timer)
+      if (timerRef.current) clearTimeout(timerRef.current)
       events.forEach(e => window.removeEventListener(e, resetTimer))
       subscription.unsubscribe()
     }
   }, [fetchProfile])
+
+  function setInactivityLogoutSuspended(suspended: boolean) {
+    suspendedRef.current = suspended
+    if (suspended) {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    } else {
+      resetTimerRef.current()
+    }
+  }
 
   const role = profile?.role ?? null
 
@@ -112,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, hasPermission, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, hasPermission, signOut, refreshProfile, setInactivityLogoutSuspended }}>
       {children}
     </AuthContext.Provider>
   )

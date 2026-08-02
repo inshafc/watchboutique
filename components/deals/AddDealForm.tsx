@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import { PAYMENT_METHODS, WATCH_CONDITIONS, WATCH_SET_DETAILS, LEAD_REFERRALS } from '@/types'
 import type { PaymentMethod, SalesManager } from '@/types'
@@ -12,6 +13,11 @@ import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
 import CurrencyAndRateFields from '@/components/deals/CurrencyAndRateFields'
 import WatchInvestorSplit from '@/components/deals/WatchInvestorSplit'
+import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
+import { useIdleLock } from '@/lib/hooks/useIdleLock'
+import DraftBanner from '@/components/drafts/DraftBanner'
+import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
+import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
 
 const inp  = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl  = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -204,6 +210,7 @@ export default function AddDealForm({
   initialWatchId?: string
 }) {
   const router  = useRouter()
+  const { setInactivityLogoutSuspended } = useAuth()
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [successModal, setSuccessModal] = useState<{ dealId: string; watchName: string; salePrice: number | null; clientName: string } | null>(null)
@@ -233,6 +240,31 @@ export default function AddDealForm({
 
   const [tradeInRows,     setTradeInRows]     = useState<TradeInRow[]>([{ ...DEFAULT_TRADE_IN }])
   const [installmentRows, setInstallmentRows] = useState<InstallmentRow[]>([{ amount: '', due_date: '', notes: '' }])
+
+  // ── Draft autosave + idle lock ──────────────────────────────
+  const draftState = useMemo(() => ({
+    form, salesManagerId, otherCosts, expenseRows, commissionPayable, tradeInRows, installmentRows,
+  }), [form, salesManagerId, otherCosts, expenseRows, commissionPayable, tradeInRows, installmentRows])
+
+  const draft = useAutosaveDraft('sale', draftState)
+
+  useEffect(() => {
+    setInactivityLogoutSuspended(true)
+    return () => setInactivityLogoutSuspended(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const { locked, resume } = useIdleLock(4 * 60 * 1000, () => { void draft.saveNow() })
+
+  function applyDraft(d: typeof draftState) {
+    setForm(d.form)
+    setSalesManagerId(d.salesManagerId)
+    setOtherCosts(d.otherCosts)
+    setExpenseRows(d.expenseRows)
+    setCommissionPayable(d.commissionPayable)
+    setTradeInRows(d.tradeInRows)
+    setInstallmentRows(d.installmentRows)
+  }
 
   function field(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -418,6 +450,7 @@ export default function AddDealForm({
 
     const clientName = clients.find(c => c.id === form.client_id)?.name ?? ''
     void logActivity({ actionType: 'sale_created', entityType: 'deal', entityId: deal.id, entityLabel: selectedWatch?.watch_name, details: { client: clientName } })
+    await draft.clearDraft()
     setLoading(false)
     setSuccessModal({
       dealId:     deal.id,
@@ -448,6 +481,20 @@ export default function AddDealForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {locked && <IdleLockOverlay onResume={resume} />}
+
+      {draft.status === 'prompt' && (
+        <DraftBanner
+          updatedAt={draft.pendingDraftUpdatedAt}
+          onRestore={() => { const d = draft.restore(); if (d) applyDraft(d) }}
+          onDiscard={() => void draft.discard()}
+        />
+      )}
+
+      <div className="flex justify-end">
+        <DraftSaveIndicator status={draft.saveStatus} />
+      </div>
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
           {error}
