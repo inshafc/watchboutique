@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   type DealRow, type Target, type DateRange,
   filterDeals, getDateBounds, getPrevBounds,
-  overviewRevenue, overviewGrossProfit, newCustomersInPeriod,
+  overviewRevenue, computeGP, newCustomersInPeriod,
   salesByBrand, salesByManager, salesByReferral, salesByChannel,
   topClients, newVsExisting, targetForPeriod,
   fmtCompact, pctChange,
@@ -266,10 +266,11 @@ export default function DashboardOverview({
   // period. sale_date reflects when the sale actually happened.
   const revenue      = overviewRevenue(current)
   const revenuePrev  = overviewRevenue(prev)
-  const grossProfit     = overviewGrossProfit(current)
-  const grossProfitPrev = overviewGrossProfit(prev)
+  const grossProfit     = current.reduce((s, d) => s + computeGP(d), 0)
+  const grossProfitPrev = prev.reduce((s, d) => s + computeGP(d), 0)
   const watchesSold  = current.length
   const gpMargin     = revenue > 0 ? (grossProfit / revenue) * 100 : 0
+  const gpMarginPrev = revenuePrev > 0 ? (grossProfitPrev / revenuePrev) * 100 : 0
   const newCustomers         = newCustomersInPeriod(clients, start, end)
   const newCustomersReferral = newCustomers.filter(c => c.lead_referral === 'Referral').length
 
@@ -536,7 +537,7 @@ export default function DashboardOverview({
         <Card>
           <h2 className="m-0 text-[19px] font-semibold tracking-tight">Overview</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             {/* Revenue */}
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
               <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Revenue</span>
@@ -583,6 +584,21 @@ export default function DashboardOverview({
                   <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(gpMargin / GP_PCT_TARGET * 100, 100)}%`, background: barGradient(Math.min(gpMargin / GP_PCT_TARGET * 100, 100)) }} />
                 </div>
               </div>
+            </div>
+
+            {/* GP Margin */}
+            <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>GP margin</span>
+              <div className="flex flex-col items-start gap-2">
+                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">{gpMargin.toFixed(1)}%</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(gpMargin, gpMarginPrev)).bg, color: deltaColor(pctChange(gpMargin, gpMarginPrev)).fg }}>
+                    {fmtDelta(pctChange(gpMargin, gpMarginPrev))}
+                  </span>
+                  <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
+                </div>
+              </div>
+              <span className="text-[12px] mt-0.5" style={{ color: INK_45 }}>Gross profit ÷ revenue</span>
             </div>
           </div>
 

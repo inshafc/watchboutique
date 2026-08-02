@@ -26,7 +26,7 @@ export type InvestorStatsResult = {
 
 // TWB / The Watch Boutique is the business itself, not an investor — never list it as one.
 const TWB_KEYS = new Set(['twb', 'the-watch-boutique', 'the_watch_boutique'])
-function isTwbInvestor(key: string, displayName?: string | null): boolean {
+export function isTwbInvestor(key: string, displayName?: string | null): boolean {
   if (TWB_KEYS.has(key.trim().toLowerCase())) return true
   if (displayName && displayName.toLowerCase().includes('watch boutique')) return true
   return false

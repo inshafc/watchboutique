@@ -1,6 +1,7 @@
 // Shared analytics utilities for Dashboard and Analytics pages
 
 import { dealSalePriceLKR } from '@/lib/deal-currency'
+import { isTwbInvestor } from '@/lib/investor-stats'
 
 export type DateRange = 'this_month' | 'last_month' | 'last_3' | 'last_6' | 'this_year'
 
@@ -37,6 +38,7 @@ export interface DealRow {
     sold_price?: number | null
     photos?: string[] | null
     brands: { name: string } | null
+    watch_investors?: { investor_name: string; percentage: number }[]
   } | null
   clients: {
     name: string
@@ -69,16 +71,37 @@ export interface Target {
   month: number | null
 }
 
+// The single, central Gross Profit definition — every page that shows
+// "Gross Profit" should derive it from this function (or from computeStats(),
+// which calls it), not recompute its own formula.
+//
+// GP = Revenue − watch cost − commission (gated by commission_payable) −
+//      deal_expenses − investor payout.
+//
+// Investor payout = pre-payout profit × (sum of non-TWB watch_investors
+// percentages for the deal's watch ÷ 100) — the same percentage-split +
+// TWB-exclusion mechanism the Investor Relations panel uses
+// (isTwbInvestor, shared from lib/investor-stats.ts). TWB is the business
+// itself, not an external investor, so its share is never subtracted.
+//
+// Note: this replaces the older formula (other_costs_amount + trade_ins,
+// no deal_expenses, no investor payout) that computeGP() used previously.
 export function computeGP(d: DealRow): number {
   // sold_price (captured on the watch at the point of sale) is the source of truth;
   // fall back to the deal's own sale_price, converted to LKR, for sales recorded
   // before that column existed.
   const sp = d.watches?.sold_price ?? dealSalePriceLKR(d) ?? 0
   const wc = d.watches?.purchase_cost ?? 0
-  const oc = d.other_costs ? (d.other_costs_amount ?? 0) : 0
   const ca = d.commission_payable ? (d.commission_amount ?? 0) : 0
-  const ti = d.trade_ins.reduce((s, t) => s + (t.value ?? 0), 0)
-  return sp - wc - oc - ca - ti
+  const de = (d.deal_expenses ?? []).reduce((s, e) => s + (e.amount ?? 0), 0)
+  const preGP = sp - wc - ca - de
+
+  const investorPct = (d.watches?.watch_investors ?? [])
+    .filter(wi => !isTwbInvestor(wi.investor_name))
+    .reduce((s, wi) => s + wi.percentage, 0)
+  const investorPayout = preGP * (investorPct / 100)
+
+  return preGP - investorPayout
 }
 
 export function filterDeals(deals: DealRow[], start: Date, end: Date): DealRow[] {
@@ -127,31 +150,16 @@ export function computeStats(deals: DealRow[]) {
   return { watchesSold, totalSales, grossProfit, gpMargin, resellerPct }
 }
 
-// ── Dashboard Overview cards — exact formulas, see the calling page for the
-//    per-card mapping ────────────────────────────────────────────────────
+// ── Dashboard Overview cards ─────────────────────────────────────────────
 
 // Revenue = sum of dealSalePriceLKR(deal) for every deal in the sale_date-
 // filtered, Closed/Delivered set passed in. Deliberately does NOT fall back
 // to watches.sold_price like computeGP()/grossProfitFor() do elsewhere —
-// the spec names dealSalePriceLKR(deal) literally.
+// the spec names dealSalePriceLKR(deal) literally. Gross profit for this
+// same card set now comes directly from computeGP() (see above) — there is
+// no separate Overview-only GP formula anymore.
 export function overviewRevenue(deals: DealRow[]): number {
   return deals.reduce((s, d) => s + (dealSalePriceLKR(d) ?? 0), 0)
-}
-
-// Gross profit = Revenue − watch cost − commission payout − other costs.
-// Other costs is summed from the itemized deal_expenses rows (per spec),
-// not the deals.other_costs_amount aggregate that computeGP() uses — the
-// two should normally agree since other_costs_amount is a cached mirror of
-// this same sum, but this computes it directly from the itemized source as
-// instructed. Investor payout is NOT subtracted — out of scope here.
-export function overviewGrossProfit(deals: DealRow[]): number {
-  return deals.reduce((s, d) => {
-    const revenue     = dealSalePriceLKR(d) ?? 0
-    const watchCost   = d.watches?.purchase_cost ?? 0
-    const commission  = d.commission_payable ? (d.commission_amount ?? 0) : 0
-    const otherCosts  = (d.deal_expenses ?? []).reduce((a, e) => a + (e.amount ?? 0), 0)
-    return s + (revenue - watchCost - commission - otherCosts)
-  }, 0)
 }
 
 // New customers = clients created inside the toggled period AND on/after
