@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import type { WatchStatusNew } from '@/types'
 import { WATCH_STATUS_NEW } from '@/types'
@@ -26,6 +27,8 @@ export default function WatchStatusButtons({
   initialStatus: string | null
 }) {
   const router = useRouter()
+  const { profile } = useAuth()
+  const isClerk = profile?.role === 'inventory_clerk'
   const [current,  setCurrent]  = useState<WatchStatusNew>((initialStatus as WatchStatusNew) ?? 'Available')
   const [saving,   setSaving]   = useState(false)
   const [dialog,   setDialog]   = useState<DialogState>(null)
@@ -34,6 +37,11 @@ export default function WatchStatusButtons({
 
   async function handleSelect(status: WatchStatusNew) {
     if (status === current || saving) return
+
+    // deals is RLS-denied for inventory_clerk — the linked-deal check below
+    // can't run, and voiding/duplicating a sale isn't something a clerk
+    // should be doing, so this specific transition is blocked for them.
+    if (status === 'Available' && current === 'Sold' && isClerk) return
 
     // Going from Sold → Available: check for a linked deal first
     if (status === 'Available' && current === 'Sold') {
@@ -151,21 +159,27 @@ export default function WatchStatusButtons({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {WATCH_STATUS_NEW.map(s => (
+        {WATCH_STATUS_NEW.map(s => {
+          const blocked = isClerk && s === 'Available' && current === 'Sold'
+          return (
           <button
             key={s}
             type="button"
-            disabled={saving}
+            disabled={saving || blocked}
+            title={blocked ? 'Voiding a sale requires sales access' : undefined}
             onClick={() => handleSelect(s)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
               current === s
                 ? STATUS_STYLES[s]
-                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                : blocked
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
             }`}
           >
             {s}
           </button>
-        ))}
+          )
+        })}
       </div>
 
       {/* Mark as Available — sale conflict dialog */}

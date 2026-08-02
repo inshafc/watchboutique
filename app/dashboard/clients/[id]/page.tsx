@@ -108,11 +108,22 @@ function clientRating(dealCount: number, isClubTwb: boolean): number {
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: myProfile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const isClerk = myProfile?.role === 'inventory_clerk'
+
   const [clientRes, wishlistRes, logRes, dealsRes] = await Promise.all([
     supabase.from('clients').select('*').eq('id', params.id).single(),
     supabase.from('wishlists').select('*').eq('client_id', params.id).order('created_at', { ascending: false }),
     supabase.from('contact_log').select('*').eq('client_id', params.id).order('created_at', { ascending: false }),
-    supabase.from('deals').select('*, watches(watch_name, reference)').eq('client_id', params.id).order('created_at', { ascending: false }),
+    // deals is RLS-denied for inventory_clerk — skip it and hide the
+    // sales-derived stats/history sections below instead of showing
+    // misleading zeros/"no deals yet".
+    isClerk
+      ? Promise.resolve({ data: [] as unknown[] })
+      : supabase.from('deals').select('*, watches(watch_name, reference)').eq('client_id', params.id).order('created_at', { ascending: false }),
   ])
 
   if (!clientRes.data) notFound()
@@ -177,21 +188,23 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </div>
       </div>
 
-      {/* Stats chips */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-gray-50 rounded-2xl p-3 text-center">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Total Sales</p>
-          <p className="text-sm font-bold text-gray-900 tabular-nums">LKR {totalSalesValue.toLocaleString('en-LK')}</p>
+      {/* Stats chips — sales-derived, hidden for inventory_clerk (deals denied) */}
+      {!isClerk && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-gray-50 rounded-2xl p-3 text-center">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Total Sales</p>
+            <p className="text-sm font-bold text-gray-900 tabular-nums">LKR {totalSalesValue.toLocaleString('en-LK')}</p>
+          </div>
+          <div className="bg-gray-50 rounded-2xl p-3 text-center">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Watches Sold</p>
+            <p className="text-sm font-bold text-gray-900 tabular-nums">{watchesSold}</p>
+          </div>
+          <div className="bg-gray-50 rounded-2xl p-3 text-center">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Rating</p>
+            <div className="flex justify-center"><RatingGauge value={rating} max={10} /></div>
+          </div>
         </div>
-        <div className="bg-gray-50 rounded-2xl p-3 text-center">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Watches Sold</p>
-          <p className="text-sm font-bold text-gray-900 tabular-nums">{watchesSold}</p>
-        </div>
-        <div className="bg-gray-50 rounded-2xl p-3 text-center">
-          <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Rating</p>
-          <div className="flex justify-center"><RatingGauge value={rating} max={10} /></div>
-        </div>
-      </div>
+      )}
 
       {/* Contact action buttons */}
       {(client.phone || client.email) && (
@@ -272,7 +285,8 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         <ContactLogSection clientId={client.id} initialLogs={logs} />
       </div>
 
-      {/* Sales History */}
+      {/* Sales History — hidden for inventory_clerk (deals denied) */}
+      {!isClerk && (
       <div className="border border-gray-100 rounded-2xl p-5 mb-8">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Sales History</p>
         {deals.length === 0 ? (
@@ -329,6 +343,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

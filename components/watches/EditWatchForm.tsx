@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
@@ -63,6 +64,8 @@ export default function EditWatchForm({
   brands?: Brand[]
 }) {
   const router = useRouter()
+  const { profile } = useAuth()
+  const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
@@ -117,7 +120,9 @@ export default function EditWatchForm({
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = form.inventory_type === 'consign'
+  // watch_investors is RLS-denied for inventory_clerk — the investor split
+  // isn't something a clerk can change, so skip the requirement.
+  const investorsValid = form.inventory_type === 'consign' || isClerk
     ? true
     : investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
@@ -199,24 +204,29 @@ export default function EditWatchForm({
         return
       }
 
-      await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
+      // watch_investors is RLS-denied for inventory_clerk — leave whatever
+      // split already exists untouched rather than attempt a denied
+      // delete/insert; a super_admin/enterer can manage it via edit.
+      if (!isClerk) {
+        await supabase.from('watch_investors').delete().eq('watch_id', watch.id)
 
-      const investorRows = form.inventory_type === 'twb'
-        ? investors
-            .filter(i => i.investor_name.trim())
-            .map(i => ({
-              watch_id:      watch.id,
-              investor_name: i.investor_name,
-              percentage:    parseFloat(i.percentage),
-            }))
-        : []
+        const investorRows = form.inventory_type === 'twb'
+          ? investors
+              .filter(i => i.investor_name.trim())
+              .map(i => ({
+                watch_id:      watch.id,
+                investor_name: i.investor_name,
+                percentage:    parseFloat(i.percentage),
+              }))
+          : []
 
-      if (investorRows.length > 0) {
-        const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
-        if (invErr) {
-          setError(invErr.message)
-          setLoading(false)
-          return
+        if (investorRows.length > 0) {
+          const { error: invErr } = await supabase.from('watch_investors').insert(investorRows)
+          if (invErr) {
+            setError(invErr.message)
+            setLoading(false)
+            return
+          }
         }
       }
 
@@ -234,6 +244,14 @@ export default function EditWatchForm({
     if (form.inventory_type === 'consign' && !form.consignee_name.trim()) { setError('Consignee name is required for a consigned watch.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
     if (brandError) { setError('Please fix the brand error before saving.'); return }
+
+    // deals is RLS-denied for inventory_clerk, so the linked-deal check below
+    // can't run — block this transition for them rather than risk silently
+    // detaching a real sale.
+    if (watch.status === 'Sold' && form.status !== 'Sold' && isClerk) {
+      setError('Changing status away from Sold requires sales access.')
+      return
+    }
 
     // Sold -> non-Sold would silently void the sale. Check for a linked deal first.
     if (watch.status === 'Sold' && form.status !== 'Sold') {
@@ -492,8 +510,8 @@ export default function EditWatchForm({
         </div>
       </div>
 
-      {/* ── Investors ────────────────────────────────────── */}
-      {form.inventory_type === 'twb' && (
+      {/* ── Investors — hidden for inventory_clerk (watch_investors denied) ── */}
+      {form.inventory_type === 'twb' && !isClerk && (
         <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
       )}
 

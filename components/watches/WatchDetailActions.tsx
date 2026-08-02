@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 
 function CheckIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
@@ -23,6 +24,8 @@ export default function WatchDetailActions({
   watchStatus?: string | null
 }) {
   const router   = useRouter()
+  const { profile } = useAuth()
+  const isClerk  = profile?.role === 'inventory_clerk'
   const [busy,   setBusy]   = useState(false)
   const [dialog, setDialog] = useState<AvailableDialog>(null)
   const [acting, setActing] = useState(false)
@@ -173,7 +176,7 @@ export default function WatchDetailActions({
             <CheckIcon /> Mark as Arrived
           </button>
         )}
-        {watchStatus === 'Sold' && (
+        {watchStatus === 'Sold' && !isClerk && (
           <button
             onClick={handleMarkAvailable}
             disabled={busy}

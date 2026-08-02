@@ -9,12 +9,22 @@ import type { Client } from '@/types'
 export default async function ClientsPage() {
   const supabase = createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: myProfile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const isClerk = myProfile?.role === 'inventory_clerk'
+
   const [clientsRes, dealsRes] = await Promise.all([
     supabase.from('clients').select('id, name, whatsapp, email, phone, instagram, is_vip, club_twb, notes, profile_notes, address, lead_referral, client_type, sales_manager, avatar_color, created_at, deleted_at, labels, is_draft, birthday, anniversary, status_tier').is('deleted_at', null).order('name', { ascending: true }),
-    supabase
-      .from('deals')
-      .select('client_id, sale_price, currency, exchange_rate, stage, closed_at, sale_date, created_at, watch_id, watches(is_draft, deleted_at)')
-      .is('deleted_at', null),
+    // deals is RLS-denied for inventory_clerk — skip it rather than rely on
+    // an empty RLS-filtered result; sales badges/totals just render empty.
+    isClerk
+      ? Promise.resolve({ data: [] as unknown[] })
+      : supabase
+          .from('deals')
+          .select('client_id, sale_price, currency, exchange_rate, stage, closed_at, sale_date, created_at, watch_id, watches(is_draft, deleted_at)')
+          .is('deleted_at', null),
   ])
 
   const clients = (clientsRes.data ?? []) as Client[]

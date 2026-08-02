@@ -22,7 +22,7 @@ export const PERMISSIONS = {
   view_inventory:         ['super_admin', 'enterer', 'viewer', 'inventory_clerk'],
   view_financial_details: ['super_admin', 'enterer'],
   add_edit_watch:         ['super_admin', 'enterer', 'inventory_clerk'],
-  delete_watch:           ['super_admin'],
+  delete_watch:           ['super_admin', 'inventory_clerk'],
   view_sales:             ['super_admin', 'enterer'],
   record_sale:            ['super_admin', 'enterer'],
   delete_sale:            ['super_admin'],
@@ -31,7 +31,7 @@ export const PERMISSIONS = {
   delete_invoice:         ['super_admin'],
   view_clients:           ['super_admin', 'enterer', 'viewer', 'inventory_clerk'],
   add_edit_client:        ['super_admin', 'enterer', 'inventory_clerk'],
-  delete_client:          ['super_admin'],
+  delete_client:          ['super_admin', 'inventory_clerk'],
 } as const
 
 export function hasPermission(role: UserRole, permission: keyof typeof PERMISSIONS): boolean {

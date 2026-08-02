@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
@@ -50,6 +51,8 @@ function num(s: string) { return parseFloat(s.replace(/,/g, '')) }
 
 export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const router = useRouter()
+  const { profile } = useAuth()
+  const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
@@ -113,7 +116,10 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   }
 
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
-  const investorsValid = form.inventory_type === 'consign'
+  // watch_investors is RLS-denied for inventory_clerk — the investor split
+  // isn't something a clerk can set, so skip the requirement and let a
+  // super_admin/enterer fill it in later via edit.
+  const investorsValid = form.inventory_type === 'consign' || isClerk
     ? true
     : investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
@@ -203,7 +209,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         await supabase.from('watches').update({ photos: photoUrls }).eq('id', watch.id)
       }
 
-      const investorRows = form.inventory_type === 'twb'
+      const investorRows = form.inventory_type === 'twb' && !isClerk
         ? investors
             .filter(i => i.investor_name.trim())
             .map(i => ({
@@ -396,8 +402,8 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         </div>
       </div>
 
-      {/* ── Investors ────────────────────────────────────── */}
-      {form.inventory_type === 'twb' && (
+      {/* ── Investors — hidden for inventory_clerk (watch_investors denied) ── */}
+      {form.inventory_type === 'twb' && !isClerk && (
         <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
       )}
 

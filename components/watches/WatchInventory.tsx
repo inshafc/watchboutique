@@ -179,6 +179,7 @@ export default function WatchInventory({
   const router = useRouter()
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'super_admin'
+  const isClerk = profile?.role === 'inventory_clerk'
 
   // Clear ?highlight param after animation completes
   useEffect(() => {
@@ -709,6 +710,15 @@ export default function WatchInventory({
     const soldWatches = selected.filter(w => (w.watch_status ?? w.status) === 'Sold')
     if (soldWatches.length === 0) {
       exitBulkMode()
+      return
+    }
+
+    // deals is RLS-denied for inventory_clerk — the linked-deal check below
+    // can't run, so skip sold watches entirely rather than risk silently
+    // detaching a real sale.
+    if (isClerk) {
+      exitBulkMode()
+      showToast(`${soldWatches.length} sold ${soldWatches.length === 1 ? 'watch was' : 'watches were'} skipped — changing a sold watch requires sales access`)
       return
     }
 

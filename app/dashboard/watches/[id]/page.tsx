@@ -36,10 +36,24 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 export default async function WatchDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: myProfile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const isClerk = myProfile?.role === 'inventory_clerk'
+
   const [watchRes, dealsRes, investorNames] = await Promise.all([
     supabase.from('watches').select('*, watch_investors(*)').eq('id', params.id).single(),
-    supabase.from('deals').select('id, deal_type, stage, sale_price, currency, exchange_rate, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
-    getInvestorDisplayNames(supabase),
+    // deals is RLS-denied for inventory_clerk — skip the query rather than
+    // rely on an empty RLS-filtered result, and hide everything downstream.
+    isClerk
+      ? Promise.resolve({ data: [] as unknown[] })
+      : supabase.from('deals').select('id, deal_type, stage, sale_price, currency, exchange_rate, offered_price, closed_at, other_costs, other_costs_amount, commission_payable, commission_amount, clients(name, avatar_color)').eq('watch_id', params.id).order('created_at', { ascending: false }),
+    // investor_names is also RLS-denied for inventory_clerk; the embedded
+    // watch_investors(*) join above already comes back empty for them
+    // (watch_investors is denied too), so the Investors section never
+    // renders — skip this lookup rather than fetch data nothing will use.
+    isClerk ? Promise.resolve(new Map<string, string>()) : getInvestorDisplayNames(supabase),
   ])
 
   if (!watchRes.data) notFound()
@@ -194,8 +208,8 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         </div>
       )}
 
-      {/* Record Sale */}
-      {!isDeleted && watch.watch_status !== 'Sold' && watch.watch_status !== 'sourced' && (
+      {/* Record Sale — deals/invoicing is denied to inventory_clerk */}
+      {!isDeleted && !isClerk && watch.watch_status !== 'Sold' && watch.watch_status !== 'sourced' && (
         <Link
           href={`/dashboard/deals/new?watch_id=${watch.id}`}
           className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white text-sm font-semibold px-4 py-3 rounded-xl hover:bg-black transition-colors mb-4"
