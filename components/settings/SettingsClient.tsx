@@ -7,10 +7,11 @@ import SalesManagersSection from './SalesManagersSection'
 import BrandsSection        from './BrandsSection'
 import InvestorsSection     from './InvestorsSection'
 import KPITargetsSection    from './KPITargetsSection'
+import MonthlyTargetsSection from './MonthlyTargetsSection'
 import UserManagementSection from './UserManagementSection'
 import type { SavedBank, SalesManager, Brand, InvestorRecord } from '@/types'
 
-type Section = 'invoice' | 'banks' | 'managers' | 'brands' | 'investors' | 'kpi' | 'users'
+type Section = 'invoice' | 'banks' | 'managers' | 'brands' | 'investors' | 'monthly_targets' | 'kpi' | 'users'
 
 const NAV_ITEMS: { id: Section; label: string; soon?: boolean }[] = [
   { id: 'invoice',  label: 'Invoice'          },
@@ -18,6 +19,7 @@ const NAV_ITEMS: { id: Section; label: string; soon?: boolean }[] = [
   { id: 'managers', label: 'Sales Managers'   },
   { id: 'brands',   label: 'Brands'           },
   { id: 'investors',label: 'Investors'        },
+  { id: 'monthly_targets', label: 'Monthly Targets' },
   { id: 'kpi',      label: 'KPI Targets'      },
   { id: 'users',    label: 'User Management' },
 ]
@@ -91,6 +93,7 @@ export default function SettingsClient({
             {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
             {active === 'brands'   && <BrandsSection        initialBrands={brands} />}
             {active === 'investors'&& <InvestorsSection     initialInvestors={investors} />}
+            {active === 'monthly_targets' && <MonthlyTargetsSection />}
             {active === 'kpi'      && <KPITargetsSection    salesManagers={salesManagers} />}
             {active === 'users'    && <UserManagementSection />}
           </div>

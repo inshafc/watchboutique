@@ -275,9 +275,13 @@ export default function DashboardOverview({
   const newCustomersReferral = newCustomers.filter(c => c.lead_referral === 'Referral').length
 
   const getTarget = (metric: string) => targets.find(t => t.metric === metric)?.target_value ?? 0
-  const tSales = targetForPeriod(getTarget('total_sales'), range)
-  const achieved = tSales > 0 ? Math.round((revenue / tSales) * 100) : 0
-  const GP_PCT_TARGET = 30
+  const tSales    = targetForPeriod(getTarget('total_sales'), range)
+  const achieved  = tSales > 0 ? Math.round((revenue / tSales) * 100) : 0
+  const tGP       = targetForPeriod(getTarget('gross_profit'), range)
+  const gpAchieved = tGP > 0 ? Math.round((grossProfit / tGP) * 100) : 0
+  const tWatches  = targetForPeriod(getTarget('watches_sold'), range)
+  const watchesAchieved = tWatches > 0 ? Math.round((watchesSold / tWatches) * 100) : 0
+  const GP_PCT_TARGET = getTarget('gp_margin') || 30
 
   const byManager  = salesByManager(current)
   const byBrand    = salesByBrand(current)
@@ -575,15 +579,17 @@ export default function DashboardOverview({
                   <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5 mt-0.5">
-                <div className="flex justify-between text-[12px]" style={{ color: INK_60 }}>
-                  <span>Margin on revenue</span>
-                  <span className="font-semibold" style={{ color: INK }}>{gpMargin.toFixed(1)}%</span>
+              {tGP > 0 && (
+                <div className="flex flex-col gap-1.5 mt-0.5">
+                  <div className="flex justify-between text-[12px]" style={{ color: INK_60 }}>
+                    <span>Target LKR {fmtCompact(tGP)}</span>
+                    <span className="font-semibold" style={{ color: INK }}>{gpAchieved}% achieved</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: INK_08 }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(gpAchieved, 100)}%`, background: barGradient(gpAchieved) }} />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: INK_08 }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(gpMargin / GP_PCT_TARGET * 100, 100)}%`, background: barGradient(Math.min(gpMargin / GP_PCT_TARGET * 100, 100)) }} />
-                </div>
-              </div>
+              )}
             </div>
 
             {/* GP Margin */}
@@ -598,7 +604,9 @@ export default function DashboardOverview({
                   <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
                 </div>
               </div>
-              <span className="text-[12px] mt-0.5" style={{ color: INK_45 }}>Gross profit ÷ revenue</span>
+              <span className="text-[12px] mt-0.5" style={{ color: INK_45 }}>
+                Gross profit ÷ revenue{GP_PCT_TARGET > 0 ? ` — target ${GP_PCT_TARGET}%` : ''}
+              </span>
             </div>
           </div>
 
@@ -607,6 +615,9 @@ export default function DashboardOverview({
             <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
               <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>Watches sold</span>
               <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{watchesSold}</span>
+              {tWatches > 0 && (
+                <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{watchesAchieved}% of {Math.round(tWatches)} target</span>
+              )}
             </div>
             {/* Value of stock — current on-hand inventory, cost basis, never period-filtered */}
             <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
