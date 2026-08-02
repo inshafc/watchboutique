@@ -174,9 +174,9 @@ export default function DashboardOverview({
   const [chartMode, setChartMode] = useState<ChartMode>({ manager: 'value', brand: 'value', channel: 'value', clients: 'value' })
   const [sortKey, setSortKey] = useState<InvestorSortKey>('capitalTiedUp')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
 
   const [start, end]         = getDateBounds(range)
@@ -237,29 +237,98 @@ export default function DashboardOverview({
   return (
     <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto space-y-4" style={{ color: INK }}>
 
-      {/* ── Greeting + period picker ─────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-1.5">
+      {/* ── Greeting + utility cluster ───────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4 py-1.5">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <h1 className="m-0 text-[29px] font-semibold tracking-tight whitespace-nowrap">{greeting}, {firstName}</h1>
+          <h1 className="m-0 text-[29px] font-bold tracking-tight whitespace-nowrap">Hi there, {firstName}</h1>
           <span className="text-[13px]" style={{ color: INK_45 }}>
             {new Date().toLocaleDateString('en-LK', { dateStyle: 'full' })}
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: '#f2f1ed' }}>
-            {RANGES.map(r => (
-              <button
-                key={r.value}
-                onClick={() => setRange(r.value)}
-                className={`whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors flex-shrink-0`}
-                style={range === r.value
-                  ? { background: '#fff', color: INK, boxShadow: '0 1px 2px rgba(20,20,15,.06)' }
-                  : { color: INK_60 }}
-              >
-                {r.label}
-              </button>
-            ))}
+
+        <div className="lg:ml-auto flex items-center gap-3 flex-wrap">
+          {/* Search — visual only, not wired to a search feature yet */}
+          <div className="hidden md:flex items-center gap-2.5 w-[280px] h-[46px] px-4 rounded-full bg-white" style={{ border: `1px solid ${INK_08}` }}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={INK_45} strokeWidth="1.5"><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5 14 14" /></svg>
+            <input placeholder="Search watches, clients, refs…" disabled className="border-0 outline-0 bg-transparent text-[13.5px] w-full" style={{ color: INK, fontFamily: 'inherit' }} />
           </div>
+
+          {/* Period picker */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setPeriodOpen(v => !v); setAddOpen(false) }}
+              className="flex items-center gap-2 h-[46px] px-4 rounded-full bg-white text-[13.5px] font-semibold whitespace-nowrap"
+              style={{ border: `1px solid ${INK_08}`, color: INK }}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4.6" width="14" height="12.4" rx="3" /><path d="M3 8.6h14M6.8 3.2v2.8M13.2 3.2v2.8" /></svg>
+              {RANGES.find(r => r.value === range)?.label}
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={INK_50} strokeWidth="1.6" strokeLinecap="round"><path d="m3 4.6 3 3 3-3" /></svg>
+            </button>
+            {periodOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setPeriodOpen(false)} />
+                <div className="absolute top-[52px] right-0 z-40 min-w-[180px] bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ border: `1px solid ${INK_08}`, boxShadow: '0 12px 32px rgba(20,20,15,.16)' }}>
+                  {RANGES.map(r => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => { setRange(r.value); setPeriodOpen(false) }}
+                      className="text-left border-0 cursor-pointer text-[13px] px-3.5 py-2.5 rounded-xl whitespace-nowrap"
+                      style={{ fontWeight: r.value === range ? 600 : 500, background: r.value === range ? '#f2f1ed' : 'transparent', color: r.value === range ? INK : INK_60 }}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Add new */}
+          <div className="relative">
+            <button
+              type="button"
+              title="Add new"
+              onClick={() => { setAddOpen(v => !v); setPeriodOpen(false) }}
+              className="w-[46px] h-[46px] rounded-full flex items-center justify-center flex-none"
+              style={{ background: INK, color: '#fff' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"><path d="M10 4.2v11.6M4.2 10h11.6" /></svg>
+            </button>
+            {addOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setAddOpen(false)} />
+                <div className="absolute top-[52px] right-0 z-40 min-w-[170px] bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ border: `1px solid ${INK_08}`, boxShadow: '0 12px 32px rgba(20,20,15,.16)' }}>
+                  {[
+                    { label: 'Add sale',   href: '/dashboard/deals/new' },
+                    { label: 'Add watch',  href: '/dashboard/watches/new' },
+                    { label: 'Add client', href: '/dashboard/clients/new' },
+                  ].map(o => (
+                    <Link
+                      key={o.href}
+                      href={o.href}
+                      onClick={() => setAddOpen(false)}
+                      className="text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap"
+                      style={{ color: INK }}
+                    >
+                      {o.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Profile */}
+          <Link
+            href="/dashboard/settings"
+            title={profile?.full_name ?? firstName}
+            className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[13px] font-semibold flex-none"
+            style={{ background: '#c9c4b8', border: '2px solid #fff', color: INK }}
+          >
+            {initials(profile?.full_name ?? firstName)}
+          </Link>
         </div>
       </div>
 
