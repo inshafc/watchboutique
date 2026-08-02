@@ -6,11 +6,42 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
+import { displayCondition } from '@/lib/watch-condition'
 
-function CheckIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
-function DraftIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg> }
-function EditIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2.5l2.5 2.5-8 8H3v-2.5l8-8z" strokeLinejoin="round"/></svg> }
-function TrashIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+const INK = '#14140f'
+const RED = '#b23a2c'
+
+function CheckIcon()   { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+function EditIcon()    { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M13.6 3.6l2.8 2.8L7.8 15l-3.6.8.8-3.6z"/></svg> }
+function SaveIcon()    { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.4 4.4h9.2l3 3v8.2H4.4z"/><path d="M7 4.4v4h6M7 16v-4h6v4"/></svg> }
+function PublishIcon() { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l3.5 3.5L13 5"/></svg> }
+function ShareIcon()   { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="15" cy="5" r="2.2"/><circle cx="5" cy="10" r="2.2"/><circle cx="15" cy="15" r="2.2"/><path d="M7 8.9 13 6M7 11.1l6 2.9"/></svg> }
+function TrashIcon()   { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={RED} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 5.8h10.8M8.2 5.8V4.2h3.6v1.6M6 5.8l.7 10h6.6l.7-10"/></svg> }
+
+function IconBtn({
+  title, onClick, href, children, danger = false, disabled = false, filled = false,
+}: {
+  title: string
+  onClick?: () => void
+  href?: string
+  children: React.ReactNode
+  danger?: boolean
+  disabled?: boolean
+  filled?: boolean
+}) {
+  const style: React.CSSProperties = filled
+    ? { width: 46, height: 46, borderRadius: '50%', border: '0', background: INK }
+    : { width: 46, height: 46, borderRadius: '50%', border: `1px solid ${danger ? 'rgba(178,58,44,.25)' : 'rgba(20,20,15,.1)'}`, background: '#fff' }
+  const className = `flex items-center justify-center transition-colors disabled:opacity-50 ${filled ? 'hover:opacity-90' : 'hover:bg-[#f7f6f3]'}`
+  if (href) {
+    return <Link href={href} title={title} className={className} style={style}>{children}</Link>
+  }
+  return (
+    <button type="button" title={title} onClick={onClick} disabled={disabled} className={className} style={style}>
+      {children}
+    </button>
+  )
+}
 
 type AvailableDialog = { linkedDealId: string } | null
 
@@ -18,10 +49,16 @@ export default function WatchDetailActions({
   watchId,
   isDraft,
   watchStatus,
+  watchName,
+  reference,
+  condition,
 }: {
   watchId: string
   isDraft: boolean
   watchStatus?: string | null
+  watchName?: string
+  reference?: string | null
+  condition?: string | null
 }) {
   const router   = useRouter()
   const { profile } = useAuth()
@@ -54,6 +91,15 @@ export default function WatchDetailActions({
     await supabase.from('watches').update({ deleted_at: new Date().toISOString() }).eq('id', watchId)
     router.push('/dashboard/inventory')
     router.refresh()
+  }
+
+  function handleShare() {
+    if (!watchName) return
+    const segments = [watchName, condition ? displayCondition(condition) : null, reference ? `Ref: ${reference}` : null]
+      .filter((s): s is string => Boolean(s && s.trim()))
+    void navigator.clipboard.writeText(segments.join(' — '))
+    setToast('Copied to clipboard')
+    setTimeout(() => setToast(null), 2200)
   }
 
   async function handleMarkArrived() {
@@ -158,64 +204,46 @@ export default function WatchDetailActions({
   return (
     <>
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none">
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none" style={{ background: INK }}>
+          <CheckIcon />
           <span className="text-sm font-medium">{toast}</span>
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <div className="flex items-center gap-2.5 flex-wrap">
         {watchStatus === 'sourced' && (
           <button
+            type="button"
             onClick={handleMarkArrived}
             disabled={busy}
-            className="flex items-center gap-1.5 bg-indigo-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-white text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:opacity-50"
+            style={{ height: 46, padding: '0 20px', borderRadius: 999, background: '#4f46e5' }}
           >
             <CheckIcon /> Mark as Arrived
           </button>
         )}
         {watchStatus === 'Sold' && !isClerk && (
           <button
+            type="button"
             onClick={handleMarkAvailable}
             disabled={busy}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-white text-[13.5px] font-semibold whitespace-nowrap transition-colors disabled:opacity-50"
+            style={{ height: 46, padding: '0 20px', borderRadius: 999, background: '#1f6f43' }}
           >
             <CheckIcon /> Mark as Available
           </button>
         )}
-        {isDraft && (
-          <button
-            onClick={publish}
-            disabled={busy}
-            className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
-          >
-            <CheckIcon /> Publish
-          </button>
+
+        <IconBtn title="Edit" href={`/dashboard/watches/${watchId}/edit`}><EditIcon /></IconBtn>
+        {isDraft ? (
+          <IconBtn title="Publish" onClick={publish} disabled={busy} filled>
+            <PublishIcon />
+          </IconBtn>
+        ) : (
+          <IconBtn title="Save as draft" onClick={saveDraft} disabled={busy}><SaveIcon /></IconBtn>
         )}
-        {!isDraft && (
-          <button
-            onClick={saveDraft}
-            disabled={busy}
-            className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50"
-          >
-            <DraftIcon /> Save Draft
-          </button>
-        )}
-        <Link
-          href={`/dashboard/watches/${watchId}/edit`}
-          className="flex items-center gap-1.5 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors"
-        >
-          <EditIcon /> Edit
-        </Link>
-        <button
-          onClick={handleDelete}
-          disabled={busy}
-          className="flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 ml-auto"
-        >
-          <TrashIcon /> Delete
-        </button>
+        <IconBtn title="Share" onClick={handleShare}><ShareIcon /></IconBtn>
+        <IconBtn title="Delete" onClick={handleDelete} disabled={busy} danger><TrashIcon /></IconBtn>
       </div>
 
       {dialog && (

@@ -8,11 +8,11 @@ import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import type { WatchStatusNew } from '@/types'
 import { WATCH_STATUS_NEW } from '@/types'
 
-const STATUS_STYLES: Record<WatchStatusNew, string> = {
-  'Available': 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
-  'On Hold':   'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
-  'Offered':   'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200',
-  'Sold':      'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200',
+const STATUS_STYLES: Record<WatchStatusNew, { bg: string; fg: string }> = {
+  'Available': { bg: 'rgba(31,111,67,.1)',   fg: '#1f6f43' },
+  'On Hold':   { bg: 'rgba(181,118,26,.14)', fg: '#8a5c15' },
+  'Offered':   { bg: 'rgba(63,95,138,.12)',  fg: '#3f5f8a' },
+  'Sold':      { bg: 'rgba(20,20,15,.08)',   fg: 'rgba(20,20,15,.6)' },
 }
 
 type DialogState = {
@@ -150,7 +150,7 @@ export default function WatchStatusButtons({
     <>
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none" style={{ background: '#14140f' }}>
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -161,6 +161,10 @@ export default function WatchStatusButtons({
       <div className="flex flex-wrap gap-2">
         {WATCH_STATUS_NEW.map(s => {
           const blocked = isClerk && s === 'Available' && current === 'Sold'
+          const active = current === s
+          const style: React.CSSProperties = active
+            ? { background: STATUS_STYLES[s].bg, color: STATUS_STYLES[s].fg, border: `1px solid ${STATUS_STYLES[s].fg}` }
+            : { background: '#fff', color: blocked ? 'rgba(20,20,15,.25)' : 'rgba(20,20,15,.55)', border: '1px solid rgba(20,20,15,.1)' }
           return (
           <button
             key={s}
@@ -168,13 +172,8 @@ export default function WatchStatusButtons({
             disabled={saving || blocked}
             title={blocked ? 'Voiding a sale requires sales access' : undefined}
             onClick={() => handleSelect(s)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-              current === s
-                ? STATUS_STYLES[s]
-                : blocked
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`text-[13.5px] font-semibold transition-all ${blocked ? 'cursor-not-allowed' : ''}`}
+            style={{ height: 40, padding: '0 20px', borderRadius: 999, ...style }}
           >
             {s}
           </button>
