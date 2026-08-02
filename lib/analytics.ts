@@ -181,13 +181,27 @@ export function salesByReferral(deals: DealRow[]) {
 }
 
 export function topClients(deals: DealRow[], limit = 5) {
-  const map = new Map<string, { name: string; clientType: string | null; sold: number; totalSales: number; gp: number }>()
+  const map = new Map<string, { name: string; clientType: string | null; sold: number; totalSales: number; gp: number; lastSaleAt: string | null }>()
   for (const d of deals) {
     if (!d.client_id || !d.clients) continue
-    const e = map.get(d.client_id) ?? { name: d.clients.name, clientType: d.clients.client_type, sold: 0, totalSales: 0, gp: 0 }
-    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0), gp: e.gp + computeGP(d) })
+    const e = map.get(d.client_id) ?? { name: d.clients.name, clientType: d.clients.client_type, sold: 0, totalSales: 0, gp: 0, lastSaleAt: null }
+    const dealDate = d.sale_date ?? d.created_at
+    const lastSaleAt = !e.lastSaleAt || dealDate > e.lastSaleAt ? dealDate : e.lastSaleAt
+    map.set(d.client_id, { ...e, sold: e.sold + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0), gp: e.gp + computeGP(d), lastSaleAt })
   }
   return Array.from(map.values()).sort((a, b) => b.totalSales - a.totalSales).slice(0, limit)
+}
+
+export function salesByChannel(deals: DealRow[]) {
+  const map = new Map<string, { sold: number; totalSales: number }>()
+  for (const d of deals) {
+    const channel = d.clients?.client_type ?? 'Unknown'
+    const e = map.get(channel) ?? { sold: 0, totalSales: 0 }
+    map.set(channel, { sold: e.sold + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0) })
+  }
+  return Array.from(map.entries())
+    .map(([channel, v]) => ({ channel, ...v }))
+    .sort((a, b) => b.totalSales - a.totalSales)
 }
 
 export function clubTwbDeals(deals: DealRow[]) {

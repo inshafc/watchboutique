@@ -10,6 +10,7 @@ export type InvestorStat = {
   activeWatches:  number
   capitalTiedUp:  number
   watchesSold:    number
+  totalSales:     number // this investor's % share of sold_price on their sold watches (revenue, before costs)
   netProfit:      number
   roi:            number | null // null => amountInvested is 0, render "—"
 }
@@ -63,13 +64,19 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     if (d.watch_id) dealByWatch.set(d.watch_id, d)
   }
 
-  function grossProfitFor(watch: WatchData): number | null {
+  function salePriceFor(watch: WatchData): number | null {
     const deal = dealByWatch.get(watch.id)
     if (!deal) return null
     // sold_price (captured on the watch at the point of sale) is the source of truth;
     // fall back to the deal's own sale_price, converted to LKR, for sales recorded
     // before that column existed.
-    const salePrice = watch.sold_price ?? dealSalePriceLKR(deal)
+    return watch.sold_price ?? dealSalePriceLKR(deal)
+  }
+
+  function grossProfitFor(watch: WatchData): number | null {
+    const deal = dealByWatch.get(watch.id)
+    if (!deal) return null
+    const salePrice = salePriceFor(watch)
     if (salePrice == null) return null
     const cost = watch.purchase_cost ?? 0
     const otherCosts = deal.other_costs ? (deal.other_costs_amount ?? 0) : 0
@@ -110,6 +117,7 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     let activeWatches = 0
     let capitalTiedUp = 0
     let watchesSold = 0
+    let totalSales = 0
     let netProfit = 0
 
     for (const { percentage, watch } of holdings) {
@@ -121,6 +129,8 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
         capitalTiedUp += cost * (percentage / 100)
       } else {
         watchesSold++
+        const sp = salePriceFor(watch)
+        if (sp != null) totalSales += sp * (percentage / 100)
         const gp = grossProfitFor(watch)
         if (gp != null) netProfit += gp * (percentage / 100)
       }
@@ -129,7 +139,7 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     const amountInvested = inv.amount_invested ?? 0
     const roi = amountInvested > 0 ? (netProfit / amountInvested) * 100 : null
 
-    return { key: inv.key, displayName: inv.display_name, amountInvested, activeWatches, capitalTiedUp, watchesSold, netProfit, roi }
+    return { key: inv.key, displayName: inv.display_name, amountInvested, activeWatches, capitalTiedUp, watchesSold, totalSales, netProfit, roi }
   })
 
   investorStats.sort((a, b) => a.displayName.localeCompare(b.displayName))

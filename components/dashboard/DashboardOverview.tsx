@@ -1,21 +1,29 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
-
-const TrendChart = dynamic(() => import('./TrendChart'), {
-  loading: () => <div className="h-44 bg-[#F7F6F3] rounded-xl animate-pulse" />,
-  ssr: false,
-})
 import {
-  type DealRow, type Target, type DateRange, type AgeingWatch,
+  type DealRow, type Target, type DateRange,
   filterDeals, getDateBounds, getPrevBounds, computeStats,
-  monthlyTrend, salesByBrand, salesByManager, salesByReferral,
-  topClients, clubTwbDeals, newVsExisting, targetForPeriod,
-  fmtLKR, fmtCompact, pctChange,
+  salesByBrand, salesByManager, salesByReferral, salesByChannel,
+  topClients, newVsExisting, targetForPeriod,
+  fmtCompact, pctChange,
 } from '@/lib/analytics'
+import { dealSalePriceLKR } from '@/lib/deal-currency'
+import type { InvestorStat } from '@/lib/investor-stats'
 import { useAuth } from '@/context/AuthContext'
+
+// ── Palette (matches the Sales Dashboard design) ────────────────────────────
+const INK        = '#14140f'
+const INK_60     = 'rgba(20,20,15,.6)'
+const INK_50     = 'rgba(20,20,15,.5)'
+const INK_45     = 'rgba(20,20,15,.45)'
+const INK_08     = 'rgba(20,20,15,.08)'
+const GREEN      = '#1f6f43'
+const RED        = '#b23a2c'
+const CARD_BG    = '#f7f6f3'
+const SEG_COLORS = ['#14140f', '#1f6f43', '#43b877', '#b9a271', '#c9c4b8']
+const AVATARS    = ['#e2ddd0', '#d8e3d9', '#e6ded6', '#dcdde6', '#e5e2d3']
 
 const RANGES: { label: string; value: DateRange }[] = [
   { label: 'This Month',    value: 'this_month' },
@@ -25,208 +33,228 @@ const RANGES: { label: string; value: DateRange }[] = [
   { label: 'This Year',     value: 'this_year'  },
 ]
 
-const MGR_COLORS   = ['#64748B', '#0D9488', '#4F46E5', '#BE185D', '#D97706', '#0284C7', '#15803D', '#7C3AED']
-const BRAND_COLORS = ['#C9A84C', '#0D9488', '#4F46E5', '#BE185D', '#D97706', '#64748B', '#15803D', '#7C3AED']
-
-const mgrColor   = (i: number) => MGR_COLORS[i % MGR_COLORS.length]
-const brandColor = (i: number) => BRAND_COLORS[i % BRAND_COLORS.length]
-
-function formatRevenue(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function deltaColor(n: number | null) {
+  if (n == null) return { bg: INK_08, fg: INK_50 }
+  return n >= 0 ? { bg: 'rgba(31,111,67,.1)', fg: GREEN } : { bg: 'rgba(178,58,44,.1)', fg: RED }
 }
 
-function MiniBar({ value, target }: { value: number; target: number }) {
-  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0
-  return (
-    <div className="h-1 bg-[#E8E6E1] rounded-full overflow-hidden mt-2">
-      <div className="h-full bg-[#C9A84C] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-    </div>
-  )
+function fmtDelta(n: number | null) {
+  if (n == null) return '—'
+  return (n >= 0 ? '↑ ' : '↓ ') + Math.abs(n).toFixed(1) + '%'
 }
 
-function Bar({ pct }: { pct: number }) {
-  return (
-    <div className="h-1 bg-[#E8E6E1] rounded-full overflow-hidden">
-      <div className="h-full bg-[#C9A84C] rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
-    </div>
-  )
+function barGradient(pct: number) {
+  if (pct >= 80) return 'linear-gradient(90deg,#1f6f43,#43b877)'
+  if (pct >= 50) return 'linear-gradient(90deg,#b5761a,#e2a33c)'
+  return 'linear-gradient(90deg,#8f2c1d,#d1543c)'
 }
 
-function AchievePill({ value, target }: { value: number; target: number }) {
-  if (target === 0) return null
-  const pct = (value / target) * 100
-  const cls = pct >= 100
-    ? 'bg-[#DCFCE7] text-[#16A34A]'
-    : pct >= 60
-    ? 'bg-[#FEF3C7] text-[#D97706]'
-    : 'bg-[#FEE2E2] text-[#DC2626]'
-  return (
-    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>
-      {pct.toFixed(0)}% of target
-    </span>
-  )
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
-function ChangePill({ current, prev }: { current: number; prev: number }) {
-  const chg = pctChange(current, prev)
-  if (chg == null) return null
-  const pos = chg >= 0
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${pos ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#FEE2E2] text-[#DC2626]'}`}>
-      {pos ? '↑' : '↓'}{Math.abs(chg).toFixed(1)}% vs prev
-    </span>
-  )
-}
-
-function AbsChangePill({ current, prev }: { current: number; prev: number }) {
-  const diff = current - prev
-  const sign = diff >= 0 ? '+' : '−'
-  return (
-    <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F3F2EF] text-[#6B6B6B]">
-      {sign}LKR {fmtCompact(Math.abs(diff))} vs prev
-    </span>
-  )
+function daysAgo(iso: string | null): string {
+  if (!iso) return '—'
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24))
+  if (days <= 0) return 'today'
+  if (days === 1) return '1d ago'
+  return `${days}d ago`
 }
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-2xl p-5 card-hover ${className}`} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+    <section className={`bg-white rounded-[24px] p-6 flex flex-col gap-4 ${className}`} style={{ boxShadow: '0 1px 2px rgba(20,20,15,.05)' }}>
       {children}
+    </section>
+  )
+}
+
+// ── Donut chart ──────────────────────────────────────────────────────────
+type ChartRow = { label: string; totalSales: number; count: number }
+
+function DonutChart({
+  title, rows, mode, onModeChange,
+}: {
+  title: string
+  rows: ChartRow[]
+  mode: 'value' | 'count'
+  onModeChange: (m: 'value' | 'count') => void
+}) {
+  const raw = rows.map(r => mode === 'value' ? r.totalSales : r.count)
+  const total = raw.reduce((a, b) => a + b, 0) || 1
+  const C = 2 * Math.PI * 46
+  let acc = 0
+  const segs = rows.map((r, i) => {
+    const val = raw[i]
+    const frac = val / total
+    const len = frac * C
+    const seg = {
+      label: r.label,
+      color: SEG_COLORS[i % SEG_COLORS.length],
+      dash: `${len.toFixed(2)} ${(C - len).toFixed(2)}`,
+      offset: (-acc).toFixed(2),
+      display: mode === 'value' ? fmtCompact(val) : String(val),
+      pct: Math.round(frac * 100),
+    }
+    acc += len
+    return seg
+  })
+  const displayTotal = mode === 'value' ? fmtCompact(raw.reduce((a, b) => a + b, 0)) : String(raw.reduce((a, b) => a + b, 0))
+
+  return (
+    <div className="bg-white rounded-[24px] p-6 flex flex-col gap-5" style={{ boxShadow: '0 1px 2px rgba(20,20,15,.05)' }}>
+      <div className="flex items-center gap-2.5">
+        <h3 className="m-0 text-[16.5px] font-semibold tracking-tight" style={{ color: INK }}>{title}</h3>
+        <div className="ml-auto flex gap-0.5 p-0.5 rounded-full" style={{ background: '#f2f1ed' }}>
+          {(['value', 'count'] as const).map(m => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onModeChange(m)}
+              className="border-0 cursor-pointer font-semibold px-2.5 py-1 rounded-full text-[11.5px]"
+              style={{ background: mode === m ? INK : 'transparent', color: mode === m ? '#fff' : INK_50 }}
+            >
+              {m === 'value' ? 'Value' : '#'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
+      ) : (
+        <div className="flex items-center gap-3.5">
+          <div className="relative w-[146px] h-[146px] flex-none">
+            <svg width="146" height="146" viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="60" cy="60" r="46" fill="none" stroke="#f2f1ed" strokeWidth="17" />
+              {segs.map(s => (
+                <circle key={s.label} cx="60" cy="60" r="46" fill="none" stroke={s.color} strokeWidth="17" strokeDasharray={s.dash} strokeDashoffset={s.offset} />
+              ))}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-0">
+              <span className="text-[21px] font-semibold tracking-tight" style={{ color: INK }}>{displayTotal}</span>
+              <span className="text-[11px]" style={{ color: INK_45 }}>{mode === 'value' ? 'LKR total' : 'watches'}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 min-w-0 flex-1">
+            {segs.map(s => (
+              <div key={s.label} className="flex items-center gap-1.5 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-sm flex-none" style={{ background: s.color }} />
+                <div className="flex flex-col min-w-0 leading-tight">
+                  <span className="text-[11.5px] whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: INK_60 }}>{s.label}</span>
+                  <span className="text-[12.5px] font-semibold tabular-nums whitespace-nowrap">{s.display}</span>
+                </div>
+                <span className="ml-auto text-[11.5px] tabular-nums whitespace-nowrap" style={{ color: INK_45 }}>{s.pct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function CardLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-3">
-      {children}
-    </p>
-  )
-}
-
-function Empty({ msg = 'No data for this period.' }: { msg?: string }) {
-  return <p className="text-[13px] text-[#9CA3AF]">{msg}</p>
-}
-
-type OwnerView = 'twb' | 'twb_investors'
-
-function StoreIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-      <path d="M2 6.25 2.75 2.5h10.5L14 6.25" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M2 6.25a1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0 1.4 1.4 0 0 0 2.8 0" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M3 6.5V13h10V6.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M6.4 13V9.5h3.2V13" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function PeopleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-      <circle cx="5.5" cy="5.3" r="1.9" />
-      <circle cx="11.2" cy="6" r="1.5" />
-      <path d="M2 13c0-1.93 1.57-3.5 3.5-3.5S9 11.07 9 13" strokeLinecap="round" />
-      <path d="M9.6 9.7c1.62.25 2.9 1.5 2.9 3.3" strokeLinecap="round" />
-    </svg>
-  )
-}
-
+type ChartMode = { manager: 'value' | 'count'; brand: 'value' | 'count'; channel: 'value' | 'count'; clients: 'value' | 'count' }
+type InvestorSortKey = 'displayName' | 'capitalTiedUp' | 'totalSales' | 'netProfit' | 'roi'
 
 export default function DashboardOverview({
   deals,
-  inventoryValueAll,
-  inventoryValueTwbOnly,
+  stockValue,
+  stockCount,
   targets,
-  ageingWatches = [],
-  investorSnapshot,
+  investorStats,
 }: {
   deals: DealRow[]
-  inventoryValueAll: number
-  inventoryValueTwbOnly: number
+  stockValue: number
+  stockCount: number
   targets: Target[]
-  sourceSummary?: { source: string; count: number; revenue: number }[]
-  ageingWatches?: AgeingWatch[]
-  investorSnapshot: {
-    totalAmountInvested:  number
-    totalCapitalDeployed: number
-    totalProfitReturned:  number
-    activeWatchCount:     number
-  }
+  investorStats: InvestorStat[]
 }) {
-  const [range, setRange]         = useState<DateRange>('this_month')
-  const [ownerView, setOwnerView] = useState<OwnerView>('twb_investors')
-  const [hoveredMgr, setHoveredMgr] = useState<number | null>(null)
-  const carouselRef = useRef<HTMLDivElement>(null)
-  const [activeKpi, setActiveKpi] = useState(0)
-
-  const inventoryValue = ownerView === 'twb' ? inventoryValueTwbOnly : inventoryValueAll
-  const visibleAgeingWatches = ownerView === 'twb' ? ageingWatches.filter(w => !w.hasInvestors) : ageingWatches
-  const scopedDeals = ownerView === 'twb' ? deals.filter(d => !d.hasInvestors) : deals
-
-  function handleKpiScroll() {
-    const el = carouselRef.current
-    if (!el) return
-    const cardWidth = el.scrollWidth / 3
-    setActiveKpi(Math.min(2, Math.max(0, Math.round(el.scrollLeft / cardWidth))))
-  }
   const { profile } = useAuth()
-
-  const [start, end]         = getDateBounds(range)
-  const [prevStart, prevEnd] = getPrevBounds(range)
-
-  const current   = filterDeals(scopedDeals, start, end)
-  const prev      = filterDeals(scopedDeals, prevStart, prevEnd)
-  const curStats  = computeStats(current)
-  const prevStats = computeStats(prev)
-
-  const getTarget = (metric: string) => targets.find(t => t.metric === metric)?.target_value ?? 0
-  const tSold  = targetForPeriod(getTarget('watches_sold'), range)
-  const tSales = targetForPeriod(getTarget('total_sales'),  range)
-  const tGP    = targetForPeriod(getTarget('gross_profit'), range)
-  const GP_PCT_TARGET = 30
-
-  const trend      = monthlyTrend(scopedDeals, 6)
-  const byBrand    = salesByBrand(current)
-  const byManager  = salesByManager(current)
-  const byReferral = salesByReferral(current)
-  const top5       = topClients(current, 5)
-  const clubTwb    = clubTwbDeals(current)
-  const nve        = newVsExisting(current)
-
-  const totalMgrRevenue  = byManager.reduce((s, m) => s + m.totalSales, 0)
-  const totalBrandRevenue = byBrand.reduce((s, b) => s + b.totalSales, 0)
-  const maxRefSales       = Math.max(...byReferral.map(r => r.totalSales), 1)
-  const maxClientSales    = Math.max(...top5.map(c => c.totalSales), 1)
-
-  const rangeLabel = RANGES.find(r => r.value === range)?.label ?? ''
+  const [range, setRange] = useState<DateRange>('this_month')
+  const [chartMode, setChartMode] = useState<ChartMode>({ manager: 'value', brand: 'value', channel: 'value', clients: 'value' })
+  const [sortKey, setSortKey] = useState<InvestorSortKey>('capitalTiedUp')
+  const [sortDir, setSortDir] = useState<1 | -1>(-1)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
 
-  return (
-    <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto space-y-5">
+  const [start, end]         = getDateBounds(range)
+  const [prevStart, prevEnd] = getPrevBounds(range)
+  const current = filterDeals(deals, start, end)
+  const prev    = filterDeals(deals, prevStart, prevEnd)
+  const curStats  = computeStats(current)
+  const prevStats = computeStats(prev)
 
-      {/* ── Greeting + range selector ────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[#111111]">{greeting}, {firstName}</h1>
-          <p className="text-[12px] text-[#9CA3AF] mt-0.5">
+  const getTarget = (metric: string) => targets.find(t => t.metric === metric)?.target_value ?? 0
+  const tSales = targetForPeriod(getTarget('total_sales'), range)
+  const achieved = tSales > 0 ? Math.round((curStats.totalSales / tSales) * 100) : 0
+  const GP_PCT_TARGET = 30
+
+  const byManager  = salesByManager(current)
+  const byBrand    = salesByBrand(current)
+  const byChannel  = salesByChannel(current)
+  const nve        = newVsExisting(current)
+  const byReferral = salesByReferral(current)
+  const top5       = topClients(current, 5)
+  const commissionTotal = byManager.reduce((s, m) => s + m.commission, 0)
+
+  // "New customers" — distinct clients behind this period's new_client deals;
+  // "from referrals" — of those, how many came in via a Referral lead.
+  const newClientDeals = current.filter(d => d.new_client && d.client_id)
+  const newClientIds   = new Set(newClientDeals.map(d => d.client_id!))
+  const newFromReferral = new Set(
+    newClientDeals.filter(d => d.clients?.lead_referral === 'Referral').map(d => d.client_id!)
+  ).size
+
+  // Latest 5 completed sales — not scoped to the period picker.
+  const latestSales = [...deals]
+    .sort((a, b) => (b.sale_date ?? b.created_at).localeCompare(a.sale_date ?? a.created_at))
+    .slice(0, 5)
+
+  const sortedInvestors = [...investorStats].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey]
+    const an = av == null ? -Infinity : (typeof av === 'string' ? 0 : av)
+    const bn = bv == null ? -Infinity : (typeof bv === 'string' ? 0 : bv)
+    if (sortKey === 'displayName') return a.displayName.localeCompare(b.displayName) * sortDir
+    return (an - bn) * sortDir
+  })
+  const maxRoi = Math.max(...investorStats.map(i => i.roi ?? 0), 1)
+
+  function toggleSort(key: InvestorSortKey) {
+    setSortDir(d => (sortKey === key ? (d === -1 ? 1 : -1) : -1))
+    setSortKey(key)
+  }
+
+  const investorCols: { key: InvestorSortKey; label: string; align: 'left' | 'right' }[] = [
+    { key: 'displayName',   label: 'Investor',        align: 'left' },
+    { key: 'capitalTiedUp', label: 'Capital employed', align: 'right' },
+    { key: 'totalSales',    label: 'Sales',            align: 'right' },
+    { key: 'netProfit',     label: 'Profit',           align: 'right' },
+    { key: 'roi',           label: 'ROI',              align: 'right' },
+  ]
+
+  return (
+    <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto space-y-4" style={{ color: INK }}>
+
+      {/* ── Greeting + period picker ─────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-1.5">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <h1 className="m-0 text-[29px] font-semibold tracking-tight whitespace-nowrap">{greeting}, {firstName}</h1>
+          <span className="text-[13px]" style={{ color: INK_45 }}>
             {new Date().toLocaleDateString('en-LK', { dateStyle: 'full' })}
-          </p>
+          </span>
         </div>
         <div className="overflow-x-auto">
-          <div className="inline-flex gap-1 bg-[#EDECE9] rounded-xl p-1">
+          <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: '#f2f1ed' }}>
             {RANGES.map(r => (
               <button
                 key={r.value}
                 onClick={() => setRange(r.value)}
-                className={`whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors flex-shrink-0 ${
-                  range === r.value
-                    ? 'bg-white shadow-sm text-[#111111]'
-                    : 'text-[#6B6B6B] hover:text-[#111111]'
-                }`}
+                className={`whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors flex-shrink-0`}
+                style={range === r.value
+                  ? { background: '#fff', color: INK, boxShadow: '0 1px 2px rgba(20,20,15,.06)' }
+                  : { color: INK_60 }}
               >
                 {r.label}
               </button>
@@ -235,494 +263,337 @@ export default function DashboardOverview({
         </div>
       </div>
 
-      {/* ── Ownership view toggle ────────────────────────────── */}
-      <div className="flex items-center justify-end">
-        <div className="inline-flex gap-1 bg-[#EDECE9] rounded-xl p-1">
-          <button
-            onClick={() => setOwnerView('twb')}
-            className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
-              ownerView === 'twb' ? 'bg-white shadow-sm text-[#111111]' : 'text-[#6B6B6B] hover:text-[#111111]'
-            }`}
-          >
-            <StoreIcon className="w-3.5 h-3.5" />
-            TWB
-          </button>
-          <button
-            onClick={() => setOwnerView('twb_investors')}
-            className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
-              ownerView === 'twb_investors' ? 'bg-white shadow-sm text-[#111111]' : 'text-[#6B6B6B] hover:text-[#111111]'
-            }`}
-          >
-            <StoreIcon className="w-3.5 h-3.5" />
-            <PeopleIcon className="w-3.5 h-3.5 -ml-1" />
-            TWB + Investors
-          </button>
-        </div>
-      </div>
-
-      {/* ── Investor snapshot ────────────────────────────────── */}
-      {ownerView !== 'twb' && (
-        <div
-          className="bg-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6"
-          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
-        >
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Total Invested</p>
-              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalAmountInvested)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Capital Deployed</p>
-              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalCapitalDeployed)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Profit Returned</p>
-              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{fmtLKR(investorSnapshot.totalProfitReturned)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-1">Active Watches</p>
-              <p className="text-[16px] font-bold text-[#111111] tabular-nums">{investorSnapshot.activeWatchCount}</p>
-            </div>
-          </div>
-          <Link
-            href="/dashboard/investors"
-            className="shrink-0 text-[12px] font-semibold text-[#C9A84C] hover:text-[#B08F3D] transition-colors whitespace-nowrap"
-          >
-            View all investors →
-          </Link>
-        </div>
-      )}
-
       {/* ══════════════════════════════════════════════════════
-          SECTION 1 — REVENUE HERO
+          OVERVIEW + LATEST SALES
       ══════════════════════════════════════════════════════ */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_336px] gap-4 items-stretch">
 
-        {/* Left: big number */}
-        <div className="flex-1 min-w-0 py-2">
-          <p className="text-[11px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-2">Revenue</p>
-          <div className="flex items-baseline flex-wrap">
-            {/* Mobile: compact to prevent bleed */}
-            <span className="md:hidden text-[40px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
-              LKR {fmtCompact(curStats.totalSales)}
-            </span>
-            {/* Desktop: full number */}
-            <span className="hidden md:inline text-[48px] font-bold text-[#111111] tabular-nums leading-none tracking-tight">
-              LKR&nbsp;{formatRevenue(curStats.totalSales)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <AchievePill value={curStats.totalSales} target={tSales} />
-            <ChangePill  current={curStats.totalSales} prev={prevStats.totalSales} />
-            <AbsChangePill current={curStats.totalSales} prev={prevStats.totalSales} />
-          </div>
-        </div>
+        <Card>
+          <h2 className="m-0 text-[19px] font-semibold tracking-tight">Overview</h2>
 
-        {/* Right: 3 mini KPI cards */}
-
-        {/* Mobile: horizontal swipe carousel (below md) */}
-        <div className="md:hidden w-full">
-          <div
-            ref={carouselRef}
-            className="no-scrollbar flex"
-            style={{ overflowX: 'auto', gap: '12px', scrollSnapType: 'x mandatory', scrollbarWidth: 'none', paddingBottom: '4px' }}
-            onScroll={handleKpiScroll}
-          >
-            {/* Watches Sold */}
-            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Watches Sold</p>
-              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.watchesSold}</p>
-              {tSold > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of {Math.round(tSold)} target</p>}
-              <MiniBar value={curStats.watchesSold} target={tSold} />
-              <div className="mt-2"><AchievePill value={curStats.watchesSold} target={tSold} /></div>
-            </div>
-            {/* GP Margin */}
-            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.08s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">GP Margin</p>
-              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.gpMargin.toFixed(1)}%</p>
-              <p className="text-[10px] text-[#9CA3AF] mt-1">of {GP_PCT_TARGET}% target</p>
-              <MiniBar value={curStats.gpMargin} target={GP_PCT_TARGET} />
-              <div className="mt-2"><AchievePill value={curStats.gpMargin} target={GP_PCT_TARGET} /></div>
-            </div>
-            {/* Gross Profit */}
-            <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.16s', opacity: 0, minWidth: 'calc(80vw)', scrollSnapAlign: 'start', flex: '0 0 auto' }}>
-              <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Gross Profit</p>
-              <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">LKR {fmtCompact(curStats.grossProfit)}</p>
-              {tGP > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of LKR {fmtCompact(tGP)} target</p>}
-              <MiniBar value={curStats.grossProfit} target={tGP} />
-              <div className="mt-2"><AchievePill value={curStats.grossProfit} target={tGP} /></div>
-            </div>
-          </div>
-          {/* Dot indicators */}
-          <div className="flex justify-center gap-2 mt-3">
-            {[0, 1, 2].map(i => (
-              <div
-                key={i}
-                style={{
-                  width: activeKpi === i ? 16 : 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: activeKpi === i ? '#111111' : '#D1D5DB',
-                  transition: 'all 0.2s ease',
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Desktop: 3-column grid (md and above) */}
-        <div className="hidden md:grid grid-cols-3 gap-3 lg:w-[58%] lg:shrink-0">
-          {/* Watches Sold */}
-          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0s', opacity: 0 }}>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Watches Sold</p>
-            <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.watchesSold}</p>
-            {tSold > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of {Math.round(tSold)} target</p>}
-            <MiniBar value={curStats.watchesSold} target={tSold} />
-            <div className="mt-2"><AchievePill value={curStats.watchesSold} target={tSold} /></div>
-          </div>
-          {/* GP Margin */}
-          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.08s', opacity: 0 }}>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">GP Margin</p>
-            <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">{curStats.gpMargin.toFixed(1)}%</p>
-            <p className="text-[10px] text-[#9CA3AF] mt-1">of {GP_PCT_TARGET}% target</p>
-            <MiniBar value={curStats.gpMargin} target={GP_PCT_TARGET} />
-            <div className="mt-2"><AchievePill value={curStats.gpMargin} target={GP_PCT_TARGET} /></div>
-          </div>
-          {/* Gross Profit */}
-          <div className="bg-white rounded-2xl p-4 animate-scale-in card-hover" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)', animationDelay: '0.16s', opacity: 0 }}>
-            <p className="text-[9px] font-semibold text-[#6B6B6B] uppercase tracking-[0.12em] mb-2 leading-tight">Gross Profit</p>
-            <p className="text-[30px] font-bold text-[#111111] tabular-nums leading-none">LKR {fmtCompact(curStats.grossProfit)}</p>
-            {tGP > 0 && <p className="text-[10px] text-[#9CA3AF] mt-1">of LKR {fmtCompact(tGP)} target</p>}
-            <MiniBar value={curStats.grossProfit} target={tGP} />
-            <div className="mt-2"><AchievePill value={curStats.grossProfit} target={tGP} /></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════
-          SECTION 2 — SALES REPS HORIZONTAL BAR
-      ══════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-2xl p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em]">Sales Performance</p>
-          <span className="text-[11px] text-[#9CA3AF]">{rangeLabel}</span>
-        </div>
-
-        {byManager.length === 0 ? (
-          <Empty />
-        ) : (
-          <>
-            {/* Segmented bar */}
-            <div className="relative">
-              <div className="flex h-8 rounded-xl overflow-hidden gap-px bg-[#F3F2EF]">
-                {byManager.map((m, i) => {
-                  const pct = totalMgrRevenue > 0 ? (m.totalSales / totalMgrRevenue) * 100 : 0
-                  return (
-                    <div
-                      key={m.manager}
-                      style={{ width: `${pct}%`, backgroundColor: mgrColor(i) }}
-                      className="relative cursor-pointer transition-opacity hover:opacity-80"
-                      onMouseEnter={() => setHoveredMgr(i)}
-                      onMouseLeave={() => setHoveredMgr(null)}
-                    />
-                  )
-                })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Revenue */}
+            <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Revenue</span>
+              <div className="flex flex-col items-start gap-2">
+                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(curStats.totalSales)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(curStats.totalSales, prevStats.totalSales)).bg, color: deltaColor(pctChange(curStats.totalSales, prevStats.totalSales)).fg }}>
+                    {fmtDelta(pctChange(curStats.totalSales, prevStats.totalSales))}
+                  </span>
+                  <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
+                </div>
               </div>
-
-              {/* Hover tooltip */}
-              {hoveredMgr !== null && byManager[hoveredMgr] && (
-                <div className="absolute -top-[68px] left-1/2 -translate-x-1/2 bg-[#111111] text-white rounded-xl px-3 py-2.5 text-xs shadow-xl pointer-events-none z-20 whitespace-nowrap">
-                  <p className="font-semibold mb-1" style={{ color: mgrColor(hoveredMgr) }}>
-                    {byManager[hoveredMgr].manager}
-                  </p>
-                  <p className="text-[#D1D5DB]">{fmtLKR(byManager[hoveredMgr].totalSales)} · {byManager[hoveredMgr].sold} {byManager[hoveredMgr].sold === 1 ? 'watch' : 'watches'}</p>
-                  <p className="text-[#9CA3AF]">Commission: {fmtLKR(byManager[hoveredMgr].commission)}</p>
+              {tSales > 0 && (
+                <div className="flex flex-col gap-1.5 mt-0.5">
+                  <div className="flex justify-between text-[12px]" style={{ color: INK_60 }}>
+                    <span>Target LKR {fmtCompact(tSales)}</span>
+                    <span className="font-semibold" style={{ color: INK }}>{achieved}% achieved</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: INK_08 }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(achieved, 100)}%`, background: barGradient(achieved) }} />
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 pt-3 border-t border-[#F3F2EF]">
-              {byManager.map((m, i) => {
-                const pct = totalMgrRevenue > 0 ? (m.totalSales / totalMgrRevenue) * 100 : 0
-                return (
-                  <div key={m.manager} className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: mgrColor(i) }} />
-                    <span className="text-[12px] font-medium text-[#111111]">{m.manager}</span>
-                    <span className="text-[11px] text-[#9CA3AF] tabular-nums">{fmtLKR(m.totalSales)}</span>
-                    <span className="text-[10px] font-semibold text-[#6B6B6B] bg-[#F3F2EF] px-1.5 py-0.5 rounded-full">{pct.toFixed(0)}%</span>
-                  </div>
-                )
-              })}
+            {/* Gross profit */}
+            <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Gross profit</span>
+              <div className="flex flex-col items-start gap-2">
+                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(curStats.grossProfit)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(curStats.grossProfit, prevStats.grossProfit)).bg, color: deltaColor(pctChange(curStats.grossProfit, prevStats.grossProfit)).fg }}>
+                    {fmtDelta(pctChange(curStats.grossProfit, prevStats.grossProfit))}
+                  </span>
+                  <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 mt-0.5">
+                <div className="flex justify-between text-[12px]" style={{ color: INK_60 }}>
+                  <span>Margin on revenue</span>
+                  <span className="font-semibold" style={{ color: INK }}>{curStats.gpMargin.toFixed(1)}%</span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: INK_08 }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(curStats.gpMargin / GP_PCT_TARGET * 100, 100)}%`, background: barGradient(Math.min(curStats.gpMargin / GP_PCT_TARGET * 100, 100)) }} />
+                </div>
+              </div>
             </div>
-          </>
-        )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {[
+              { label: 'Watches sold', value: String(curStats.watchesSold), delta: pctChange(curStats.watchesSold, prevStats.watchesSold) },
+              { label: 'Gross profit margin', value: curStats.gpMargin.toFixed(1) + '%', delta: pctChange(curStats.gpMargin, prevStats.gpMargin) },
+            ].map(m => (
+              <div key={m.label} className="rounded-2xl p-3.5 flex items-center gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>{m.label}</span>
+                  <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{m.value}</span>
+                </div>
+                <span className="ml-auto text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(m.delta).bg, color: deltaColor(m.delta).fg }}>
+                  {fmtDelta(m.delta)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Stock value — real, from watches query */}
+            <div className="rounded-[18px] p-4 flex items-center gap-4" style={{ border: `1px dashed ${INK_08.replace('.08', '.14')}` }}>
+              <div className="flex flex-col gap-1">
+                <span className="text-[12.5px]" style={{ color: INK_50 }}>Total value of stock</span>
+                <span className="text-[27px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(stockValue)}</span>
+              </div>
+              <span className="ml-auto text-[12px] text-right max-w-[110px] leading-tight" style={{ color: INK_45 }}>{stockCount} pieces in stock</span>
+            </div>
+            {/* New customers — derived from new_client deals this period, see report */}
+            <div className="rounded-[18px] p-4 flex items-center gap-4" style={{ border: `1px dashed ${INK_08.replace('.08', '.14')}` }}>
+              <div className="flex flex-col gap-1">
+                <span className="text-[12.5px]" style={{ color: INK_50 }}>New customers</span>
+                <span className="text-[27px] font-semibold tracking-tight leading-none tabular-nums">{newClientIds.size}</span>
+              </div>
+              <span className="ml-auto text-[12px] text-right max-w-[110px] leading-tight" style={{ color: INK_45 }}>{newFromReferral} from referrals</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Latest sales */}
+        <section className="bg-white rounded-[24px] p-5 flex flex-col gap-3.5" style={{ boxShadow: '0 1px 2px rgba(20,20,15,.05)' }}>
+          <div className="flex items-baseline gap-2 px-1">
+            <h2 className="m-0 text-[17px] font-semibold tracking-tight">Latest sales</h2>
+            <span className="ml-auto text-[12px]" style={{ color: INK_45 }}>Last 5 completed</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {latestSales.length === 0 ? (
+              <p className="text-[13px] px-2.5" style={{ color: '#9CA3AF' }}>No sales yet.</p>
+            ) : latestSales.map(s => {
+              const price = dealSalePriceLKR(s)
+              const brandName = s.watches?.brands?.name ?? s.watches?.watch_name ?? '—'
+              const code = brandName.slice(0, 3).toUpperCase()
+              const channel = s.clients?.client_type ?? '—'
+              return (
+                <Link
+                  key={s.id}
+                  href={`/dashboard/deals/${s.id}`}
+                  className="flex items-center gap-3 p-2.5 rounded-2xl transition-colors hover:bg-[#f7f6f3]"
+                >
+                  <div className="w-[46px] h-[46px] flex-none rounded-xl flex flex-col items-center justify-center gap-px" style={{ background: '#eceae5', border: `1px solid ${INK_08}` }}>
+                    <span className="text-[10px] font-bold tracking-wide" style={{ color: INK_50 }}>{code}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[13px] font-semibold tracking-tight leading-tight truncate">{s.watches?.watch_name ?? 'Unknown Watch'}</span>
+                    <span className="text-[11.5px] truncate" style={{ color: INK_45 }}>{s.sales_manager ?? 'Unassigned'} · {channel} · {daysAgo(s.sale_date ?? s.created_at)}</span>
+                  </div>
+                  <div className="ml-auto flex flex-col items-end gap-0.5 shrink-0">
+                    <span className="text-[14px] font-semibold tracking-tight whitespace-nowrap tabular-nums">{price != null ? 'LKR ' + fmtCompact(price) : '—'}</span>
+                    <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: s.stage === 'Delivered' ? 'rgba(31,111,67,.1)' : 'rgba(185,162,113,.22)', color: s.stage === 'Delivered' ? GREEN : '#8a6f2e' }}>
+                      {s.stage}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+          <Link
+            href="/dashboard/deals"
+            className="mt-auto h-11 flex-none rounded-full flex items-center justify-center text-[13px] font-semibold transition-colors hover:bg-[#f7f6f3]"
+            style={{ border: `1px solid ${INK_08.replace('.08', '.1')}` }}
+          >
+            All sales
+          </Link>
+        </section>
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          SECTION 3 — BENTO ANALYTICS GRID
+          PERFORMANCE — INVESTOR RELATIONS
       ══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-
-        {/* CARD A — BY BRAND (5 cols) */}
-        <Card className="md:col-span-5">
-          <CardLabel>By Brand</CardLabel>
-          {byBrand.length === 0 ? (
-            <Empty />
-          ) : (
-            <div className="space-y-3">
-              {byBrand.slice(0, 5).map((b, i) => {
-                const pct = totalBrandRevenue > 0 ? (b.totalSales / totalBrandRevenue) * 100 : 0
-                return (
-                  <div key={b.brand}>
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brandColor(i) }} />
-                      <span className="text-[12px] font-medium text-[#111111] flex-1 truncate">{b.brand}</span>
-                      <span className="text-[12px] text-[#6B6B6B] tabular-nums">{fmtLKR(b.totalSales)}</span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3F2EF] text-[#6B6B6B] min-w-[36px] text-center">
-                        {pct.toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="h-[3px] bg-[#E8E6E1] rounded-sm overflow-hidden">
-                      <div className="h-full bg-[#C9A84C] rounded-sm" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* CARD B — TOP CLIENTS (4 cols) */}
-        <Card className="md:col-span-4">
-          <CardLabel>Top Clients</CardLabel>
-          {top5.length === 0 ? (
-            <Empty />
-          ) : (
-            <div className="space-y-3">
-              {top5.map((c, i) => {
-                const pct = maxClientSales > 0 ? (c.totalSales / maxClientSales) * 100 : 0
-                return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="text-[10px] font-bold text-[#C9A84C] w-4 flex-shrink-0">{i + 1}</span>
-                        <span className="text-[12px] font-medium text-[#111111] truncate">{c.name}</span>
-                        {c.clientType && (
-                          <span className="text-[9px] text-[#9CA3AF] bg-[#F3F2EF] px-1.5 py-0.5 rounded-full flex-shrink-0">{c.clientType}</span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-[#6B6B6B] tabular-nums flex-shrink-0 ml-2">{fmtLKR(c.totalSales)}</span>
-                    </div>
-                    <Bar pct={pct} />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* CARD C — NEW vs EXISTING (3 cols) */}
-        <Card className="md:col-span-3">
-          <CardLabel>New vs Existing</CardLabel>
-          {nve[0].sold + nve[1].sold === 0 ? (
-            <Empty />
-          ) : (
-            <div className="space-y-3">
-              {nve.map((row, i) => {
-                const total = nve[0].sold + nve[1].sold
-                const pct   = total > 0 ? (row.sold / total) * 100 : 0
-                const color = i === 0 ? '#C9A84C' : '#CBD5E1'
-                return (
-                  <div key={row.type}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                        <span className="text-[12px] font-medium text-[#111111]">{row.type}</span>
-                      </div>
-                      <span className="text-[11px] font-semibold text-[#6B6B6B]">{pct.toFixed(0)}%</span>
-                    </div>
-                    <p className="text-[10px] text-[#9CA3AF] pl-4">{row.sold} sold · {fmtLKR(row.totalSales)}</p>
-                  </div>
-                )
-              })}
-              {/* Stacked bar */}
-              <div className="flex h-1.5 rounded-full overflow-hidden mt-1">
-                {nve.map((row, i) => {
-                  const total = nve[0].sold + nve[1].sold
-                  const pct   = total > 0 ? (row.sold / total) * 100 : 0
-                  return (
-                    <div key={i} style={{ width: `${pct}%`, backgroundColor: i === 0 ? '#C9A84C' : '#CBD5E1' }} />
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* CARD D1 — SALES TREND (6 cols) */}
-        <Card className="md:col-span-6">
-          <CardLabel>Sales Trend — Last 6 Months</CardLabel>
-          <TrendChart data={trend} dataKey="sales" name="Sales" stroke="#C9A84C" />
-        </Card>
-
-        {/* CARD D2 — GROSS PROFIT TREND (6 cols) */}
-        <Card className="md:col-span-6">
-          <CardLabel>Gross Profit Trend — Last 6 Months</CardLabel>
-          <TrendChart data={trend} dataKey="gp" name="Gross Profit" stroke="#16A34A" />
-        </Card>
-
-        {/* CARD E — LEAD SOURCE (4 cols) */}
-        <Card className="md:col-span-4">
-          <CardLabel>Lead Source</CardLabel>
-          {byReferral.length === 0 ? (
-            <Empty />
-          ) : (
-            <div className="space-y-3">
-              {byReferral.map((r, i) => {
-                const pct = maxRefSales > 0 ? (r.totalSales / maxRefSales) * 100 : 0
-                return (
-                  <div key={r.source}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brandColor(i) }} />
-                        <span className="text-[12px] font-medium text-[#111111]">{r.source}</span>
-                      </div>
-                      <span className="text-[10px] text-[#9CA3AF] tabular-nums">{r.count} · {fmtLKR(r.avgSale)} avg</span>
-                    </div>
-                    <Bar pct={pct} />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* CARD F — COMMISSION SUMMARY (6 cols) */}
-        <Card className="md:col-span-6">
-          <CardLabel>Commission Summary</CardLabel>
-          {byManager.length === 0 ? (
-            <Empty />
-          ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-[#F3F2EF]">
-                  <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pr-3 text-[9px]">Manager</th>
-                  <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Sold</th>
-                  <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Sales</th>
-                  <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pl-2 text-[9px]">Commission</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...byManager].sort((a, b) => b.sold - a.sold).map((m, i) => (
-                  <tr key={i} className="border-b border-[#F7F6F3] last:border-0">
-                    <td className="py-2.5 pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: mgrColor(i) }} />
-                        <span className="font-medium text-[#111111] truncate max-w-[90px]">{m.manager}</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2 text-right text-[#6B6B6B]">{m.sold}</td>
-                    <td className="py-2.5 px-2 text-right tabular-nums text-[#6B6B6B]">{fmtLKR(m.totalSales)}</td>
-                    <td className="py-2.5 pl-2 text-right font-semibold tabular-nums text-[#111111]">{fmtLKR(m.commission)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-
-        {/* CARD G — CLUB TWB (6 cols) */}
-        <Card className="md:col-span-6">
-          <CardLabel>Club TWB</CardLabel>
-          {clubTwb.length === 0 ? (
-            <Empty msg="No Club TWB sales this period." />
-          ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-[#F3F2EF]">
-                  <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pr-3 text-[9px]">Client</th>
-                  <th className="text-center font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Type</th>
-                  <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Sold</th>
-                  <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pl-2 text-[9px]">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...clubTwb].sort((a, b) => b.totalSales - a.totalSales).map((c, i) => (
-                  <tr key={i} className="border-b border-[#F7F6F3] last:border-0">
-                    <td className="py-2.5 pr-3 font-medium text-[#111111] truncate max-w-[120px]">{c.name}</td>
-                    <td className="py-2.5 px-2 text-center text-[#6B6B6B]">{c.clientType ?? '—'}</td>
-                    <td className="py-2.5 px-2 text-right text-[#6B6B6B]">{c.sold}</td>
-                    <td className="py-2.5 pl-2 text-right font-medium tabular-nums text-[#111111]">{fmtLKR(c.totalSales)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-
-        {/* Inventory value footer card */}
-        <div
-          className="md:col-span-12 bg-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
-        >
-          <div>
-            <p className="text-[10px] font-semibold text-[#6B6B6B] uppercase tracking-[0.15em] mb-1">Inventory Value</p>
-            <p className="text-[22px] font-bold text-[#111111] tabular-nums">{fmtLKR(inventoryValue)}</p>
-          </div>
-          <p className="text-[11px] text-[#9CA3AF]">
-            Available, on-hold &amp; offered watches{ownerView === 'twb' ? ' — TWB-owned only' : ''}
-          </p>
+      <Card>
+        <div className="flex items-center gap-2.5">
+          <h3 className="m-0 text-[14.5px] font-semibold">Investor relations</h3>
+          <span className="text-[12px]" style={{ color: INK_45 }}>Click a header to sort</span>
         </div>
-
-        {/* AGEING INVENTORY — full width */}
-        <Card className="md:col-span-12">
-          <div className="flex items-baseline gap-3 mb-4">
-            <CardLabel>Ageing Inventory</CardLabel>
-            <p className="text-[11px] text-[#9CA3AF] -mt-3">Watches in stock over 60 days</p>
-          </div>
-          {visibleAgeingWatches.length === 0 ? (
-            <div className="flex items-center gap-2 text-[#16A34A]">
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="text-[13px] font-medium">No ageing inventory — all watches added within 60 days</span>
+        {investorStats.length === 0 ? (
+          <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No investors yet.</p>
+        ) : (
+          <div className="rounded-[18px] overflow-hidden text-[13px]" style={{ border: `1px solid rgba(20,20,15,.07)` }}>
+            <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1.7fr) repeat(4,minmax(0,1fr))', background: CARD_BG }}>
+              {investorCols.map(c => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => toggleSort(c.key)}
+                  className="text-left px-4 py-3 text-[11.5px] font-semibold uppercase tracking-wider whitespace-nowrap border-0 bg-transparent cursor-pointer"
+                  style={{ textAlign: c.align, color: sortKey === c.key ? INK : INK_45 }}
+                >
+                  {c.label}{sortKey === c.key ? (sortDir === -1 ? ' ↓' : ' ↑') : ''}
+                </button>
+              ))}
             </div>
+            {sortedInvestors.map(inv => {
+              const roiPct = inv.roi == null ? 0 : Math.max(inv.roi, 0)
+              const roiW = Math.round((roiPct / maxRoi) * 100)
+              return (
+                <div key={inv.key} className="grid items-center" style={{ gridTemplateColumns: 'minmax(0,1.7fr) repeat(4,minmax(0,1fr))', borderTop: `1px solid rgba(20,20,15,.06)` }}>
+                  <div className="px-4 py-3.5 flex items-center gap-2.5 min-w-0">
+                    <div className="w-[30px] h-[30px] flex-none rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ background: AVATARS[initials(inv.displayName).charCodeAt(0) % AVATARS.length] }}>
+                      {initials(inv.displayName)}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold whitespace-nowrap truncate">{inv.displayName}</span>
+                      <span className="text-[11.5px] whitespace-nowrap" style={{ color: INK_45 }}>{inv.activeWatches} pieces on floor</span>
+                    </div>
+                  </div>
+                  <div className="px-4 py-3.5 text-right tabular-nums whitespace-nowrap">LKR {fmtCompact(inv.capitalTiedUp)}</div>
+                  <div className="px-4 py-3.5 text-right tabular-nums whitespace-nowrap">LKR {fmtCompact(inv.totalSales)}</div>
+                  <div className="px-4 py-3.5 text-right tabular-nums font-semibold whitespace-nowrap" style={{ color: inv.netProfit >= 0 ? GREEN : RED }}>
+                    {inv.netProfit >= 0 ? '+' : ''}LKR {fmtCompact(inv.netProfit)}
+                  </div>
+                  <div className="px-4 py-3.5 flex items-center gap-2 justify-end">
+                    <div className="w-[64px] h-1.5 rounded-full overflow-hidden" style={{ background: INK_08 }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${roiW}%`, background: barGradient(roiW) }} />
+                    </div>
+                    <span className="text-[12.5px] font-semibold w-11 text-right tabular-nums">{inv.roi == null ? '—' : inv.roi.toFixed(1) + '%'}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* ══════════════════════════════════════════════════════
+          CHARTS
+      ══════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DonutChart
+          title="Split by salesman"
+          rows={byManager.map(m => ({ label: m.manager, totalSales: m.totalSales, count: m.sold }))}
+          mode={chartMode.manager}
+          onModeChange={m => setChartMode(s => ({ ...s, manager: m }))}
+        />
+        <DonutChart
+          title="Split by brand"
+          rows={byBrand.map(b => ({ label: b.brand, totalSales: b.totalSales, count: b.sold }))}
+          mode={chartMode.brand}
+          onModeChange={m => setChartMode(s => ({ ...s, brand: m }))}
+        />
+        <DonutChart
+          title="Retail vs reseller"
+          rows={byChannel.map(c => ({ label: c.channel, totalSales: c.totalSales, count: c.sold }))}
+          mode={chartMode.channel}
+          onModeChange={m => setChartMode(s => ({ ...s, channel: m }))}
+        />
+        <DonutChart
+          title="New vs existing clients"
+          rows={nve.map(r => ({ label: r.type, totalSales: r.totalSales, count: r.sold }))}
+          mode={chartMode.clients}
+          onModeChange={m => setChartMode(s => ({ ...s, clients: m }))}
+        />
+      </div>
+
+      {/* ══════════════════════════════════════════════════════
+          LEAD REFERRAL VIEW
+      ══════════════════════════════════════════════════════ */}
+      <Card>
+        <div className="flex items-baseline gap-3">
+          <h2 className="m-0 text-[19px] font-semibold tracking-tight">Lead referral view</h2>
+          <span className="text-[13px]" style={{ color: INK_45 }}>Where {byReferral.reduce((s, r) => s + r.count, 0)} leads came from</span>
+        </div>
+        {byReferral.length === 0 ? (
+          <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {byReferral.map((r, i) => {
+              const maxCount = Math.max(...byReferral.map(x => x.count), 1)
+              const total = byReferral.reduce((s, x) => s + x.count, 0) || 1
+              return (
+                <div key={r.source} className="rounded-[20px] p-4 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+                  <div className="w-[34px] h-[34px] rounded-xl flex items-center justify-center text-[13px] font-semibold" style={{ background: '#fff', border: `1px solid ${INK_08.replace('.08', '.06')}`, color: SEG_COLORS[i % SEG_COLORS.length] }}>
+                    {r.source.slice(0, 1)}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[12.5px] truncate" style={{ color: INK_50 }}>{r.source}</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[24px] font-semibold tracking-tight leading-none">{Math.round((r.count / total) * 100)}%</span>
+                      <span className="text-[12.5px]" style={{ color: INK_45 }}>{r.count} leads</span>
+                    </div>
+                  </div>
+                  <div className="h-[5px] rounded-full overflow-hidden" style={{ background: INK_08 }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((r.count / maxCount) * 100)}%`, background: INK }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* ══════════════════════════════════════════════════════
+          TOP SALESMEN + TOP CLIENTS
+      ══════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="m-0 text-[17px] font-semibold tracking-tight">Top performing salesmen</h2>
+            <span className="ml-auto text-[12px]" style={{ color: INK_45 }}>Commission paid LKR {fmtCompact(commissionTotal)}</span>
+          </div>
+          {byManager.length === 0 ? (
+            <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-[#F3F2EF]">
-                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pr-3 text-[9px]">Watch</th>
-                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Brand</th>
-                    <th className="text-left font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Condition</th>
-                    <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 px-2 text-[9px]">Days in Stock</th>
-                    <th className="text-right font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] pb-2 pl-2 text-[9px]">Asking Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleAgeingWatches.map(w => {
-                    const refDate = w.date_acquired ?? w.created_at
-                    const days = Math.floor((Date.now() - new Date(refDate).getTime()) / (1000 * 60 * 60 * 24))
-                    const daysColor = days >= 120 ? 'text-[#DC2626]' : days >= 90 ? 'text-[#EA580C]' : 'text-[#D97706]'
-                    return (
-                      <tr key={w.id} className="border-b border-[#F7F6F3] last:border-0">
-                        <td className="py-2.5 pr-3 font-medium text-[#111111] max-w-[180px] truncate">{w.watch_name}</td>
-                        <td className="py-2.5 px-2 text-[#6B6B6B]">{w.brands?.name ?? '—'}</td>
-                        <td className="py-2.5 px-2 text-[#6B6B6B]">{w.condition ?? '—'}</td>
-                        <td className={`py-2.5 px-2 text-right font-semibold tabular-nums ${daysColor}`}>{days}d</td>
-                        <td className="py-2.5 pl-2 text-right font-medium tabular-nums text-[#111111]">
-                          {w.selling_price ? fmtLKR(w.selling_price) : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="flex flex-col">
+              {[...byManager].sort((a, b) => b.sold - a.sold).map((m, i) => (
+                <div key={m.manager} className="flex items-center gap-3.5 py-4" style={{ borderTop: i === 0 ? 'none' : `1px solid rgba(20,20,15,.06)` }}>
+                  <div className="w-[38px] h-[38px] flex-none rounded-full flex items-center justify-center text-[12.5px] font-semibold" style={{ background: AVATARS[i % AVATARS.length] }}>
+                    {initials(m.manager)}
+                  </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[16px] font-semibold tracking-tight truncate">{m.manager}</span>
+                    <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_45 }}>{m.sold} watches · LKR {fmtCompact(m.totalSales)}</span>
+                  </div>
+                  <span className="ml-auto text-[16px] font-semibold tabular-nums whitespace-nowrap">{m.commission > 0 ? 'LKR ' + fmtCompact(m.commission) : '—'}</span>
+                </div>
+              ))}
             </div>
           )}
         </Card>
 
+        <Card>
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="m-0 text-[17px] font-semibold tracking-tight">Top performing clients</h2>
+            <span className="ml-auto text-[12px]" style={{ color: INK_45 }}>By revenue</span>
+          </div>
+          <div className="text-[13px]">
+            <div className="grid text-[11.5px] font-semibold uppercase tracking-wider pb-2.5" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', color: INK_45 }}>
+              <div>Client</div>
+              <div className="text-right">Watches</div>
+              <div className="text-right">Revenue</div>
+              <div className="text-right">Type</div>
+            </div>
+            {top5.length === 0 ? (
+              <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
+            ) : top5.map((c, i) => (
+              <div key={i} className="grid items-center py-3" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', borderTop: `1px solid rgba(20,20,15,.06)` }}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 flex-none rounded-full flex items-center justify-center text-[10.5px] font-semibold" style={{ background: AVATARS[(i + 2) % AVATARS.length] }}>
+                    {initials(c.name)}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold whitespace-nowrap truncate">{c.name}</span>
+                    <span className="text-[11.5px] whitespace-nowrap" style={{ color: INK_45 }}>Last buy {daysAgo(c.lastSaleAt)}</span>
+                  </div>
+                </div>
+                <div className="text-right tabular-nums">{c.sold}</div>
+                <div className="text-right tabular-nums font-semibold whitespace-nowrap">LKR {fmtCompact(c.totalSales)}</div>
+                <div className="text-right">
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: c.clientType === 'Retail' ? INK_08 : 'rgba(31,111,67,.1)', color: c.clientType === 'Retail' ? INK_60 : GREEN }}>
+                    {c.clientType ?? '—'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   )
