@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 import {
   type DealRow, type Target, type DateRange,
   filterDeals, getDateBounds, getPrevBounds,
@@ -172,13 +174,81 @@ export default function DashboardOverview({
   clients: { id: string; created_at: string; lead_referral: string | null }[]
   investorStats: InvestorStat[]
 }) {
-  const { profile } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const [range, setRange] = useState<DateRange>('this_month')
   const [chartMode, setChartMode] = useState<ChartMode>({ manager: 'value', brand: 'value', channel: 'value', clients: 'value' })
   const [sortKey, setSortKey] = useState<InvestorSortKey>('capitalTiedUp')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
   const [periodOpen, setPeriodOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [searchOpen, setSearchOpen]       = useState(false)
+  const [searching, setSearching]         = useState(false)
+  const [searchResults, setSearchResults] = useState<{
+    watches: { id: string; watch_name: string; reference: string | null }[]
+    clients: { id: string; name: string }[]
+  }>({ watches: [], clients: [] })
+  const searchSeq = useRef(0)
+
+  useEffect(() => {
+    // Strip characters with special meaning in PostgREST's .or() filter
+    // syntax (comma separates conditions, parens group them) — otherwise
+    // typed search text could inject extra filter clauses.
+    const q = searchQuery.trim().replace(/[,()]/g, ' ').trim()
+    if (q.length < 2) {
+      setSearchResults({ watches: [], clients: [] })
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const seq = ++searchSeq.current
+    const timer = setTimeout(async () => {
+      const supabase = createClient()
+      const [watchesRes, clientsRes] = await Promise.all([
+        supabase
+          .from('watches')
+          .select('id, watch_name, reference')
+          .is('deleted_at', null)
+          .or(`watch_name.ilike.%${q}%,reference.ilike.%${q}%`)
+          .limit(5),
+        supabase
+          .from('clients')
+          .select('id, name')
+          .is('deleted_at', null)
+          .ilike('name', `%${q}%`)
+          .limit(5),
+      ])
+      if (seq !== searchSeq.current) return
+      setSearchResults({
+        watches: watchesRes.data ?? [],
+        clients: clientsRes.data ?? [],
+      })
+      setSearching(false)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !user?.id) return
+    setAvatarUploading(true)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `avatars/${user.id}_${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('watch-photos').upload(path, file, { upsert: true })
+    if (!upErr) {
+      const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
+      await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id)
+      await refreshProfile()
+    }
+    setAvatarUploading(false)
+  }
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
 
@@ -263,10 +333,66 @@ export default function DashboardOverview({
         </div>
 
         <div className="lg:ml-auto flex items-center gap-3 flex-wrap">
-          {/* Search — visual only, not wired to a search feature yet */}
-          <div className="hidden md:flex items-center gap-2.5 w-[280px] h-[46px] px-4 rounded-full bg-white" style={{ border: `1px solid ${INK_08}` }}>
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={INK_45} strokeWidth="1.5"><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5 14 14" /></svg>
-            <input placeholder="Search watches, clients, refs…" disabled className="border-0 outline-0 bg-transparent text-[13.5px] w-full" style={{ color: INK, fontFamily: 'inherit' }} />
+          {/* Search — watches (name/reference) + clients (name) */}
+          <div className="relative hidden md:block">
+            <div className="flex items-center gap-2.5 w-[280px] h-[46px] px-4 rounded-full bg-white" style={{ border: `1px solid ${INK_08}` }}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={INK_45} strokeWidth="1.5"><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5 14 14" /></svg>
+              <input
+                placeholder="Search watches, clients, refs…"
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true) }}
+                onFocus={() => setSearchOpen(true)}
+                className="border-0 outline-0 bg-transparent text-[13.5px] w-full"
+                style={{ color: INK, fontFamily: 'inherit' }}
+              />
+            </div>
+            {searchOpen && searchQuery.trim().length >= 2 && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setSearchOpen(false)} />
+                <div className="absolute top-[52px] left-0 z-40 w-[320px] max-h-[360px] overflow-y-auto bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ border: `1px solid ${INK_08}`, boxShadow: '0 12px 32px rgba(20,20,15,.16)' }}>
+                  {searching ? (
+                    <p className="text-[13px] px-3.5 py-2.5" style={{ color: INK_45 }}>Searching…</p>
+                  ) : searchResults.watches.length === 0 && searchResults.clients.length === 0 ? (
+                    <p className="text-[13px] px-3.5 py-2.5" style={{ color: INK_45 }}>No matches.</p>
+                  ) : (
+                    <>
+                      {searchResults.watches.length > 0 && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10.5px] font-semibold uppercase tracking-wider px-3.5 pt-2 pb-1" style={{ color: INK_45 }}>Watches</span>
+                          {searchResults.watches.map(w => (
+                            <Link
+                              key={w.id}
+                              href={`/dashboard/watches/${w.id}`}
+                              onClick={() => setSearchOpen(false)}
+                              className="text-left text-[13px] px-3.5 py-2 rounded-xl whitespace-nowrap overflow-hidden text-ellipsis"
+                              style={{ color: INK }}
+                            >
+                              {w.watch_name}{w.reference ? <span style={{ color: INK_45 }}> · {w.reference}</span> : null}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                      {searchResults.clients.length > 0 && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10.5px] font-semibold uppercase tracking-wider px-3.5 pt-2 pb-1" style={{ color: INK_45 }}>Clients</span>
+                          {searchResults.clients.map(c => (
+                            <Link
+                              key={c.id}
+                              href={`/dashboard/clients/${c.id}`}
+                              onClick={() => setSearchOpen(false)}
+                              className="text-left text-[13px] px-3.5 py-2 rounded-xl whitespace-nowrap overflow-hidden text-ellipsis"
+                              style={{ color: INK }}
+                            >
+                              {c.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Period picker */}
@@ -337,14 +463,68 @@ export default function DashboardOverview({
           </div>
 
           {/* Profile */}
-          <Link
-            href="/dashboard/settings"
-            title={profile?.full_name ?? firstName}
-            className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[13px] font-semibold flex-none"
-            style={{ background: '#c9c4b8', border: '2px solid #fff', color: INK }}
-          >
-            {initials(profile?.full_name ?? firstName)}
-          </Link>
+          <div className="relative">
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            <button
+              type="button"
+              title={profile?.full_name ?? firstName}
+              onClick={() => { setProfileOpen(v => !v); setPeriodOpen(false); setAddOpen(false) }}
+              className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[13px] font-semibold flex-none overflow-hidden"
+              style={{ background: '#c9c4b8', border: '2px solid #fff', color: INK }}
+            >
+              {profile?.avatar_url ? (
+                <Image src={profile.avatar_url} alt="" width={46} height={46} sizes="46px" className="w-full h-full object-cover" />
+              ) : (
+                initials(profile?.full_name ?? firstName)
+              )}
+            </button>
+            {profileOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
+                <div className="absolute top-[52px] right-0 z-40 min-w-[220px] bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ border: `1px solid ${INK_08}`, boxShadow: '0 12px 32px rgba(20,20,15,.16)' }}>
+                  <div className="flex items-center gap-2.5 px-3 py-2.5">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-none overflow-hidden" style={{ background: '#c9c4b8', color: INK }}>
+                      {profile?.avatar_url ? (
+                        <Image src={profile.avatar_url} alt="" width={36} height={36} sizes="36px" className="w-full h-full object-cover" />
+                      ) : (
+                        initials(profile?.full_name ?? firstName)
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[13px] font-semibold truncate">{profile?.full_name ?? firstName}</span>
+                      {profile?.email && <span className="text-[11.5px] truncate" style={{ color: INK_45 }}>{profile.email}</span>}
+                    </div>
+                  </div>
+                  <div className="h-px my-0.5" style={{ background: INK_08 }} />
+                  <button
+                    type="button"
+                    disabled={avatarUploading}
+                    onClick={() => { avatarInputRef.current?.click() }}
+                    className="text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap disabled:opacity-50"
+                    style={{ color: INK }}
+                  >
+                    {avatarUploading ? 'Uploading…' : 'Change profile photo'}
+                  </button>
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={() => setProfileOpen(false)}
+                    className="text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap"
+                    style={{ color: INK }}
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { setProfileOpen(false); signOut() }}
+                    className="text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap"
+                    style={{ color: RED }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -441,15 +621,28 @@ export default function DashboardOverview({
               const brandName = s.watches?.brands?.name ?? s.watches?.watch_name ?? '—'
               const code = brandName.slice(0, 3).toUpperCase()
               const channel = s.clients?.client_type ?? '—'
+              const photo = s.watches?.photos?.[0]
               return (
                 <Link
                   key={s.id}
                   href={`/dashboard/deals/${s.id}`}
                   className="flex items-center gap-3 p-2.5 rounded-2xl transition-colors hover:bg-[#f7f6f3]"
                 >
-                  <div className="w-[46px] h-[46px] flex-none rounded-xl flex flex-col items-center justify-center gap-px" style={{ background: '#eceae5', border: `1px solid ${INK_08}` }}>
-                    <span className="text-[10px] font-bold tracking-wide" style={{ color: INK_50 }}>{code}</span>
-                  </div>
+                  {photo ? (
+                    <Image
+                      src={photo}
+                      alt=""
+                      width={46}
+                      height={46}
+                      sizes="46px"
+                      className="w-[46px] h-[46px] flex-none rounded-xl object-cover"
+                      style={{ border: `1px solid ${INK_08}` }}
+                    />
+                  ) : (
+                    <div className="w-[46px] h-[46px] flex-none rounded-xl flex flex-col items-center justify-center gap-px" style={{ background: '#eceae5', border: `1px solid ${INK_08}` }}>
+                      <span className="text-[10px] font-bold tracking-wide" style={{ color: INK_50 }}>{code}</span>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13px] font-semibold tracking-tight leading-tight truncate">{s.watches?.watch_name ?? 'Unknown Watch'}</span>
                     <span className="text-[11.5px] truncate" style={{ color: INK_45 }}>{s.sales_manager ?? 'Unassigned'} · {channel} · {daysAgo(s.sale_date ?? s.created_at)}</span>

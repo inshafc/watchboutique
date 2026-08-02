@@ -35,6 +35,7 @@ export interface DealRow {
     reference: string | null
     purchase_cost: number | null
     sold_price?: number | null
+    photos?: string[] | null
     brands: { name: string } | null
   } | null
   clients: {

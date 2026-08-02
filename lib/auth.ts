@@ -10,6 +10,7 @@ export interface Profile {
   updated_at:            string
   phone?:                string | null
   must_change_password?: boolean
+  avatar_url?:            string | null
 }
 
 export const PERMISSIONS = {
