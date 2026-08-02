@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { logActivity } from '@/lib/activityLog'
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const INK   = '#14140f'
@@ -115,6 +117,37 @@ export default function LeagueHome() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [focus, setFocus]       = useState<'user' | 'pass' | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+  const router = useRouter()
+
+  async function handleSignIn(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: username, password })
+
+    if (signInError) {
+      setError('Invalid email or password.')
+      setLoading(false)
+      void logActivity({ actionType: 'login_failed', entityLabel: username })
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user!.id)
+      .single()
+
+    void logActivity({ actionType: 'login' })
+    const userRole = profile?.role ?? 'viewer'
+    router.push(userRole === 'super_admin' ? '/dashboard' : '/dashboard/inventory')
+    router.refresh()
+  }
 
   return (
     <div style={{ minWidth: 1280, background: CREAM, color: INK, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
@@ -191,7 +224,7 @@ export default function LeagueHome() {
           </div>
 
           {/* Member sign-in card */}
-          <div id="member-login" className="flex flex-col gap-5" style={{ background: '#fff', color: INK, borderRadius: 26, padding: 30, boxShadow: '0 28px 70px rgba(0,0,0,.45)' }}>
+          <form id="member-login" onSubmit={handleSignIn} className="flex flex-col gap-5" style={{ background: '#fff', color: INK, borderRadius: 26, padding: 30, boxShadow: '0 28px 70px rgba(0,0,0,.45)' }}>
             <div className="flex flex-col gap-1">
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(20,20,15,.4)' }}>Member area</span>
               <span style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.025em' }}>Sign in</span>
@@ -217,6 +250,9 @@ export default function LeagueHome() {
               <div className="flex items-center gap-2.5 transition-colors" style={{ height: 52, padding: '0 16px', border: `1px solid ${focus === 'user' ? INK : 'rgba(20,20,15,.12)'}`, borderRadius: 14, background: '#fff' }}>
                 <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="rgba(20,20,15,.4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="7.4" r="2.9" /><path d="M4.6 16.4c.7-2.7 2.7-4.2 5.4-4.2s4.7 1.5 5.4 4.2" /></svg>
                 <input
+                  type="email"
+                  required
+                  autoComplete="off"
                   placeholder="captain@club.lk"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -234,6 +270,8 @@ export default function LeagueHome() {
                 <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="rgba(20,20,15,.4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="4.2" y="8.6" width="11.6" height="8" rx="2.2" /><path d="M7 8.6V6.8a3 3 0 0 1 6 0v1.8" /></svg>
                 <input
                   type={showPass ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -254,17 +292,24 @@ export default function LeagueHome() {
               </div>
             </div>
 
-            <Link
-              href="/login"
-              className="flex items-center justify-center gap-2.5 whitespace-nowrap transition-colors"
+            {error && (
+              <span className="text-center" style={{ fontSize: 12.5, color: RED }}>{error}</span>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center justify-center gap-2.5 whitespace-nowrap border-0 font-sans cursor-pointer transition-colors disabled:opacity-50"
               style={{ height: 54, borderRadius: 999, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}
             >
-              Sign in
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"><path d="M6.5 3.5 11 8l-4.5 4.5" /></svg>
-            </Link>
+              {loading ? 'Signing in…' : 'Sign in'}
+              {!loading && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"><path d="M6.5 3.5 11 8l-4.5 4.5" /></svg>
+              )}
+            </button>
 
             <span className="text-center" style={{ fontSize: 12, color: 'rgba(20,20,15,.4)' }}>Not a member? Registration for Season 5 opens 1 October.</span>
-          </div>
+          </form>
         </div>
       </section>
 

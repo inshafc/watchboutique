@@ -39,10 +39,10 @@ export async function middleware(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = req.nextUrl
 
-  // 1 & 2 — No session: any protected route → /login
+  // 1 & 2 — No session: any protected route → / (sign-in now lives on the home page)
   if (!user) {
     if (pathname.startsWith('/dashboard') || pathname.startsWith('/change-password')) {
-      return NextResponse.redirect(new URL('/login', req.url))
+      return NextResponse.redirect(new URL('/', req.url))
     }
     return res
   }
@@ -69,12 +69,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(dest, req.url))
   }
 
-  // 5 — Already authenticated → off /login
-  if (pathname === '/login') {
-    const dest = role === 'super_admin' ? '/dashboard' : '/dashboard/inventory'
-    return NextResponse.redirect(new URL(dest, req.url))
-  }
-
   // 5 — Role-based routing for dashboard routes
   if (pathname.startsWith('/dashboard')) {
     const isDashboardRoot = pathname === '/dashboard' || pathname === '/dashboard/'
@@ -94,5 +88,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/change-password'],
+  matcher: ['/dashboard/:path*', '/change-password'],
 }

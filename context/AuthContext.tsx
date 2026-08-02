@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (suspendedRef.current) return
       timerRef.current = setTimeout(async () => {
         await supabase.auth.signOut()
-        window.location.replace('/login')
+        window.location.replace('/')
       }, INACTIVITY_TIMEOUT)
     }
     resetTimerRef.current = resetTimer
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     void logActivity({ actionType: 'logout' })
     await supabase.auth.signOut()
-    window.location.href = '/login'
+    window.location.href = '/'
   }
 
   async function refreshProfile() {
