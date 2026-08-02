@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   type DealRow, type Target, type DateRange,
-  filterDeals, getDateBounds, getPrevBounds, computeStats,
+  filterDeals, filterDealsByClosedAt, getDateBounds, getPrevBounds,
+  overviewRevenue, overviewGrossProfit, newCustomersInPeriod,
   salesByBrand, salesByManager, salesByReferral, salesByChannel,
   topClients, newVsExisting, targetForPeriod,
   fmtCompact, pctChange,
@@ -161,12 +162,14 @@ export default function DashboardOverview({
   stockValue,
   stockCount,
   targets,
+  clients,
   investorStats,
 }: {
   deals: DealRow[]
   stockValue: number
   stockCount: number
   targets: Target[]
+  clients: { id: string; created_at: string; lead_referral: string | null }[]
   investorStats: InvestorStat[]
 }) {
   const { profile } = useAuth()
@@ -182,13 +185,25 @@ export default function DashboardOverview({
   const [start, end]         = getDateBounds(range)
   const [prevStart, prevEnd] = getPrevBounds(range)
   const current = filterDeals(deals, start, end)
-  const prev    = filterDeals(deals, prevStart, prevEnd)
-  const curStats  = computeStats(current)
-  const prevStats = computeStats(prev)
+
+  // ── Overview cards — exact formulas, closed_at-scoped (see lib/analytics.ts) ──
+  // Kept separate from `current` above, which stays sale_date-scoped and
+  // continues to drive every other section of this page (donuts, tables,
+  // Cost of Sales, etc.) unchanged.
+  const overviewCurrent = filterDealsByClosedAt(deals, start, end)
+  const overviewPrev    = filterDealsByClosedAt(deals, prevStart, prevEnd)
+  const revenue      = overviewRevenue(overviewCurrent)
+  const revenuePrev  = overviewRevenue(overviewPrev)
+  const grossProfit     = overviewGrossProfit(overviewCurrent)
+  const grossProfitPrev = overviewGrossProfit(overviewPrev)
+  const watchesSold  = overviewCurrent.length
+  const gpMargin     = revenue > 0 ? (grossProfit / revenue) * 100 : 0
+  const newCustomers         = newCustomersInPeriod(clients, start, end)
+  const newCustomersReferral = newCustomers.filter(c => c.lead_referral === 'Referral').length
 
   const getTarget = (metric: string) => targets.find(t => t.metric === metric)?.target_value ?? 0
   const tSales = targetForPeriod(getTarget('total_sales'), range)
-  const achieved = tSales > 0 ? Math.round((curStats.totalSales / tSales) * 100) : 0
+  const achieved = tSales > 0 ? Math.round((revenue / tSales) * 100) : 0
   const GP_PCT_TARGET = 30
 
   const byManager  = salesByManager(current)
@@ -205,14 +220,6 @@ export default function DashboardOverview({
   // split of Gross Profit, not an additional cost — labeled accordingly.
   const otherCostsTotal = current.reduce((s, d) => s + (d.other_costs ? (d.other_costs_amount ?? 0) : 0), 0)
   const investorPayoutTotal = investorStats.reduce((s, i) => s + i.netProfit, 0)
-
-  // "New customers" — distinct clients behind this period's new_client deals;
-  // "from referrals" — of those, how many came in via a Referral lead.
-  const newClientDeals = current.filter(d => d.new_client && d.client_id)
-  const newClientIds   = new Set(newClientDeals.map(d => d.client_id!))
-  const newFromReferral = new Set(
-    newClientDeals.filter(d => d.clients?.lead_referral === 'Referral').map(d => d.client_id!)
-  ).size
 
   // Latest 5 completed sales — not scoped to the period picker.
   const latestSales = [...deals]
@@ -352,10 +359,10 @@ export default function DashboardOverview({
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
               <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Revenue</span>
               <div className="flex flex-col items-start gap-2">
-                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(curStats.totalSales)}</span>
+                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(revenue)}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(curStats.totalSales, prevStats.totalSales)).bg, color: deltaColor(pctChange(curStats.totalSales, prevStats.totalSales)).fg }}>
-                    {fmtDelta(pctChange(curStats.totalSales, prevStats.totalSales))}
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(revenue, revenuePrev)).bg, color: deltaColor(pctChange(revenue, revenuePrev)).fg }}>
+                    {fmtDelta(pctChange(revenue, revenuePrev))}
                   </span>
                   <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
                 </div>
@@ -377,10 +384,10 @@ export default function DashboardOverview({
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
               <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Gross profit</span>
               <div className="flex flex-col items-start gap-2">
-                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(curStats.grossProfit)}</span>
+                <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(grossProfit)}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(curStats.grossProfit, prevStats.grossProfit)).bg, color: deltaColor(pctChange(curStats.grossProfit, prevStats.grossProfit)).fg }}>
-                    {fmtDelta(pctChange(curStats.grossProfit, prevStats.grossProfit))}
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(pctChange(grossProfit, grossProfitPrev)).bg, color: deltaColor(pctChange(grossProfit, grossProfitPrev)).fg }}>
+                    {fmtDelta(pctChange(grossProfit, grossProfitPrev))}
                   </span>
                   <span className="text-[11.5px]" style={{ color: INK_45 }}>vs prev. period</span>
                 </div>
@@ -388,48 +395,32 @@ export default function DashboardOverview({
               <div className="flex flex-col gap-1.5 mt-0.5">
                 <div className="flex justify-between text-[12px]" style={{ color: INK_60 }}>
                   <span>Margin on revenue</span>
-                  <span className="font-semibold" style={{ color: INK }}>{curStats.gpMargin.toFixed(1)}%</span>
+                  <span className="font-semibold" style={{ color: INK }}>{gpMargin.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 rounded-full overflow-hidden" style={{ background: INK_08 }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(curStats.gpMargin / GP_PCT_TARGET * 100, 100)}%`, background: barGradient(Math.min(curStats.gpMargin / GP_PCT_TARGET * 100, 100)) }} />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(gpMargin / GP_PCT_TARGET * 100, 100)}%`, background: barGradient(Math.min(gpMargin / GP_PCT_TARGET * 100, 100)) }} />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {[
-              { label: 'Watches sold', value: String(curStats.watchesSold), delta: pctChange(curStats.watchesSold, prevStats.watchesSold) },
-              { label: 'Gross profit margin', value: curStats.gpMargin.toFixed(1) + '%', delta: pctChange(curStats.gpMargin, prevStats.gpMargin) },
-            ].map(m => (
-              <div key={m.label} className="rounded-2xl p-3.5 flex items-center gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>{m.label}</span>
-                  <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{m.value}</span>
-                </div>
-                <span className="ml-auto text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: deltaColor(m.delta).bg, color: deltaColor(m.delta).fg }}>
-                  {fmtDelta(m.delta)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Stock value — real, from watches query */}
-            <div className="rounded-[18px] p-4 flex items-center gap-4" style={{ border: `1px dashed ${INK_08.replace('.08', '.14')}` }}>
-              <div className="flex flex-col gap-1">
-                <span className="text-[12.5px]" style={{ color: INK_50 }}>Total value of stock</span>
-                <span className="text-[27px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(stockValue)}</span>
-              </div>
-              <span className="ml-auto text-[12px] text-right max-w-[110px] leading-tight" style={{ color: INK_45 }}>{stockCount} pieces in stock</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {/* Watches sold */}
+            <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>Watches sold</span>
+              <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{watchesSold}</span>
             </div>
-            {/* New customers — derived from new_client deals this period, see report */}
-            <div className="rounded-[18px] p-4 flex items-center gap-4" style={{ border: `1px dashed ${INK_08.replace('.08', '.14')}` }}>
-              <div className="flex flex-col gap-1">
-                <span className="text-[12.5px]" style={{ color: INK_50 }}>New customers</span>
-                <span className="text-[27px] font-semibold tracking-tight leading-none tabular-nums">{newClientIds.size}</span>
-              </div>
-              <span className="ml-auto text-[12px] text-right max-w-[110px] leading-tight" style={{ color: INK_45 }}>{newFromReferral} from referrals</span>
+            {/* Value of stock — current on-hand inventory, cost basis, never period-filtered */}
+            <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>Value of stock</span>
+              <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(stockValue)}</span>
+              <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{stockCount} pieces on hand</span>
+            </div>
+            {/* New customers */}
+            <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
+              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>New customers</span>
+              <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{newCustomers.length}</span>
+              <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{newCustomersReferral} from referrals</span>
             </div>
           </div>
         </Card>

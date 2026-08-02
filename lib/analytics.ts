@@ -4,6 +4,12 @@ import { dealSalePriceLKR } from '@/lib/deal-currency'
 
 export type DateRange = 'this_month' | 'last_month' | 'last_3' | 'last_6' | 'this_year'
 
+// Clients bulk-imported on 2026-06-30 must never count as "new" — this is the
+// single shared cutoff for that rule (dashboard New Customers card, and the
+// New vs Existing client split wherever it's later made to key off client
+// creation date rather than the deal-level new_client flag).
+export const NEW_CLIENT_CUTOFF = '2026-07-01'
+
 export interface DealRow {
   id: string
   deal_type: string
@@ -12,6 +18,7 @@ export interface DealRow {
   currency?: string | null
   exchange_rate?: number | null
   sale_date: string | null
+  closed_at?: string | null
   created_at: string
   other_costs: boolean
   other_costs_amount: number | null
@@ -39,6 +46,7 @@ export interface DealRow {
     labels: string[] | null
   } | null
   trade_ins: { value: number | null }[]
+  deal_expenses?: { amount: number | null }[]
 }
 
 export interface AgeingWatch {
@@ -81,6 +89,19 @@ export function filterDeals(deals: DealRow[], start: Date, end: Date): DealRow[]
   })
 }
 
+// Dashboard Overview cards key off closed_at specifically (per exact spec),
+// not sale_date like the rest of the analytics helpers above — kept separate
+// rather than changing filterDeals()'s behavior for its other callers
+// (Analytics page).
+export function filterDealsByClosedAt(deals: DealRow[], start: Date, end: Date): DealRow[] {
+  const endOfDay = new Date(end)
+  endOfDay.setHours(23, 59, 59, 999)
+  return deals.filter(d => {
+    const dt = d.closed_at ? new Date(d.closed_at) : null
+    return dt && dt >= start && dt <= endOfDay
+  })
+}
+
 export function getDateBounds(range: DateRange): [Date, Date] {
   const now = new Date()
   const y = now.getFullYear()
@@ -116,6 +137,48 @@ export function computeStats(deals: DealRow[]) {
     ? (deals.filter(d => d.clients?.client_type === 'Reseller').length / watchesSold) * 100
     : 0
   return { watchesSold, totalSales, grossProfit, gpMargin, resellerPct }
+}
+
+// ── Dashboard Overview cards — exact formulas, see the calling page for the
+//    per-card mapping ────────────────────────────────────────────────────
+
+// Revenue = sum of dealSalePriceLKR(deal) for every deal in the closed_at-
+// filtered, Closed/Delivered set passed in. Deliberately does NOT fall back
+// to watches.sold_price like computeGP()/grossProfitFor() do elsewhere —
+// the spec names dealSalePriceLKR(deal) literally.
+export function overviewRevenue(deals: DealRow[]): number {
+  return deals.reduce((s, d) => s + (dealSalePriceLKR(d) ?? 0), 0)
+}
+
+// Gross profit = Revenue − watch cost − commission payout − other costs.
+// Other costs is summed from the itemized deal_expenses rows (per spec),
+// not the deals.other_costs_amount aggregate that computeGP() uses — the
+// two should normally agree since other_costs_amount is a cached mirror of
+// this same sum, but this computes it directly from the itemized source as
+// instructed. Investor payout is NOT subtracted — out of scope here.
+export function overviewGrossProfit(deals: DealRow[]): number {
+  return deals.reduce((s, d) => {
+    const revenue     = dealSalePriceLKR(d) ?? 0
+    const watchCost   = d.watches?.purchase_cost ?? 0
+    const commission  = d.commission_payable ? (d.commission_amount ?? 0) : 0
+    const otherCosts  = (d.deal_expenses ?? []).reduce((a, e) => a + (e.amount ?? 0), 0)
+    return s + (revenue - watchCost - commission - otherCosts)
+  }, 0)
+}
+
+// New customers = clients created inside the toggled period AND on/after
+// NEW_CLIENT_CUTOFF — the bulk-import cohort (created 2026-06-30) never
+// counts, regardless of what period is selected.
+export function newCustomersInPeriod<T extends { created_at: string }>(
+  clients: T[], start: Date, end: Date
+): T[] {
+  const endOfDay = new Date(end)
+  endOfDay.setHours(23, 59, 59, 999)
+  const cutoff = new Date(NEW_CLIENT_CUTOFF)
+  return clients.filter(c => {
+    const dt = new Date(c.created_at)
+    return dt >= start && dt <= endOfDay && dt >= cutoff
+  })
 }
 
 export function monthlyTrend(allDeals: DealRow[], count: number) {
