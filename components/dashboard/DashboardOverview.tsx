@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   type DealRow, type Target, type DateRange,
-  filterDeals, filterDealsByClosedAt, getDateBounds, getPrevBounds,
+  filterDeals, getDateBounds, getPrevBounds,
   overviewRevenue, overviewGrossProfit, newCustomersInPeriod,
   salesByBrand, salesByManager, salesByReferral, salesByChannel,
   topClients, newVsExisting, targetForPeriod,
@@ -185,18 +185,20 @@ export default function DashboardOverview({
   const [start, end]         = getDateBounds(range)
   const [prevStart, prevEnd] = getPrevBounds(range)
   const current = filterDeals(deals, start, end)
+  const prev    = filterDeals(deals, prevStart, prevEnd)
 
-  // ── Overview cards — exact formulas, closed_at-scoped (see lib/analytics.ts) ──
-  // Kept separate from `current` above, which stays sale_date-scoped and
-  // continues to drive every other section of this page (donuts, tables,
-  // Cost of Sales, etc.) unchanged.
-  const overviewCurrent = filterDealsByClosedAt(deals, start, end)
-  const overviewPrev    = filterDealsByClosedAt(deals, prevStart, prevEnd)
-  const revenue      = overviewRevenue(overviewCurrent)
-  const revenuePrev  = overviewRevenue(overviewPrev)
-  const grossProfit     = overviewGrossProfit(overviewCurrent)
-  const grossProfitPrev = overviewGrossProfit(overviewPrev)
-  const watchesSold  = overviewCurrent.length
+  // ── Overview cards — exact formulas (see lib/analytics.ts), scoped by
+  // sale_date via the same `current`/`prev` arrays as the rest of this page.
+  // closed_at was tried first per the original spec, but it turned out to be
+  // a data-entry timestamp (when staff flip a deal's stage in the system),
+  // not the actual sale date — deals sold in one month often get closed_at
+  // stamped days/weeks later, silently dropping them out of the correct
+  // period. sale_date reflects when the sale actually happened.
+  const revenue      = overviewRevenue(current)
+  const revenuePrev  = overviewRevenue(prev)
+  const grossProfit     = overviewGrossProfit(current)
+  const grossProfitPrev = overviewGrossProfit(prev)
+  const watchesSold  = current.length
   const gpMargin     = revenue > 0 ? (grossProfit / revenue) * 100 : 0
   const newCustomers         = newCustomersInPeriod(clients, start, end)
   const newCustomersReferral = newCustomers.filter(c => c.lead_referral === 'Referral').length

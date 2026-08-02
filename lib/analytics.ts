@@ -89,19 +89,6 @@ export function filterDeals(deals: DealRow[], start: Date, end: Date): DealRow[]
   })
 }
 
-// Dashboard Overview cards key off closed_at specifically (per exact spec),
-// not sale_date like the rest of the analytics helpers above — kept separate
-// rather than changing filterDeals()'s behavior for its other callers
-// (Analytics page).
-export function filterDealsByClosedAt(deals: DealRow[], start: Date, end: Date): DealRow[] {
-  const endOfDay = new Date(end)
-  endOfDay.setHours(23, 59, 59, 999)
-  return deals.filter(d => {
-    const dt = d.closed_at ? new Date(d.closed_at) : null
-    return dt && dt >= start && dt <= endOfDay
-  })
-}
-
 export function getDateBounds(range: DateRange): [Date, Date] {
   const now = new Date()
   const y = now.getFullYear()
@@ -142,7 +129,7 @@ export function computeStats(deals: DealRow[]) {
 // ── Dashboard Overview cards — exact formulas, see the calling page for the
 //    per-card mapping ────────────────────────────────────────────────────
 
-// Revenue = sum of dealSalePriceLKR(deal) for every deal in the closed_at-
+// Revenue = sum of dealSalePriceLKR(deal) for every deal in the sale_date-
 // filtered, Closed/Delivered set passed in. Deliberately does NOT fall back
 // to watches.sold_price like computeGP()/grossProfitFor() do elsewhere —
 // the spec names dealSalePriceLKR(deal) literally.
