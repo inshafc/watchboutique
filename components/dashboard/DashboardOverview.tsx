@@ -198,6 +198,13 @@ export default function DashboardOverview({
   const byReferral = salesByReferral(current)
   const top5       = topClients(current, 5)
   const commissionTotal = byManager.reduce((s, m) => s + m.commission, 0)
+  // Cost of Sales — real, period-scoped figures only. Commission and other
+  // costs are already netted into Gross Profit above; these are shown as
+  // informational line items, not subtracted again anywhere. Investor
+  // payout is all-time (investorStats isn't period-scoped) and is itself a
+  // split of Gross Profit, not an additional cost — labeled accordingly.
+  const otherCostsTotal = current.reduce((s, d) => s + (d.other_costs ? (d.other_costs_amount ?? 0) : 0), 0)
+  const investorPayoutTotal = investorStats.reduce((s, i) => s + i.netProfit, 0)
 
   // "New customers" — distinct clients behind this period's new_client deals;
   // "from referrals" — of those, how many came in via a Referral lead.
@@ -599,9 +606,39 @@ export default function DashboardOverview({
       </Card>
 
       {/* ══════════════════════════════════════════════════════
-          TOP SALESMEN + TOP CLIENTS
+          COST OF SALES + TOP SALESMEN
       ══════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <h2 className="m-0 text-[17px] font-semibold tracking-tight">Cost of sales</h2>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-3 px-4 py-4 rounded-2xl" style={{ background: INK }}>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[13px] font-semibold whitespace-nowrap" style={{ color: 'rgba(255,255,255,.72)' }}>Investor payout</span>
+                <span className="text-[11px] whitespace-nowrap" style={{ color: 'rgba(255,255,255,.45)' }}>All-time, their share of net profit</span>
+              </div>
+              <span className="ml-auto text-[19px] font-semibold tabular-nums whitespace-nowrap" style={{ color: '#d8f24a' }}>LKR {fmtCompact(investorPayoutTotal)}</span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3" style={{ background: CARD_BG, borderRadius: 14 }}>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: INK_60 }}>Commission payout</span>
+                <span className="text-[11px] whitespace-nowrap" style={{ color: INK_45 }}>Salesmen, this period</span>
+              </div>
+              <span className="ml-auto text-[14px] font-semibold tabular-nums whitespace-nowrap">LKR {fmtCompact(commissionTotal)}</span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3" style={{ background: CARD_BG, borderRadius: 14 }}>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: INK_60 }}>Other costs</span>
+                <span className="text-[11px] whitespace-nowrap" style={{ color: INK_45 }}>Logged against deals, this period</span>
+              </div>
+              <span className="ml-auto text-[14px] font-semibold tabular-nums whitespace-nowrap">LKR {fmtCompact(otherCostsTotal)}</span>
+            </div>
+          </div>
+          <p className="text-[11px] leading-snug" style={{ color: INK_45 }}>
+            Commission and other costs are already reflected in Gross Profit above — shown here for reference, not subtracted again. Packaging, courier, and box costs aren&apos;t tracked in this app yet.
+          </p>
+        </Card>
+
         <Card>
           <div className="flex items-baseline gap-2.5">
             <h2 className="m-0 text-[17px] font-semibold tracking-tight">Top performing salesmen</h2>
@@ -626,44 +663,47 @@ export default function DashboardOverview({
             </div>
           )}
         </Card>
+      </div>
 
-        <Card>
-          <div className="flex items-baseline gap-2.5">
-            <h2 className="m-0 text-[17px] font-semibold tracking-tight">Top performing clients</h2>
-            <span className="ml-auto text-[12px]" style={{ color: INK_45 }}>By revenue</span>
+      {/* ══════════════════════════════════════════════════════
+          TOP CLIENTS
+      ══════════════════════════════════════════════════════ */}
+      <Card>
+        <div className="flex items-baseline gap-2.5">
+          <h2 className="m-0 text-[17px] font-semibold tracking-tight">Top performing clients</h2>
+          <span className="ml-auto text-[12px]" style={{ color: INK_45 }}>By revenue</span>
+        </div>
+        <div className="text-[13px]">
+          <div className="grid text-[11.5px] font-semibold uppercase tracking-wider pb-2.5" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', color: INK_45 }}>
+            <div>Client</div>
+            <div className="text-right">Watches</div>
+            <div className="text-right">Revenue</div>
+            <div className="text-right">Type</div>
           </div>
-          <div className="text-[13px]">
-            <div className="grid text-[11.5px] font-semibold uppercase tracking-wider pb-2.5" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', color: INK_45 }}>
-              <div>Client</div>
-              <div className="text-right">Watches</div>
-              <div className="text-right">Revenue</div>
-              <div className="text-right">Type</div>
-            </div>
-            {top5.length === 0 ? (
-              <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
-            ) : top5.map((c, i) => (
-              <div key={i} className="grid items-center py-3" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', borderTop: `1px solid rgba(20,20,15,.06)` }}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 flex-none rounded-full flex items-center justify-center text-[10.5px] font-semibold" style={{ background: AVATARS[(i + 2) % AVATARS.length] }}>
-                    {initials(c.name)}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-semibold whitespace-nowrap truncate">{c.name}</span>
-                    <span className="text-[11.5px] whitespace-nowrap" style={{ color: INK_45 }}>Last buy {daysAgo(c.lastSaleAt)}</span>
-                  </div>
+          {top5.length === 0 ? (
+            <p className="text-[13px]" style={{ color: '#9CA3AF' }}>No data for this period.</p>
+          ) : top5.map((c, i) => (
+            <div key={i} className="grid items-center py-3" style={{ gridTemplateColumns: 'minmax(0,1.4fr) 72px 104px 88px', borderTop: `1px solid rgba(20,20,15,.06)` }}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 flex-none rounded-full flex items-center justify-center text-[10.5px] font-semibold" style={{ background: AVATARS[(i + 2) % AVATARS.length] }}>
+                  {initials(c.name)}
                 </div>
-                <div className="text-right tabular-nums">{c.sold}</div>
-                <div className="text-right tabular-nums font-semibold whitespace-nowrap">LKR {fmtCompact(c.totalSales)}</div>
-                <div className="text-right">
-                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: c.clientType === 'Retail' ? INK_08 : 'rgba(31,111,67,.1)', color: c.clientType === 'Retail' ? INK_60 : GREEN }}>
-                    {c.clientType ?? '—'}
-                  </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold whitespace-nowrap truncate">{c.name}</span>
+                  <span className="text-[11.5px] whitespace-nowrap" style={{ color: INK_45 }}>Last buy {daysAgo(c.lastSaleAt)}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+              <div className="text-right tabular-nums">{c.sold}</div>
+              <div className="text-right tabular-nums font-semibold whitespace-nowrap">LKR {fmtCompact(c.totalSales)}</div>
+              <div className="text-right">
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: c.clientType === 'Retail' ? INK_08 : 'rgba(31,111,67,.1)', color: c.clientType === 'Retail' ? INK_60 : GREEN }}>
+                  {c.clientType ?? '—'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   )
 }
