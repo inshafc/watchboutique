@@ -227,10 +227,14 @@ export function salesByManager(deals: DealRow[]) {
     .sort((a, b) => b.totalSales - a.totalSales)
 }
 
+// Grouped by deals.source — the source captured on THIS sale — not
+// clients.lead_referral, which is a one-time field on the client record
+// (often null, and can disagree with a specific deal's actual source when
+// a repeat client is referred differently each visit).
 export function salesByReferral(deals: DealRow[]) {
   const map = new Map<string, { count: number; totalSales: number }>()
   for (const d of deals) {
-    const ref = d.clients?.lead_referral ?? 'Unknown'
+    const ref = d.source ?? 'Unknown'
     const e = map.get(ref) ?? { count: 0, totalSales: 0 }
     map.set(ref, { count: e.count + 1, totalSales: e.totalSales + (dealSalePriceLKR(d) ?? 0) })
   }

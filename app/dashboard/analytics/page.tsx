@@ -15,7 +15,7 @@ export default async function AnalyticsPage() {
   const [dealsRes, targetsRes] = await Promise.all([
     supabase
       .from('deals')
-      .select('id, deal_type, stage, sale_price, currency, exchange_rate, sale_date, created_at, other_costs, other_costs_amount, commission_payable, commission_amount, new_client, sales_manager, client_id, watches(watch_name, reference, purchase_cost, sold_price, brands(name), watch_investors(investor_name, percentage)), clients(name, client_type, is_vip, club_twb, lead_referral, labels), trade_ins(value), deal_expenses(amount)')
+      .select('id, deal_type, stage, sale_price, currency, exchange_rate, sale_date, created_at, other_costs, other_costs_amount, commission_payable, commission_amount, new_client, source, sales_manager, client_id, watches(watch_name, reference, purchase_cost, sold_price, brands(name), watch_investors(investor_name, percentage)), clients(name, client_type, is_vip, club_twb, lead_referral, labels), trade_ins(value), deal_expenses(amount)')
       .is('deleted_at', null)
       .in('stage', ['Closed', 'Delivered']),
     supabase
