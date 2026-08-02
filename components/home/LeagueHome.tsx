@@ -150,19 +150,19 @@ export default function LeagueHome() {
   }
 
   return (
-    <div style={{ minWidth: 1280, background: CREAM, color: INK, fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+    <div style={{ background: CREAM, color: INK, fontFamily: "'Instrument Sans', system-ui, sans-serif", overflowX: 'hidden' }}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-[60]" style={{ background: 'rgba(20,20,15,.96)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-        <div className="max-w-[1240px] mx-auto flex items-center gap-[30px]" style={{ padding: '14px 28px' }}>
-          <div className="flex items-center gap-3">
-            <Logo />
-            <div className="flex flex-col leading-[1.1]">
-              <span className="text-[15px] font-bold tracking-[.02em] text-white">SCOREBOARD</span>
-              <span className="text-[10.5px] tracking-[.16em] uppercase" style={{ color: 'rgba(255,255,255,.45)' }}>Ceylon Pickleball League</span>
+        <div className="max-w-[1240px] mx-auto flex items-center gap-3 sm:gap-[30px] px-4 sm:px-7" style={{ padding: '14px 0' }}>
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <Logo size={36} iconSize={24} />
+            <div className="flex flex-col leading-[1.1] min-w-0">
+              <span className="text-[13px] sm:text-[15px] font-bold tracking-[.02em] text-white whitespace-nowrap">SCOREBOARD</span>
+              <span className="hidden sm:block text-[10.5px] tracking-[.16em] uppercase whitespace-nowrap" style={{ color: 'rgba(255,255,255,.45)' }}>Ceylon Pickleball League</span>
             </div>
           </div>
-          <nav className="flex items-center gap-1.5 ml-[18px]">
+          <nav className="hidden lg:flex items-center gap-1.5 ml-[18px]">
             {MENU.map((m, i) => (
               <a
                 key={m.label}
@@ -178,33 +178,40 @@ export default function LeagueHome() {
               </a>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-3 flex-none">
-            <span className="flex items-center gap-2.5 text-[12.5px] font-semibold whitespace-nowrap" style={{ color: LIME }}>
+          <div className="ml-auto flex items-center gap-2.5 sm:gap-3 flex-none">
+            <span className="hidden sm:flex items-center gap-2.5 text-[12.5px] font-semibold whitespace-nowrap" style={{ color: LIME }}>
               <span className="w-2 h-2 rounded-full" style={{ background: LIME }} />
               Round 12 live
             </span>
+            <a
+              href="#member-login"
+              className="flex items-center whitespace-nowrap transition-colors"
+              style={{ height: 38, padding: '0 16px', borderRadius: 999, background: LIME, color: INK, fontSize: 13, fontWeight: 700 }}
+            >
+              Sign in
+            </a>
           </div>
         </div>
       </header>
 
       {/* ── Hero ───────────────────────────────────────────────── */}
-      <section style={{ background: INK, color: '#fff', padding: '64px 28px 72px' }}>
-        <div className="max-w-[1240px] mx-auto grid items-start gap-11" style={{ gridTemplateColumns: 'minmax(0,1.25fr) 420px' }}>
+      <section style={{ background: INK, color: '#fff', padding: 'clamp(36px,8vw,64px) clamp(16px,4vw,28px) clamp(40px,9vw,72px)' }}>
+        <div className="max-w-[1240px] mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_420px] items-start gap-8 lg:gap-11">
 
-          <div className="flex flex-col gap-[30px] min-w-0">
+          <div className="order-2 lg:order-1 flex flex-col gap-6 lg:gap-[30px] min-w-0">
             <span
               className="flex items-center gap-2.5 self-start whitespace-nowrap"
               style={{ height: 34, padding: '0 16px', borderRadius: 999, border: `1px solid rgba(216,242,74,.35)`, background: 'rgba(216,242,74,.09)', fontSize: 11.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: LIME }}
             >
               Season 4 · 2026
             </span>
-            <h1 className="m-0" style={{ fontSize: 76, fontWeight: 600, letterSpacing: '-.045em', lineHeight: .95 }}>
+            <h1 className="m-0" style={{ fontSize: 'clamp(38px,7.5vw,76px)', fontWeight: 600, letterSpacing: '-.045em', lineHeight: .98 }}>
               The island&apos;s<br />sharpest paddles,<br /><span style={{ color: LIME }}>one scoreboard.</span>
             </h1>
-            <p className="m-0 max-w-[560px]" style={{ fontSize: 17, lineHeight: 1.55, color: 'rgba(255,255,255,.6)' }}>
+            <p className="m-0 max-w-[560px]" style={{ fontSize: 16, lineHeight: 1.55, color: 'rgba(255,255,255,.6)' }}>
               Fourteen clubs, 212 registered players, and a ladder that moves every Sunday. Live results, rankings and fixtures across Colombo, Kandy and Galle.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <a href="#standings" className="flex items-center whitespace-nowrap transition-colors" style={{ height: 52, padding: '0 26px', borderRadius: 999, background: LIME, color: INK, fontSize: 14.5, fontWeight: 600 }}>
                 View standings
               </a>
@@ -213,10 +220,10 @@ export default function LeagueHome() {
               </a>
             </div>
 
-            <div className="grid grid-cols-4 gap-3.5" style={{ marginTop: 10 }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-3.5" style={{ marginTop: 10 }}>
               {HERO_STATS.map(h => (
                 <div key={h.label} className="flex flex-col gap-1.5" style={{ padding: 20, borderRadius: 20, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                  <span style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-.035em', lineHeight: 1, color: h.fg }}>{h.value}</span>
+                  <span style={{ fontSize: 'clamp(26px,4vw,34px)', fontWeight: 600, letterSpacing: '-.035em', lineHeight: 1, color: h.fg }}>{h.value}</span>
                   <span className="whitespace-nowrap" style={{ fontSize: 11.5, letterSpacing: '.09em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>{h.label}</span>
                 </div>
               ))}
@@ -224,7 +231,7 @@ export default function LeagueHome() {
           </div>
 
           {/* Member sign-in card */}
-          <form id="member-login" onSubmit={handleSignIn} className="flex flex-col gap-5" style={{ background: '#fff', color: INK, borderRadius: 26, padding: 30, boxShadow: '0 28px 70px rgba(0,0,0,.45)' }}>
+          <form id="member-login" onSubmit={handleSignIn} className="order-1 lg:order-2 flex flex-col gap-5 scroll-mt-24" style={{ background: '#fff', color: INK, borderRadius: 26, padding: 30, boxShadow: '0 28px 70px rgba(0,0,0,.45)' }}>
             <div className="flex flex-col gap-1">
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(20,20,15,.4)' }}>Member area</span>
               <span style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.025em' }}>Sign in</span>
@@ -314,13 +321,13 @@ export default function LeagueHome() {
       </section>
 
       {/* ── Standings + Results/POTM ──────────────────────────────── */}
-      <section id="standings" style={{ padding: '60px 28px 20px' }}>
-        <div className="max-w-[1240px] mx-auto grid items-start gap-4.5" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)' }}>
+      <section id="standings" style={{ padding: 'clamp(32px,7vw,60px) clamp(16px,4vw,28px) 20px' }}>
+        <div className="max-w-[1240px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-5 xl:gap-4">
 
-          <div className="flex flex-col gap-4" style={{ background: '#fff', borderRadius: 26, padding: '26px 24px' }}>
-            <div className="flex items-center gap-3.5" style={{ padding: '0 10px' }}>
+          <div className="flex flex-col gap-4" style={{ background: '#fff', borderRadius: 26, padding: '22px 16px' }}>
+            <div className="flex items-center gap-3.5 flex-wrap" style={{ padding: '0 10px' }}>
               <h2 className="m-0 whitespace-nowrap" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.02em' }}>League standings</h2>
-              <div className="ml-auto flex gap-1" style={{ padding: 4, borderRadius: 12, background: '#f2f1ed' }}>
+              <div className="sm:ml-auto flex gap-1" style={{ padding: 4, borderRadius: 12, background: '#f2f1ed' }}>
                 {['Division 1', 'Division 2', 'Mixed'].map(d => (
                   <button
                     key={d}
@@ -335,55 +342,59 @@ export default function LeagueHome() {
               </div>
             </div>
 
-            <div className="grid items-center" style={{ gridTemplateColumns: '44px minmax(180px,1.6fr) 62px 62px 62px 74px 78px', padding: '0 14px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(20,20,15,.4)' }}>
-              <div>#</div>
-              <div>Club</div>
-              <div className="text-center">P</div>
-              <div className="text-center">W</div>
-              <div className="text-center">L</div>
-              <div className="text-center">Diff</div>
-              <div className="text-right">Points</div>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: 560 }}>
+                <div className="grid items-center" style={{ gridTemplateColumns: '44px minmax(180px,1.6fr) 62px 62px 62px 74px 78px', padding: '0 14px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(20,20,15,.4)' }}>
+                  <div>#</div>
+                  <div>Club</div>
+                  <div className="text-center">P</div>
+                  <div className="text-center">W</div>
+                  <div className="text-center">L</div>
+                  <div className="text-center">Diff</div>
+                  <div className="text-right">Points</div>
+                </div>
+
+                <div className="flex flex-col">
+                  {CLUBS.map((c, i) => {
+                    const hot = hoverRow === c.short
+                    const top = i < 4
+                    const bottom = i >= CLUBS.length - 2
+                    const diffFg = c.diff > 0 ? GREEN : c.diff < 0 ? RED : 'rgba(20,20,15,.5)'
+                    return (
+                      <div
+                        key={c.short}
+                        onMouseEnter={() => setHoverRow(c.short)}
+                        onMouseLeave={() => setHoverRow(s => (s === c.short ? null : s))}
+                        className="grid items-center cursor-pointer transition-colors"
+                        style={{ gridTemplateColumns: '44px minmax(180px,1.6fr) 62px 62px 62px 74px 78px', padding: '15px 14px', borderRadius: 16, borderBottom: '1px solid rgba(20,20,15,.06)', background: hot ? '#f7f6f3' : 'transparent' }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="flex-none rounded-lg flex items-center justify-center" style={{ width: 26, height: 26, background: top ? LIME : bottom ? 'rgba(178,58,44,.14)' : '#f2f1ed', color: bottom ? RED : INK, fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                            {i + 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 min-w-0" style={{ paddingRight: 12 }}>
+                          <span className="flex-none rounded-[10px] flex items-center justify-center" style={{ width: 34, height: 34, background: top ? 'rgba(216,242,74,.35)' : '#f2f1ed', color: INK, fontSize: 11.5, fontWeight: 700, letterSpacing: '.02em' }}>
+                            {c.short}
+                          </span>
+                          <span className="flex flex-col gap-0.5 min-w-0">
+                            <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.015em' }}>{c.club}</span>
+                            <span className="whitespace-nowrap" style={{ fontSize: 11.5, color: 'rgba(20,20,15,.42)' }}>{c.city} · {c.form}</span>
+                          </span>
+                        </div>
+                        <div className="text-center" style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{c.played}</div>
+                        <div className="text-center" style={{ fontSize: 14, fontWeight: 600, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>{c.won}</div>
+                        <div className="text-center" style={{ fontSize: 14, color: 'rgba(20,20,15,.55)', fontVariantNumeric: 'tabular-nums' }}>{c.lost}</div>
+                        <div className="text-center" style={{ fontSize: 14, fontWeight: 600, color: diffFg, fontVariantNumeric: 'tabular-nums' }}>{c.diff > 0 ? '+' : ''}{c.diff}</div>
+                        <div className="text-right" style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>{c.points}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col">
-              {CLUBS.map((c, i) => {
-                const hot = hoverRow === c.short
-                const top = i < 4
-                const bottom = i >= CLUBS.length - 2
-                const diffFg = c.diff > 0 ? GREEN : c.diff < 0 ? RED : 'rgba(20,20,15,.5)'
-                return (
-                  <div
-                    key={c.short}
-                    onMouseEnter={() => setHoverRow(c.short)}
-                    onMouseLeave={() => setHoverRow(s => (s === c.short ? null : s))}
-                    className="grid items-center cursor-pointer transition-colors"
-                    style={{ gridTemplateColumns: '44px minmax(180px,1.6fr) 62px 62px 62px 74px 78px', padding: '15px 14px', borderRadius: 16, borderBottom: '1px solid rgba(20,20,15,.06)', background: hot ? '#f7f6f3' : 'transparent' }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="flex-none rounded-lg flex items-center justify-center" style={{ width: 26, height: 26, background: top ? LIME : bottom ? 'rgba(178,58,44,.14)' : '#f2f1ed', color: bottom ? RED : INK, fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                        {i + 1}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 min-w-0" style={{ paddingRight: 12 }}>
-                      <span className="flex-none rounded-[10px] flex items-center justify-center" style={{ width: 34, height: 34, background: top ? 'rgba(216,242,74,.35)' : '#f2f1ed', color: INK, fontSize: 11.5, fontWeight: 700, letterSpacing: '.02em' }}>
-                        {c.short}
-                      </span>
-                      <span className="flex flex-col gap-0.5 min-w-0">
-                        <span className="whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.015em' }}>{c.club}</span>
-                        <span className="whitespace-nowrap" style={{ fontSize: 11.5, color: 'rgba(20,20,15,.42)' }}>{c.city} · {c.form}</span>
-                      </span>
-                    </div>
-                    <div className="text-center" style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{c.played}</div>
-                    <div className="text-center" style={{ fontSize: 14, fontWeight: 600, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>{c.won}</div>
-                    <div className="text-center" style={{ fontSize: 14, color: 'rgba(20,20,15,.55)', fontVariantNumeric: 'tabular-nums' }}>{c.lost}</div>
-                    <div className="text-center" style={{ fontSize: 14, fontWeight: 600, color: diffFg, fontVariantNumeric: 'tabular-nums' }}>{c.diff > 0 ? '+' : ''}{c.diff}</div>
-                    <div className="text-right" style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>{c.points}</div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="flex items-center gap-4" style={{ padding: '8px 14px 0' }}>
+            <div className="flex items-center gap-4 flex-wrap" style={{ padding: '8px 14px 0' }}>
               <span className="flex items-center gap-2 whitespace-nowrap" style={{ fontSize: 11.5, color: 'rgba(20,20,15,.45)' }}>
                 <span className="rounded-[3px]" style={{ width: 9, height: 9, background: LIME }} />
                 Championship playoff
@@ -395,7 +406,7 @@ export default function LeagueHome() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4.5">
+          <div className="flex flex-col gap-4">
             <div id="results" className="flex flex-col gap-3.5" style={{ background: '#fff', borderRadius: 26, padding: '24px 22px' }}>
               <div className="flex items-baseline gap-2.5" style={{ padding: '0 6px' }}>
                 <h2 className="m-0 whitespace-nowrap" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-.015em' }}>Round 11 results</h2>
@@ -445,14 +456,14 @@ export default function LeagueHome() {
       </section>
 
       {/* ── Fixtures ───────────────────────────────────────────── */}
-      <section id="fixtures" style={{ padding: '22px 28px 20px' }}>
-        <div className="max-w-[1240px] mx-auto flex flex-col gap-4" style={{ background: '#fff', borderRadius: 26, padding: '26px 24px' }}>
-          <div className="flex items-baseline gap-3" style={{ padding: '0 8px' }}>
+      <section id="fixtures" style={{ padding: '22px clamp(16px,4vw,28px) 20px' }}>
+        <div className="max-w-[1240px] mx-auto flex flex-col gap-4" style={{ background: '#fff', borderRadius: 26, padding: '22px 16px' }}>
+          <div className="flex items-baseline gap-3 flex-wrap" style={{ padding: '0 8px' }}>
             <h2 className="m-0 whitespace-nowrap" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.02em' }}>Round 12 fixtures</h2>
             <span className="whitespace-nowrap" style={{ fontSize: 13, color: 'rgba(20,20,15,.45)' }}>Sunday 9 August · 07:00 onwards</span>
-            <a href="#" className="ml-auto whitespace-nowrap" style={{ fontSize: 13, fontWeight: 600, color: '#4f6b1f' }}>Full calendar</a>
+            <a href="#" className="sm:ml-auto whitespace-nowrap" style={{ fontSize: 13, fontWeight: 600, color: '#4f6b1f' }}>Full calendar</a>
           </div>
-          <div className="grid grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
             {FIXTURES.map((f, i) => (
               <div key={i} className="flex flex-col gap-3.5" style={{ border: '1px solid rgba(20,20,15,.08)', borderRadius: 20, padding: 20 }}>
                 <div className="flex items-center gap-2.5">
@@ -477,12 +488,12 @@ export default function LeagueHome() {
       </section>
 
       {/* ── League stats ───────────────────────────────────────── */}
-      <section style={{ padding: '22px 28px 60px' }}>
-        <div className="max-w-[1240px] mx-auto grid grid-cols-4 gap-3.5">
+      <section style={{ padding: '22px clamp(16px,4vw,28px) 60px' }}>
+        <div className="max-w-[1240px] mx-auto grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
           {LEAGUE_STATS.map(s => (
-            <div key={s.label} className="flex flex-col gap-2" style={{ background: '#fff', borderRadius: 22, padding: '22px 24px' }}>
+            <div key={s.label} className="flex flex-col gap-2" style={{ background: '#fff', borderRadius: 22, padding: '20px 18px' }}>
               <span className="whitespace-nowrap" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'rgba(20,20,15,.4)' }}>{s.label}</span>
-              <span style={{ fontSize: 34, fontWeight: 600, letterSpacing: '-.035em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+              <span style={{ fontSize: 'clamp(26px,4vw,34px)', fontWeight: 600, letterSpacing: '-.035em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
               <span style={{ fontSize: 12.5, color: 'rgba(20,20,15,.45)' }}>{s.note}</span>
             </div>
           ))}
@@ -490,8 +501,8 @@ export default function LeagueHome() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────────────── */}
-      <footer style={{ background: INK, color: 'rgba(255,255,255,.55)', padding: '40px 28px' }}>
-        <div className="max-w-[1240px] mx-auto flex items-center gap-6">
+      <footer style={{ background: INK, color: 'rgba(255,255,255,.55)', padding: '32px clamp(16px,4vw,28px)' }}>
+        <div className="max-w-[1240px] mx-auto flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-3">
             <Logo size={34} iconSize={22} />
             <span className="whitespace-nowrap text-white" style={{ fontSize: 13, fontWeight: 600 }}>Ceylon Pickleball League</span>
