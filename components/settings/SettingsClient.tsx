@@ -40,7 +40,7 @@ export default function SettingsClient({
   const [active, setActive] = useState<Section>('invoice')
 
   return (
-    <div className="flex w-full min-h-full">
+    <div className="flex w-full min-h-full bg-white rounded-2xl border border-[#E8E6E1] m-4 md:m-6 overflow-hidden">
       {/* Desktop sub-nav */}
       <aside className="w-44 shrink-0 border-r border-border py-6 px-3 hidden md:block">
         <nav className="space-y-0.5">
@@ -87,7 +87,7 @@ export default function SettingsClient({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-4 md:py-6 px-4 md:px-8">
-          <div className="bg-white border border-[#E8E6E1] rounded-xl p-4 md:border-0 md:rounded-none md:bg-transparent md:p-0">
+          <div>
             {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
             {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
             {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}

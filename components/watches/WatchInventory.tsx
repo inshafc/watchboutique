@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -13,16 +13,33 @@ import { displayCondition } from '@/lib/watch-condition'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 
+// ── Palette (matches the League Home / Inventory design) ────────────────────
+const INK    = '#14140f'
+const LIME   = '#d8f24a'
+const GREEN  = '#1f6f43'
+const AMBER  = '#8a5c15'
+const AMBER_BG = 'rgba(181,118,26,.14)'
+const BLUE   = '#3f5f8a'
+const RED    = '#b23a2c'
+const INK_45 = 'rgba(20,20,15,.45)'
+const INK_60 = 'rgba(20,20,15,.6)'
+const INK_08 = 'rgba(20,20,15,.08)'
+const CARD_BG = '#f7f6f3'
+
 // ── Icons ────────────────────────────────────────────────────
 
-function WatchPlaceholder({ small = false }: { small?: boolean }) {
+function WatchPlaceholder({ small = false, mark }: { small?: boolean; mark?: string | null }) {
   return (
-    <div className={`${small ? 'w-14 h-14' : 'w-full aspect-square'} rounded-xl bg-gray-100 flex items-center justify-center shrink-0`}>
-      <svg className="w-6 h-6 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="12" cy="12" r="7"/>
-        <path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
-      </svg>
+    <div className={`${small ? 'w-14 h-14' : 'w-full aspect-square'} rounded-xl flex flex-col items-center justify-center gap-0.5 shrink-0`} style={{ background: CARD_BG }}>
+      {mark ? (
+        <span className="text-[10px] font-bold tracking-wide" style={{ color: INK_45 }}>{mark}</span>
+      ) : (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke={INK_45} strokeWidth="1.5">
+          <circle cx="12" cy="12" r="7"/>
+          <path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
+        </svg>
+      )}
     </div>
   )
 }
@@ -31,12 +48,13 @@ function EditIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16"
 function CopyIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8" strokeLinecap="round"/></svg> }
 function TrashIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 function ShareIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="3" r="1.5"/><circle cx="12" cy="13" r="1.5"/><circle cx="3" cy="8" r="1.5"/><path d="M10.5 3.9L4.5 7.3M4.5 8.7l6 3.4" strokeLinecap="round"/></svg> }
-function SearchIcon()  { return <svg className="w-4 h-4 text-gray-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5" strokeLinecap="round"/></svg> }
-function ListIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg> }
-function GridIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
-function FunnelIcon()  { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/></svg> }
+function SearchIcon()  { return <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke={INK_45} strokeWidth="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5" strokeLinecap="round"/></svg> }
+function ListViewIcon({ active }: { active: boolean }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={active ? INK : INK_45} strokeWidth="1.7" strokeLinecap="round"><path d="M4 6h12M4 10h12M4 14h12" /></svg> }
+function GridViewIcon({ active }: { active: boolean }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={active ? INK : INK_45} strokeWidth="1.7"><rect x="3.6" y="3.6" width="5.4" height="5.4" rx="1.6" /><rect x="11" y="3.6" width="5.4" height="5.4" rx="1.6" /><rect x="3.6" y="11" width="5.4" height="5.4" rx="1.6" /><rect x="11" y="11" width="5.4" height="5.4" rx="1.6" /></svg> }
+function FunnelIcon({ color }: { color: string }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="M3.4 5.2h13.2L11.4 11v4.6l-2.8 1.4V11z"/></svg> }
 function XSmallIcon()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg> }
 function DotsIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg> }
+function ChevronIcon() { return <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={INK_45} strokeWidth="1.6" strokeLinecap="round"><path d="m3 4.6 3 3 3-3" /></svg> }
 function CheckIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 function RestoreIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" strokeLinecap="round" strokeLinejoin="round"/></svg> }
 function StarIcon()    { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .8l2.163 4.382 4.837.703-3.5 3.412.826 4.815L8 11.8l-4.326 2.312.826-4.815-3.5-3.412 4.837-.703z"/></svg> }
@@ -45,19 +63,19 @@ function PlusIcon()    { return <svg className="w-6 h-6" viewBox="0 0 16 16" fil
 
 // ── Status / condition indicators (tile view) ──────────────────
 
-const STATUS_DOT_CLASS: Record<string, string> = {
-  'Available': 'bg-positive',
-  'On Hold':   'bg-amber-500',
-  'Sold':      'bg-gray-400',
-  'Consigned': 'bg-blue-500',
+const STATUS_STYLE: Record<string, { bg: string; fg: string; dot: string }> = {
+  'Available': { bg: 'rgba(31,111,67,.1)', fg: GREEN, dot: GREEN },
+  'On Hold':   { bg: AMBER_BG,             fg: AMBER, dot: '#b5761a' },
+  'Sold':      { bg: 'rgba(20,20,15,.07)', fg: INK_60, dot: 'rgba(20,20,15,.4)' },
+  'Consigned': { bg: 'rgba(63,95,138,.12)', fg: BLUE,  dot: BLUE },
 }
 
 function StatusDot({ status }: { status: string }) {
-  const cls = STATUS_DOT_CLASS[status] ?? 'bg-gray-300'
+  const s = STATUS_STYLE[status] ?? STATUS_STYLE.Sold
   return (
     <span className="inline-flex items-center gap-1.5" title={status}>
-      <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${cls}`} role="img" aria-label={status} />
-      <span className="text-[11px] font-medium text-text-secondary">{status}</span>
+      <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: s.dot }} role="img" aria-label={status} />
+      <span className="text-[12px]" style={{ color: INK_60 }}>{status}</span>
     </span>
   )
 }
@@ -66,12 +84,21 @@ function ConditionIcon({ condition }: { condition?: string | null }) {
   const isUnworn = (condition ?? '').trim().toLowerCase() === 'unworn'
   const label = isUnworn ? 'Unworn' : 'Pre-Owned'
   return (
-    <span title={label} role="img" aria-label={label} className={`inline-flex ${isUnworn ? 'text-gold' : 'text-gray-400'}`}>
+    <span title={label} role="img" aria-label={label} className="inline-flex" style={{ color: isUnworn ? GREEN : AMBER }}>
       {isUnworn ? <StarIcon /> : <CheckIcon />}
     </span>
   )
 }
 
+function ConditionBadge({ condition }: { condition?: string | null }) {
+  const label = displayCondition(condition)
+  const isUnworn = label === 'Unworn'
+  return (
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold whitespace-nowrap" style={{ padding: '5px 10px', borderRadius: 999, background: isUnworn ? 'rgba(31,111,67,.09)' : 'rgba(138,111,46,.11)', color: isUnworn ? GREEN : AMBER }}>
+      <ConditionIcon condition={condition} />{label}
+    </span>
+  )
+}
 
 // ── Types & constants ─────────────────────────────────────────
 
@@ -79,6 +106,7 @@ type SortOption      = 'last_added' | 'oldest_added' | 'sell_desc' | 'sell_asc' 
 type ConditionFilter = 'All' | 'Unworn' | 'Pre-Owned'
 type StatusFilter    = WatchStatus | 'All' | 'Deleted' | 'Drafts' | 'Sourced' | 'Consigned'
 type ViewMode        = 'list' | 'tile'
+type MenuKey          = 'brand' | 'condition' | 'sort' | null
 
 const SORT_LABELS: Record<SortOption, string> = {
   last_added:    'Date Added: Newest First',
@@ -90,15 +118,15 @@ const SORT_LABELS: Record<SortOption, string> = {
   buy_desc:      'Buy Price: High → Low',
 }
 
-const TAB_COLORS: Record<StatusFilter, { text: string; activeBg: string; activeText: string }> = {
-  All:        { text: 'text-text-primary',   activeBg: 'bg-gray-900', activeText: 'text-white' },
-  Available:  { text: 'text-positive',       activeBg: 'bg-green-50', activeText: 'text-positive' },
-  'On Hold':  { text: 'text-amber-600',      activeBg: 'bg-amber-50', activeText: 'text-amber-700' },
-  Sold:       { text: 'text-text-secondary', activeBg: 'bg-gray-100', activeText: 'text-gray-700' },
-  Consigned:  { text: 'text-blue-600',       activeBg: 'bg-blue-50',  activeText: 'text-blue-700' },
-  Drafts:     { text: 'text-text-secondary', activeBg: 'bg-amber-50', activeText: 'text-amber-700' },
-  Sourced:    { text: 'text-text-secondary', activeBg: 'bg-indigo-50', activeText: 'text-indigo-700' },
-  Deleted:    { text: 'text-negative',       activeBg: 'bg-red-50',   activeText: 'text-negative' },
+const TAB_COLORS: Record<StatusFilter, string> = {
+  All:        INK,
+  Available:  GREEN,
+  'On Hold':  '#b5761a',
+  Sold:       INK_60,
+  Consigned:  BLUE,
+  Drafts:     INK_60,
+  Sourced:    INK_60,
+  Deleted:    RED,
 }
 
 const DESKTOP_TILE_COLS = { 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as const
@@ -121,6 +149,10 @@ function displayDate(d: string | null) {
   const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
   const yyyy = dt.getUTCFullYear()
   return `${dd}/${mm}/${yyyy}`
+}
+
+function brandMark(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
 function LabelBadges({ labels, createdAt }: { labels?: string[]; createdAt: string }) {
@@ -198,11 +230,12 @@ export default function WatchInventory({
   const [watches,         setWatches]         = useState(initial)
   const [statusFilter,    setStatusFilter]    = useState<StatusFilter>('Available')
   const [conditionFilter, setConditionFilter] = useState<ConditionFilter>('All')
-  const [brandId,         setBrandId]         = useState<string | null>(null)
+  const [brandIds,        setBrandIds]        = useState<string[]>([])
   const [search,          setSearch]          = useState('')
   const [sort,            setSort]            = useState<SortOption>('last_added')
   const [view,            setView]            = useState<ViewMode>('tile')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [openMenu,        setOpenMenu]        = useState<MenuKey>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [tileMenuId,          setTileMenuId]          = useState<string | null>(null)
   const [tileDeleteConfirmId, setTileDeleteConfirmId] = useState<string | null>(null)
@@ -262,6 +295,10 @@ export default function WatchInventory({
   const dragFromIdx  = useRef<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
+  // Sliding pill under the active status tab
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+
   const exitBulkMode = useCallback(() => {
     setBulkMode(false)
     setSelectedIds(new Set())
@@ -275,10 +312,14 @@ export default function WatchInventory({
       if (!(e.target as HTMLElement).closest('[data-tile-menu]')) {
         setTileMenuId(null)
       }
+      if (!(e.target as HTMLElement).closest('[data-filter-menu]')) {
+        setOpenMenu(null)
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setTileMenuId(null)
+        setOpenMenu(null)
         exitBulkMode()
       }
     }
@@ -299,7 +340,7 @@ export default function WatchInventory({
 
   // ── Derived state ─────────────────────────────────────────
 
-  const activeFilterCount = (brandId !== null ? 1 : 0) + (conditionFilter !== 'All' ? 1 : 0)
+  const activeFilterCount = brandIds.length + (conditionFilter !== 'All' ? 1 : 0)
 
   const suggestions = useMemo(() => {
     if (!search.trim() || search.length < 2) return []
@@ -342,7 +383,7 @@ export default function WatchInventory({
       )
     }
 
-    if (brandId) list = list.filter(w => w.brand_id === brandId)
+    if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
     if (statusFilter !== 'All' && statusFilter !== 'Deleted' && statusFilter !== 'Drafts' && statusFilter !== 'Sourced' && statusFilter !== 'Consigned') {
       list = list.filter(w => w.status === statusFilter)
     }
@@ -365,28 +406,53 @@ export default function WatchInventory({
         return [...ordered, ...unordered]
       }
     }
-  }, [watches, search, brandId, statusFilter, conditionFilter, sort])
+  }, [watches, search, brandIds, statusFilter, conditionFilter, sort])
 
   function countByStatus(f: StatusFilter) {
     if (f === 'Deleted') return deletedWatches?.length ?? 0
     if (f === 'Sourced') return watches.filter(w => w.watch_status === 'sourced').length
     if (f === 'Drafts') {
       let list = watches.filter(w => w.is_draft && w.watch_status !== 'sourced')
-      if (brandId) list = list.filter(w => w.brand_id === brandId)
+      if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
       return list.length
     }
     if (f === 'Consigned') {
       let list = watches.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
-      if (brandId) list = list.filter(w => w.brand_id === brandId)
+      if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
       if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
       return list.length
     }
     let list = watches.filter(w => w.watch_status !== 'sourced')
     list = f === 'All' ? list : list.filter(w => !w.is_draft)
-    if (brandId) list = list.filter(w => w.brand_id === brandId)
+    if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
     if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     return f === 'All' ? list.length : list.filter(w => w.status === f).length
   }
+
+  // Per-brand counts for the Brand dropdown — scoped by the current tab/search/
+  // condition (everything except brand itself), so counts reflect what picking
+  // that brand would actually show.
+  const brandCounts = useMemo(() => {
+    let list = [...watches]
+    if (statusFilter === 'Sourced') {
+      list = list.filter(w => w.watch_status === 'sourced')
+    } else if (statusFilter === 'Drafts') {
+      list = list.filter(w => w.is_draft && w.watch_status !== 'sourced')
+    } else if (statusFilter === 'Consigned') {
+      list = list.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
+    } else {
+      list = list.filter(w => w.watch_status !== 'sourced')
+      if (statusFilter !== 'All') list = list.filter(w => !w.is_draft)
+      if (statusFilter !== 'All') list = list.filter(w => w.status === statusFilter)
+    }
+    if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
+    const map = new Map<string, number>()
+    for (const w of list) {
+      if (!w.brand_id) continue
+      map.set(w.brand_id, (map.get(w.brand_id) ?? 0) + 1)
+    }
+    return map
+  }, [watches, statusFilter, conditionFilter])
 
   const totalSellingValue = useMemo(
     () => watches.filter(w => !w.is_draft && w.watch_status !== 'sourced').reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
@@ -405,7 +471,7 @@ export default function WatchInventory({
         (w.serial_number ?? '').toLowerCase().includes(q)
       )
     }
-    if (brandId) list = list.filter(w => w.brand_id === brandId)
+    if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
     if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     switch (sort) {
       case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
@@ -414,7 +480,7 @@ export default function WatchInventory({
       case 'name_desc':    return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
       default:             return [...list].sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime())
     }
-  }, [deletedWatches, search, brandId, conditionFilter, sort])
+  }, [deletedWatches, search, brandIds, conditionFilter, sort])
 
   // ── Bulk helpers ──────────────────────────────────────────
 
@@ -433,6 +499,10 @@ export default function WatchInventory({
     } else {
       setSelectedIds(new Set(processed.map(w => w.id)))
     }
+  }
+
+  function toggleBrand(id: string) {
+    setBrandIds(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id])
   }
 
   // ── Undo ──────────────────────────────────────────────────
@@ -888,36 +958,52 @@ export default function WatchInventory({
   const showingSourced        = statusFilter === 'Sourced'
   const activeCount           = countByStatus(statusFilter)
 
+  const TABS: StatusFilter[] = ['All', ...WATCH_STATUSES, 'Consigned', 'Drafts', 'Sourced', 'Deleted']
+
+  useLayoutEffect(() => {
+    const el = tabRefs.current[statusFilter]
+    if (!el) return
+    const next = { left: el.offsetLeft, width: el.offsetWidth }
+    setPill(p => (p && p.left === next.left && p.width === next.width) ? p : next)
+  }, [statusFilter])
+
+  function brandLabel(): string {
+    if (brandIds.length === 0) return 'All brands'
+    if (brandIds.length === 1) return brands.find(b => b.id === brandIds[0])?.name ?? '1 selected'
+    return `${brandIds.length} selected`
+  }
+
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-7" style={{ color: INK }}>
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-text-primary tracking-tight">Inventory</h2>
-          <p className="text-[13px] text-text-secondary mt-0.5">
-            {activeCount} {activeCount === 1 ? 'watch' : 'watches'}
-          </p>
+      <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="m-0" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1 }}>Inventory</h1>
+          <span className="text-[13px]" style={{ color: INK_45 }}>
+            {activeCount} {activeCount === 1 ? 'watch' : 'watches'} shown
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-end">
           {/* List / Tile toggle */}
           {!bulkMode && !showingDeleted && !showingDrafts && (
-            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-              <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
-              <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
+            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+              <button onClick={() => setView('list')} title="List view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'list' ? CARD_BG : 'transparent' }}><ListViewIcon active={view === 'list'} /></button>
+              <button onClick={() => setView('tile')} title="Tile view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'tile' ? CARD_BG : 'transparent' }}><GridViewIcon active={view === 'tile'} /></button>
             </div>
           )}
 
           {/* Grid density (desktop, tile view only) */}
           {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="hidden md:flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
               {([3, 4, 5] as const).map(n => (
                 <button
                   key={n}
                   onClick={() => selectDesktopCols(n)}
                   title={`${n} columns`}
-                  className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${n === desktopCols ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
+                  className="w-8 h-9 rounded-[10px] text-xs font-semibold transition-colors"
+                  style={{ background: n === desktopCols ? CARD_BG : 'transparent', color: n === desktopCols ? INK : INK_45 }}
                 >
                   {n}
                 </button>
@@ -927,36 +1013,32 @@ export default function WatchInventory({
 
           {/* Select / Cancel bulk mode */}
           {!showingDeleted && !showingDrafts && (
-            <div className="hidden md:block">
-              <button
-                onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
-                className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition-colors ${
-                  bulkMode
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'
-                }`}
-              >
-                {bulkMode ? 'Cancel' : 'Select'}
-              </button>
-            </div>
+            <button
+              onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+              className="hidden md:flex items-center whitespace-nowrap transition-colors"
+              style={{ height: 46, padding: '0 20px', borderRadius: 999, border: `1px solid ${bulkMode ? INK : INK_08}`, background: bulkMode ? INK : '#fff', color: bulkMode ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+            >
+              {bulkMode ? 'Cancel' : 'Select'}
+            </button>
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && (
-            <div className="flex md:hidden bg-gray-100 rounded-xl p-0.5 gap-0.5">
-              <button onClick={() => setView('list')} className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="List view"><ListIcon /></button>
-              <button onClick={() => setView('tile')} className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`} title="Tile view"><GridIcon /></button>
+            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+              <button onClick={() => setView('list')} title="List view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'list' ? CARD_BG : 'transparent' }}><ListViewIcon active={view === 'list'} /></button>
+              <button onClick={() => setView('tile')} title="Tile view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'tile' ? CARD_BG : 'transparent' }}><GridViewIcon active={view === 'tile'} /></button>
             </div>
           )}
 
           {/* Grid density (mobile, tile view only) */}
           {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="flex md:hidden bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
               {([1, 2] as const).map(n => (
                 <button
                   key={n}
                   onClick={() => selectMobileCols(n)}
                   title={`${n} column${n === 1 ? '' : 's'}`}
-                  className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${n === mobileCols ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
+                  className="w-8 h-9 rounded-[10px] text-xs font-semibold transition-colors"
+                  style={{ background: n === mobileCols ? CARD_BG : 'transparent', color: n === mobileCols ? INK : INK_45 }}
                 >
                   {n}
                 </button>
@@ -966,14 +1048,14 @@ export default function WatchInventory({
 
           {!bulkMode && !showingDeleted && !showingDrafts && (
             <button
-              onClick={() => setShowFilterPanel(v => !v)}
-              title="Filter"
-              className={`relative p-2 rounded-xl border transition-colors ${showFilterPanel ? 'text-white border-[#C9A84C]' : activeFilterCount > 0 ? 'bg-white border-[#C9A84C] text-[#C9A84C]' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
-              style={showFilterPanel ? { backgroundColor: '#C9A84C' } : undefined}
+              onClick={() => { setShowFilterPanel(v => !v); setOpenMenu(null) }}
+              title="Filters"
+              className="relative flex items-center justify-center transition-colors"
+              style={{ width: 46, height: 46, borderRadius: '50%', border: `1px solid ${showFilterPanel ? INK : INK_08}`, background: showFilterPanel ? INK : '#fff' }}
             >
-              <FunnelIcon />
+              <FunnelIcon color={showFilterPanel ? LIME : INK} />
               {activeFilterCount > 0 && !showFilterPanel && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center text-[10px] font-bold text-white rounded-full" style={{ backgroundColor: '#C9A84C' }}>
+                <span className="absolute -top-1 -right-1 w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold text-white rounded-full" style={{ background: GREEN }}>
                   {activeFilterCount}
                 </span>
               )}
@@ -981,9 +1063,8 @@ export default function WatchInventory({
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && !showingSourced && (
-            <Link href="/dashboard/watches/new" className="hidden md:flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors btn-press">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v10M3 8h10" strokeLinecap="round"/></svg>
-              Add Watch
+            <Link href="/dashboard/watches/new" title="Add watch" className="hidden md:flex items-center justify-center flex-none rounded-full transition-colors" style={{ width: 46, height: 46, background: INK }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round"><path d="M10 4.2v11.6M4.2 10h11.6"/></svg>
             </Link>
           )}
         </div>
@@ -992,34 +1073,35 @@ export default function WatchInventory({
       {/* ── Search ───────────────────────────────────────────── */}
       {!bulkMode && (
         <div className="relative mb-4" ref={searchRef}>
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+          <div className="flex items-center gap-3" style={{ height: 54, padding: '0 20px', borderRadius: 18, background: '#fff', border: `1px solid ${INK_08}` }}>
             <SearchIcon />
+            <input
+              type="text"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setShowSuggestions(true) }}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="Search by name, reference, serial…"
+              className="border-0 outline-0 bg-transparent w-full"
+              style={{ fontSize: 14.5, color: INK, fontFamily: 'inherit' }}
+            />
           </div>
-          <input
-            type="text"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setShowSuggestions(true) }}
-            onFocus={() => setShowSuggestions(true)}
-            placeholder="Search by name, reference, serial…"
-            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-[13px] text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all"
-          />
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-lg z-20 overflow-hidden" style={{ border: `1px solid ${INK_08}` }}>
               {suggestions.map(w => (
                 <button
                   key={w.id}
                   type="button"
                   onMouseDown={() => { setShowSuggestions(false); router.push(`/dashboard/watches/${w.id}`) }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f7f6f3] transition-colors text-left"
                 >
                   {w.photos && w.photos.length > 0 ? (
                     <Image src={w.photos[0]} alt="" width={32} height={32} sizes="32px" className="rounded-lg object-cover shrink-0" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
+                    <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: CARD_BG }} />
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{w.watch_name}</p>
-                    {w.reference && <p className="text-xs text-gray-400">Ref: {w.reference}</p>}
+                    <p className="text-sm font-medium truncate" style={{ color: INK }}>{w.watch_name}</p>
+                    {w.reference && <p className="text-xs" style={{ color: INK_45 }}>Ref: {w.reference}</p>}
                   </div>
                 </button>
               ))}
@@ -1028,85 +1110,151 @@ export default function WatchInventory({
         </div>
       )}
 
-      {/* ── Filter panel (brand + condition) ─────────────────── */}
+      {/* ── Filter dropdowns (brand / condition / sort) ──────── */}
       {!bulkMode && showFilterPanel && (
-        <div className="bg-white border border-[#E8E6E1] rounded-xl p-4 mb-4">
-          {brands.length > 0 && (
-            <div className="mb-3">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Brand</p>
-              <div className="flex items-center gap-2 overflow-x-auto pb-px flex-nowrap">
+        <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+
+          {/* Brand — multi-select */}
+          <div className="relative" data-filter-menu>
+            <button
+              onClick={() => setOpenMenu(v => v === 'brand' ? null : 'brand')}
+              className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
+              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'brand' || brandIds.length > 0 ? INK : INK_08}`, background: openMenu === 'brand' || brandIds.length > 0 ? INK : '#fff', color: openMenu === 'brand' || brandIds.length > 0 ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'brand' || brandIds.length > 0 ? 'rgba(255,255,255,.5)' : INK_45 }}>Brand</span>
+              <span>{brandLabel()}</span>
+              <ChevronIcon />
+            </button>
+            {openMenu === 'brand' && (
+              <div className="absolute top-[52px] left-0 z-40 bg-white rounded-2xl p-2 flex flex-col gap-0.5 max-h-[340px] overflow-auto" style={{ width: 290, border: `1px solid ${INK_08}`, boxShadow: '0 14px 36px rgba(20,20,15,.16)' }}>
                 {brands.map(b => {
-                  const active = brandId === b.id
+                  const on = brandIds.includes(b.id)
+                  const count = brandCounts.get(b.id) ?? 0
                   return (
                     <button
                       key={b.id}
-                      onClick={() => setBrandId(active ? null : b.id)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold text-white whitespace-nowrap transition-all border-2 ${active ? 'border-white/70 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                      style={{ backgroundColor: b.color ?? '#374151' }}
+                      onClick={() => toggleBrand(b.id)}
+                      className="flex items-center gap-3 border-0 cursor-pointer text-left transition-colors"
+                      style={{ padding: '8px 10px', borderRadius: 12, background: on ? CARD_BG : 'transparent', fontSize: 13, fontWeight: on ? 600 : 500 }}
                     >
-                      {b.name}
+                      <span className="w-9 h-9 flex-none rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: b.color ?? '#9ca3af' }}>
+                        {brandMark(b.name)}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate">{b.name}</span>
+                      <span className="text-[11.5px]" style={{ color: 'rgba(20,20,15,.35)' }}>{count}</span>
+                      <span className="w-[18px] h-[18px] flex-none rounded-[6px] flex items-center justify-center text-white text-[11px] font-bold" style={{ border: `1.5px solid ${on ? INK : 'rgba(20,20,15,.2)'}`, background: on ? INK : 'transparent' }}>
+                        {on ? '✓' : ''}
+                      </span>
                     </button>
                   )
                 })}
+                {brandIds.length > 0 && (
+                  <button onClick={() => setBrandIds([])} className="text-left border-0 cursor-pointer" style={{ marginTop: 4, borderTop: `1px solid ${INK_08}`, fontSize: 12.5, fontWeight: 600, color: GREEN, padding: '11px 10px 6px', background: 'transparent' }}>
+                    Clear all brands
+                  </button>
+                )}
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* Condition */}
+          <div className="relative" data-filter-menu>
+            <button
+              onClick={() => setOpenMenu(v => v === 'condition' ? null : 'condition')}
+              className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
+              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'condition' || conditionFilter !== 'All' ? INK : INK_08}`, background: openMenu === 'condition' || conditionFilter !== 'All' ? INK : '#fff', color: openMenu === 'condition' || conditionFilter !== 'All' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'condition' || conditionFilter !== 'All' ? 'rgba(255,255,255,.5)' : INK_45 }}>Condition</span>
+              <span>{conditionFilter}</span>
+              <ChevronIcon />
+            </button>
+            {openMenu === 'condition' && (
+              <div className="absolute top-[52px] left-0 z-40 bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ minWidth: 190, border: `1px solid ${INK_08}`, boxShadow: '0 14px 36px rgba(20,20,15,.16)' }}>
+                {(['All', 'Unworn', 'Pre-Owned'] as ConditionFilter[]).map(c => (
+                  <button
+                    key={c}
+                    onClick={() => { setConditionFilter(c); setOpenMenu(null) }}
+                    className="text-left border-0 cursor-pointer whitespace-nowrap"
+                    style={{ fontSize: 13, fontWeight: conditionFilter === c ? 600 : 500, padding: '10px 12px', borderRadius: 11, background: conditionFilter === c ? CARD_BG : 'transparent', color: INK }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sort */}
+          <div className="relative" data-filter-menu>
+            <button
+              onClick={() => setOpenMenu(v => v === 'sort' ? null : 'sort')}
+              className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
+              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'sort' || sort !== 'last_added' ? INK : INK_08}`, background: openMenu === 'sort' || sort !== 'last_added' ? INK : '#fff', color: openMenu === 'sort' || sort !== 'last_added' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'sort' || sort !== 'last_added' ? 'rgba(255,255,255,.5)' : INK_45 }}>Sort by</span>
+              <span>{SORT_LABELS[sort]}</span>
+              <ChevronIcon />
+            </button>
+            {openMenu === 'sort' && (
+              <div className="absolute top-[52px] left-0 z-40 bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ minWidth: 236, border: `1px solid ${INK_08}`, boxShadow: '0 14px 36px rgba(20,20,15,.16)' }}>
+                {(Object.keys(SORT_LABELS) as SortOption[]).map(key => (
+                  <button
+                    key={key}
+                    onClick={() => { setSort(key); setOpenMenu(null) }}
+                    className="text-left border-0 cursor-pointer whitespace-nowrap"
+                    style={{ fontSize: 13, fontWeight: sort === key ? 600 : 500, padding: '10px 12px', borderRadius: 11, background: sort === key ? CARD_BG : 'transparent', color: INK }}
+                  >
+                    {SORT_LABELS[key]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {(brandIds.length > 0 || conditionFilter !== 'All') && (
+            <button
+              onClick={() => { setBrandIds([]); setConditionFilter('All'); setOpenMenu(null) }}
+              className="border-0 cursor-pointer"
+              style={{ height: 44, padding: '0 16px', borderRadius: 999, background: 'transparent', fontSize: 13, fontWeight: 600, color: GREEN }}
+            >
+              Reset filters
+            </button>
           )}
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Condition</p>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-px flex-nowrap">
-              {(['All', 'Unworn', 'Pre-Owned'] as ConditionFilter[]).map(c => (
-                <button
-                  key={c}
-                  onClick={() => setConditionFilter(c)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${conditionFilter === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-3">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sort by</p>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(Object.keys(SORT_LABELS) as SortOption[]).map(key => (
-                <button
-                  key={key}
-                  onClick={() => setSort(key)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${sort === key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700'}`}
-                >
-                  {SORT_LABELS[key]}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
       {/* ── Status filter tabs + total value ─────────────────── */}
       {!bulkMode && (
         <div className="mb-5">
-          {/* Mobile: total value above tabs */}
           {isAdmin && !showingDeleted && totalSellingValue > 0 && (
-            <p className="md:hidden text-xs text-gray-400 mb-2">
-              Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
+            <p className="md:hidden text-xs mb-2" style={{ color: INK_45 }}>
+              Total value: <span className="font-semibold tabular-nums" style={{ color: INK }}>{formatLKR(totalSellingValue)}</span>
             </p>
           )}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1 overflow-x-auto pb-px">
-              {(['All', ...WATCH_STATUSES, 'Consigned', 'Drafts', 'Sourced', 'Deleted'] as StatusFilter[]).map(f => {
-                const c = TAB_COLORS[f]
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex items-center gap-0.5 overflow-x-auto pb-px">
+              <div
+                className="absolute top-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all"
+                style={{
+                  left: pill?.left ?? 0, width: pill?.width ?? 0, height: 40,
+                  background: '#fff', boxShadow: '0 1px 3px rgba(20,20,15,.09)',
+                  transitionProperty: 'left,width', transitionDuration: '.34s', transitionTimingFunction: 'cubic-bezier(.22,1,.36,1)',
+                  opacity: pill ? 1 : 0,
+                }}
+              />
+              {TABS.map(f => {
                 const isActive = statusFilter === f
                 return (
                   <button
                     key={f}
+                    ref={el => { tabRefs.current[f] = el }}
                     onClick={() => setStatusFilter(f)}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
-                      isActive ? `${c.activeBg} ${c.activeText} font-medium` : `${c.text} hover:bg-gray-100`
-                    }`}
+                    className="relative z-[1] flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                    style={{ height: 40, padding: '0 14px', borderRadius: 999, background: 'transparent', fontSize: 13.5, fontWeight: isActive ? 600 : 500, color: TAB_COLORS[f] }}
                   >
                     {f}
                     {(f !== 'Deleted' || deletedWatches !== null) && (
-                      <span className={`text-xs tabular-nums ${isActive ? 'opacity-70' : 'opacity-60'}`}>
+                      <span className="text-[12px] tabular-nums" style={{ opacity: isActive ? 0.6 : 0.45 }}>
                         {countByStatus(f)}
                       </span>
                     )}
@@ -1114,11 +1262,11 @@ export default function WatchInventory({
                 )
               })}
             </div>
-            {/* Desktop: total value on same row as tabs */}
             {isAdmin && !showingDeleted && totalSellingValue > 0 && (
-              <p className="hidden md:block text-xs text-gray-400 whitespace-nowrap shrink-0">
-                Total value: <span className="font-semibold text-gray-700 tabular-nums">{formatLKR(totalSellingValue)}</span>
-              </p>
+              <div className="hidden md:flex items-center gap-2 ml-auto whitespace-nowrap shrink-0">
+                <span className="text-[12.5px]" style={{ color: INK_45 }}>Total value</span>
+                <span className="tabular-nums" style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.02em' }}>{formatLKR(totalSellingValue)}</span>
+              </div>
             )}
           </div>
         </div>
@@ -1132,7 +1280,7 @@ export default function WatchInventory({
             indeterminate={someProcessedSelected}
             onChange={toggleSelectAll}
           />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm" style={{ color: INK_60 }}>
             {selectedIds.size > 0
               ? `${selectedIds.size} of ${processed.length} selected`
               : `Select watches — ${processed.length} shown`}
@@ -1140,7 +1288,8 @@ export default function WatchInventory({
           {selectedIds.size > 0 && (
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="ml-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+              className="ml-1 text-xs transition-colors"
+              style={{ color: INK_45 }}
             >
               Clear
             </button>
@@ -1152,93 +1301,68 @@ export default function WatchInventory({
       {showingDeleted && (
         <div>
           {loadingDeleted && (
-            <div className="flex items-center justify-center py-20 text-sm text-gray-400">
+            <div className="flex items-center justify-center py-20 text-sm" style={{ color: INK_45 }}>
               Loading deleted watches…
             </div>
           )}
           {!loadingDeleted && (deletedWatches === null || filteredDeleted.length === 0) && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: CARD_BG }}>
+                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke={INK_45} strokeWidth="1.5">
                   <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
                 </svg>
               </div>
-              <p className="text-gray-400 text-sm">No deleted watches</p>
+              <p className="text-sm" style={{ color: INK_45 }}>No deleted watches</p>
             </div>
           )}
           {!loadingDeleted && filteredDeleted.length > 0 && (
-            <div className="overflow-x-auto -mx-4 md:mx-0">
-              <table className="w-full text-sm border-separate border-spacing-0">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 sticky left-0 bg-white w-14" />
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em]">Watch</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden md:table-cell">Brand</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden sm:table-cell">Deleted</th>
-                    <th className="w-52" />
-                  </tr>
-                  <tr>
-                    <td colSpan={5} className="px-4 pb-1"><div className="h-px bg-gray-100" /></td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDeleted.map(w => {
-                    const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
-                    const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
-                    return (
-                      <tr
-                        key={w.id}
-                        className="group cursor-pointer hover:bg-gray-50/80 transition-colors"
-                        onClick={() => router.push(`/dashboard/watches/${w.id}`)}
+            <div className="flex flex-col gap-2">
+              {filteredDeleted.map(w => {
+                const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                return (
+                  <div
+                    key={w.id}
+                    className="flex items-center gap-4 cursor-pointer transition-colors"
+                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
+                    onClick={() => router.push(`/dashboard/watches/${w.id}`)}
+                  >
+                    {w.photos && w.photos.length > 0 ? (
+                      <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-50" style={{ border: `1px solid ${INK_08}` }} />
+                    ) : (
+                      <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate" style={{ color: INK_45 }}>{w.watch_name}</div>
+                      {w.reference && <div className="text-xs mt-0.5" style={{ color: 'rgba(20,20,15,.3)' }}>Ref: {w.reference}</div>}
+                    </div>
+                    {brandName && (
+                      <span className="hidden md:inline text-xs font-semibold opacity-40" style={{ color: brandColor ?? INK_45 }}>{brandName}</span>
+                    )}
+                    <span className="hidden sm:inline text-xs tabular-nums" style={{ color: 'rgba(20,20,15,.3)' }}>
+                      {w.deleted_at ? new Date(w.deleted_at).toLocaleDateString('en-LK', { dateStyle: 'medium' }) : '—'}
+                    </span>
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleRestore(w.id)}
+                        className="flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                        style={{ padding: '7px 12px', fontSize: 12, fontWeight: 600, color: INK, background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 10 }}
                       >
-                        <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-gray-50/80 transition-colors">
-                          {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 opacity-50" />
-                          ) : (
-                            <WatchPlaceholder small />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 max-w-[200px]">
-                          <div className="font-semibold text-gray-400 truncate">{w.watch_name}</div>
-                          {w.reference && <div className="text-xs text-gray-300 mt-0.5">Ref: {w.reference}</div>}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          {brandName ? (
-                            <span className="text-xs font-semibold opacity-40" style={{ color: brandColor ?? '#9ca3af' }}>{brandName}</span>
-                          ) : (
-                            <span className="text-gray-200">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-300 tabular-nums hidden sm:table-cell">
-                          {w.deleted_at
-                            ? new Date(w.deleted_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={() => handleRestore(w.id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <RestoreIcon /> Restore
-                            </button>
-                            <button
-                              onClick={() => handlePermanentDelete(w.id)}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                confirmDeleteId === w.id
-                                  ? 'text-white bg-red-500 border border-red-500'
-                                  : 'text-red-400 bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200'
-                              }`}
-                            >
-                              {confirmDeleteId === w.id ? 'Confirm delete?' : 'Delete forever'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                        <RestoreIcon /> Restore
+                      </button>
+                      <button
+                        onClick={() => handlePermanentDelete(w.id)}
+                        className="whitespace-nowrap transition-colors"
+                        style={confirmDeleteId === w.id
+                          ? { padding: '7px 12px', fontSize: 12, fontWeight: 600, color: '#fff', background: RED, border: `1px solid ${RED}`, borderRadius: 10 }
+                          : { padding: '7px 12px', fontSize: 12, fontWeight: 600, color: RED, background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 10 }}
+                      >
+                        {confirmDeleteId === w.id ? 'Confirm delete?' : 'Delete forever'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -1249,81 +1373,64 @@ export default function WatchInventory({
         <div>
           {processed.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: AMBER_BG }}>
+                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke={AMBER} strokeWidth="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" strokeLinejoin="round"/>
                   <path d="M14 2v6h6" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <p className="text-gray-400 text-sm">No draft watches</p>
+              <p className="text-sm" style={{ color: INK_45 }}>No draft watches</p>
             </div>
           )}
           {processed.length > 0 && (
-            <div className="overflow-x-auto -mx-4 md:mx-0">
-              <table className="w-full text-sm border-separate border-spacing-0">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 sticky left-0 bg-white w-14" />
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em]">Watch</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden md:table-cell">Brand</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden sm:table-cell">Created</th>
-                    <th className="w-48" />
-                  </tr>
-                  <tr><td colSpan={5} className="px-4 pb-1"><div className="h-px bg-gray-100" /></td></tr>
-                </thead>
-                <tbody>
-                  {processed.map(w => {
-                    const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
-                    const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
-                    return (
-                      <tr
-                        key={w.id}
-                        className="group cursor-pointer hover:bg-amber-50/50 transition-colors"
+            <div className="flex flex-col gap-2">
+              {processed.map(w => {
+                const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                return (
+                  <div
+                    key={w.id}
+                    className="flex items-center gap-4 cursor-pointer transition-colors"
+                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
+                    onClick={() => router.push(`/dashboard/watches/${w.id}/edit`)}
+                  >
+                    {w.photos && w.photos.length > 0 ? (
+                      <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-70" style={{ border: `1px solid ${INK_08}` }} />
+                    ) : (
+                      <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold truncate" style={{ color: INK }}>{w.watch_name}</span>
+                        <span className="text-[10px] font-bold text-white rounded px-1 py-0.5 leading-none shrink-0" style={{ background: '#b5761a' }}>DRAFT</span>
+                      </div>
+                      {w.reference && <div className="text-xs mt-0.5" style={{ color: INK_45 }}>Ref: {w.reference}</div>}
+                    </div>
+                    {brandName && (
+                      <span className="hidden md:inline text-xs font-semibold" style={{ color: brandColor ?? INK_45 }}>{brandName}</span>
+                    )}
+                    <span className="hidden sm:inline text-xs tabular-nums" style={{ color: INK_45 }}>
+                      {new Date(w.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
+                    </span>
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <button
                         onClick={() => router.push(`/dashboard/watches/${w.id}/edit`)}
+                        className="flex items-center gap-1.5 whitespace-nowrap transition-colors"
+                        style={{ padding: '7px 12px', fontSize: 12, fontWeight: 600, color: INK, background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 10 }}
                       >
-                        <td className="px-4 py-3 sticky left-0 bg-white group-hover:bg-amber-50/50 transition-colors">
-                          {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 opacity-70" />
-                          ) : (
-                            <WatchPlaceholder small />
-                          )}
-                        </td>
-                        <td className="px-4 py-3 max-w-[220px]">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-700 truncate">{w.watch_name}</span>
-                            <span className="text-[10px] font-bold bg-amber-500 text-white rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
-                          </div>
-                          {w.reference && <div className="text-xs text-gray-400 mt-0.5">Ref: {w.reference}</div>}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          {brandName ? (
-                            <span className="text-xs font-semibold" style={{ color: brandColor ?? '#9ca3af' }}>{brandName}</span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-400 tabular-nums hidden sm:table-cell">
-                          {new Date(w.created_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
-                        </td>
-                        <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={() => router.push(`/dashboard/watches/${w.id}/edit`)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              <EditIcon /> Edit
-                            </button>
-                            <button
-                              onClick={e => handleDelete(e, w.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-red-400 bg-white border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                        <EditIcon /> Edit
+                      </button>
+                      <button
+                        onClick={e => handleDelete(e, w.id)}
+                        className="whitespace-nowrap transition-colors"
+                        style={{ padding: '7px 12px', fontSize: 12, fontWeight: 600, color: RED, background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 10 }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -1335,16 +1442,16 @@ export default function WatchInventory({
           {/* ── Empty state ─────────────────────────────────────── */}
           {processed.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: CARD_BG }}>
+                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke={INK_45} strokeWidth="1.5">
                   <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
                 </svg>
               </div>
-              <p className="text-gray-500 text-sm font-medium">
+              <p className="text-sm font-medium" style={{ color: INK_60 }}>
                 {watches.length === 0 ? 'No watches in inventory yet' : 'No results'}
               </p>
               {watches.length === 0 && (
-                <Link href="/dashboard/watches/new" className="mt-3 text-sm text-gray-900 underline underline-offset-4">
+                <Link href="/dashboard/watches/new" className="mt-3 text-sm underline underline-offset-4" style={{ color: INK }}>
                   Add your first watch
                 </Link>
               )}
@@ -1359,21 +1466,20 @@ export default function WatchInventory({
                 const isHighlight = w.id === highlightId
                 const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                 const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                const s = STATUS_STYLE[w.watch_status ?? w.status] ?? STATUS_STYLE.Sold
                 return (
                   <div
                     key={w.id}
-                    className={`group relative bg-white rounded-xl overflow-visible cursor-pointer transition-all duration-200 card-hover ${
-                      bulkMode && isSelected
-                        ? 'border-2 border-gray-900 shadow-sm'
-                        : bulkMode
-                        ? 'border border-[#E8E6E1] hover:border-gray-300'
-                        : 'border border-[#E8E6E1] hover:border-gray-200'
-                    } ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
-                    style={staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : undefined}
+                    className={`group relative bg-white overflow-visible cursor-pointer transition-all duration-200 card-hover ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
+                    style={{
+                      borderRadius: 24,
+                      border: bulkMode && isSelected ? `2px solid ${INK}` : `1px solid ${INK_08}`,
+                      ...(staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : {}),
+                    }}
                     onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
                   >
                     {/* Photo */}
-                    <div className="relative h-[180px] bg-gray-100 overflow-hidden rounded-t-xl">
+                    <div className="relative overflow-hidden" style={{ height: 180, background: CARD_BG, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
                       {w.photos && w.photos.length > 0 ? (
                         <Image
                           src={w.photos[0]}
@@ -1384,21 +1490,23 @@ export default function WatchInventory({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <circle cx="12" cy="12" r="7"/>
-                            <path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
-                          </svg>
+                          <span className="text-[13px] font-bold tracking-wide" style={{ color: INK_45 }}>{brandName ? brandMark(brandName) : ''}</span>
                         </div>
+                      )}
+
+                      {brandName && (
+                        <span className="absolute top-3 left-3 pointer-events-none flex items-center" style={{ height: 28, padding: '0 12px', background: 'rgba(255,255,255,.94)', borderRadius: 999, boxShadow: '0 2px 8px rgba(20,20,15,.12)' }}>
+                          <span className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: brandColor ?? INK }}>{brandName}</span>
+                        </span>
                       )}
 
                       {/* Bulk mode checkbox overlay */}
                       {bulkMode && (
                         <div
-                          className="absolute top-2 left-2 z-10"
+                          className="absolute top-2 right-2 z-10"
                           onClick={e => { e.stopPropagation(); toggleSelect(w.id) }}
                         >
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-gray-900 border-gray-900' : 'bg-white/90 border-gray-300 hover:border-gray-600'}`}>
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center transition-colors" style={{ border: `2px solid ${isSelected ? INK : 'rgba(20,20,15,.25)'}`, background: isSelected ? INK : 'rgba(255,255,255,.9)' }}>
                             {isSelected && (
                               <svg className="w-3 h-3 text-white" viewBox="0 0 12 10" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M1 5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1421,27 +1529,27 @@ export default function WatchInventory({
                               <DotsIcon />
                             </TileBtn>
                             {tileMenuId === w.id && (
-                              <div data-tile-menu className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden min-w-[140px]">
-                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); router.push(`/dashboard/watches/${w.id}/edit`) }}>
+                              <div data-tile-menu className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg z-40 overflow-hidden min-w-[140px]" style={{ border: `1px solid ${INK_08}` }}>
+                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[#f7f6f3] transition-colors" style={{ color: INK }} onClick={e => { e.stopPropagation(); setTileMenuId(null); router.push(`/dashboard/watches/${w.id}/edit`) }}>
                                   <EditIcon /> Edit
                                 </button>
-                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={e => {
+                                <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[#f7f6f3] transition-colors" style={{ color: INK }} onClick={e => {
                                   setTileMenuId(null)
                                   handleShare(e, w.id)
                                 }}>
                                   <ShareIcon /> Share via WhatsApp
                                 </button>
-                                <div className="h-px bg-gray-100 mx-2" />
+                                <div className="h-px mx-2" style={{ background: INK_08 }} />
                                 {tileDeleteConfirmId === w.id ? (
                                   <div className="px-3 py-2">
-                                    <p className="text-xs text-gray-500 mb-1.5">Delete this watch?</p>
+                                    <p className="text-xs mb-1.5" style={{ color: INK_45 }}>Delete this watch?</p>
                                     <div className="flex gap-1.5">
-                                      <button className="flex-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg px-2 py-1 transition-colors" onClick={e => { e.stopPropagation(); setTileMenuId(null); setTileDeleteConfirmId(null); handleDelete(e, w.id) }}>Delete</button>
-                                      <button className="flex-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors" onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(null) }}>Cancel</button>
+                                      <button className="flex-1 text-xs font-medium text-white rounded-lg px-2 py-1 transition-colors" style={{ background: RED }} onClick={e => { e.stopPropagation(); setTileMenuId(null); setTileDeleteConfirmId(null); handleDelete(e, w.id) }}>Delete</button>
+                                      <button className="flex-1 text-xs font-medium rounded-lg px-2 py-1 transition-colors" style={{ background: CARD_BG, color: INK_60 }} onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(null) }}>Cancel</button>
                                     </div>
                                   </div>
                                 ) : (
-                                  <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors" onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(w.id) }}>
+                                  <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-red-50 transition-colors" style={{ color: RED }} onClick={e => { e.stopPropagation(); setTileDeleteConfirmId(w.id) }}>
                                     <TrashIcon /> Delete
                                   </button>
                                 )}
@@ -1453,33 +1561,25 @@ export default function WatchInventory({
                     </div>
 
                     {/* Info */}
-                    <div className="p-3">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <p className="text-[14px] font-semibold text-[#111] truncate leading-tight">{w.watch_name}</p>
+                    <div style={{ padding: '16px 18px 18px' }}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <p className="truncate leading-tight" style={{ fontSize: 16.5, fontWeight: 600, letterSpacing: '-.02em', color: INK }}>{w.watch_name}</p>
                         {w.is_draft && (
-                          <span className="text-[10px] font-medium bg-gray-200 text-gray-500 rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
+                          <span className="text-[10px] font-medium rounded px-1 py-0.5 leading-none shrink-0" style={{ background: CARD_BG, color: INK_45 }}>DRAFT</span>
                         )}
                         <LabelBadges labels={w.labels} createdAt={w.created_at} />
                       </div>
-                      {brandName && (
-                        <p className="text-[12px] truncate" style={{ color: brandColor ?? '#9CA3AF' }}>{brandName}</p>
-                      )}
                       {w.reference && (
-                        <p className="text-[11px] text-[#9CA3AF] mt-0.5 truncate">Ref: {w.reference}</p>
+                        <p className="text-[12px] truncate" style={{ color: INK_45 }}>Ref: {w.reference}{w.date_acquired ? ` · ${new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}` : ''}</p>
                       )}
-                      {w.date_acquired && (
-                        <p className="flex items-center gap-1 text-[11px] text-[#9CA3AF] mt-0.5 truncate">
-                          <CalendarIcon />
-                          {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
-                        <span className="flex items-center gap-2">
-                          <StatusDot status={w.watch_status ?? w.status} />
-                          <ConditionIcon condition={w.condition} />
-                        </span>
+                      <div className="mt-2.5 pt-2.5 flex flex-col gap-2" style={{ borderTop: `1px solid ${INK_08}` }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-[7px] h-[7px] flex-none rounded-full" style={{ background: s.dot }} />
+                          <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_60 }}>{w.watch_status ?? w.status}</span>
+                          <span className="ml-auto"><ConditionBadge condition={w.condition} /></span>
+                        </div>
                         {w.selling_price != null && (
-                          <span className="text-[13px] font-semibold tabular-nums" style={{ color: '#C9A84C' }}>
+                          <span className="tabular-nums whitespace-nowrap" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-.02em', color: '#8a6f2e' }}>
                             {formatLKR(w.selling_price)}
                           </span>
                         )}
@@ -1493,37 +1593,34 @@ export default function WatchInventory({
 
           {/* ── Mobile list view ───────────────────────────────── */}
           {processed.length > 0 && view === 'list' && (
-            <div className="md:hidden bg-[#F7F6F3] -mx-4 px-4">
+            <div className="md:hidden flex flex-col gap-2">
               {processed.map(w => {
                 const brandName  = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                 const brandColor = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                 return (
                   <div
                     key={w.id}
-                    className="flex items-start gap-3 py-3 cursor-pointer border-b border-[#E8E6E1] transition-colors active:bg-[#F0EFE9]"
+                    className="flex items-start gap-3 cursor-pointer transition-colors"
+                    style={{ padding: '14px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     <div className="shrink-0">
                       {w.photos?.[0] ? (
-                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="w-16 h-16 rounded-lg object-cover" />
+                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="w-16 h-16 rounded-xl object-cover" />
                       ) : (
-                        <div className="w-16 h-16 rounded-lg bg-[#F3F2EF] flex items-center justify-center shrink-0">
-                          <svg className="w-6 h-6 text-[#9CA3AF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <circle cx="12" cy="12" r="7"/><path d="M12 9v3l2 2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3h5M9.5 21h5" strokeLinecap="round"/>
-                          </svg>
-                        </div>
+                        <WatchPlaceholder mark={brandName ? brandMark(brandName) : null} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate leading-snug" style={{ fontSize: '15px', color: '#111111' }}>{w.watch_name}</p>
+                      <p className="font-semibold truncate leading-snug" style={{ fontSize: 15, color: INK }}>{w.watch_name}</p>
                       {brandName && (
-                        <p className="mt-0.5 font-bold uppercase tracking-wide truncate" style={{ fontSize: '11px', color: brandColor ?? '#9CA3AF' }}>{brandName}</p>
+                        <p className="mt-0.5 font-bold uppercase tracking-wide truncate" style={{ fontSize: 11, color: brandColor ?? INK_45 }}>{brandName}</p>
                       )}
                       {w.reference && (
-                        <p className="mt-0.5 truncate" style={{ fontSize: '12px', color: '#6B6B6B' }}>Ref: {w.reference}</p>
+                        <p className="mt-0.5 truncate" style={{ fontSize: 12, color: INK_60 }}>Ref: {w.reference}</p>
                       )}
                       {w.date_acquired && (
-                        <p className="flex items-center gap-1 mt-0.5 truncate" style={{ fontSize: '11px', color: '#9CA3AF' }}>
+                        <p className="flex items-center gap-1 mt-0.5 truncate" style={{ fontSize: 11, color: INK_45 }}>
                           <CalendarIcon />
                           {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}
                         </p>
@@ -1531,7 +1628,7 @@ export default function WatchInventory({
                       <div className="mt-2"><StatusBadge status={w.watch_status ?? w.status} /></div>
                     </div>
                     <div className="shrink-0 text-right pt-0.5">
-                      <p className="font-bold tabular-nums" style={{ fontSize: '15px', color: '#C9A84C' }}>{formatLKR(w.selling_price)}</p>
+                      <p className="font-bold tabular-nums" style={{ fontSize: 15, color: '#8a6f2e' }}>{formatLKR(w.selling_price)}</p>
                     </div>
                   </div>
                 )
@@ -1541,123 +1638,101 @@ export default function WatchInventory({
 
           {/* ── Desktop List View ──────────────────────────────────── */}
           {processed.length > 0 && view === 'list' && (
-            <div className="hidden md:block overflow-auto max-h-[70vh]">
-              <table className="w-full text-sm border-separate border-spacing-0">
-                <thead>
-                  <tr>
+            <div className="hidden md:flex flex-col gap-2.5">
+              <div
+                className="grid items-center"
+                style={{ gridTemplateColumns: `${bulkMode ? '28px ' : ''}minmax(320px,3.4fr) 108px 130px 104px 126px 118px 134px`, padding: '2px 22px', fontSize: 11, fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'rgba(20,20,15,.42)' }}
+              >
+                {bulkMode && <div />}
+                <div>Watch</div>
+                <div>Date</div>
+                <div>Condition</div>
+                <div>Set</div>
+                <div>Status</div>
+                <div className="text-right">Buy</div>
+                <div className="text-right">Sell</div>
+              </div>
+              {processed.map((w, idx) => {
+                const isSelected  = selectedIds.has(w.id)
+                const isHighlight = w.id === highlightId
+                const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
+                const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
+                return (
+                  <div
+                    key={w.id}
+                    draggable={!bulkMode && sort === 'last_added'}
+                    onDragStart={() => onDragStart(idx)}
+                    onDragOver={e => onDragOver(e, idx)}
+                    onDragLeave={onDragLeave}
+                    onDrop={e => onDrop(e, idx)}
+                    className={`group relative grid items-center cursor-pointer transition-all ${isHighlight ? 'row-highlight' : (staggerActive.current && idx < 20 ? 'stagger-item' : '')}`}
+                    style={{
+                      gridTemplateColumns: `${bulkMode ? '28px ' : ''}minmax(320px,3.4fr) 108px 130px 104px 126px 118px 134px`,
+                      padding: '14px 22px', background: '#fff', borderRadius: 20,
+                      border: `1px solid ${dragOverIdx === idx ? BLUE : (bulkMode && isSelected ? INK : INK_08)}`,
+                      ...(staggerActive.current && idx < 20 ? { animationDelay: `${idx * 40}ms` } : {}),
+                    }}
+                    onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
+                  >
                     {bulkMode && (
-                      <th className="px-3 py-3 sticky top-0 left-0 z-30 bg-white w-10">
-                        <Checkbox
-                          checked={allProcessedSelected}
-                          indeterminate={someProcessedSelected}
-                          onChange={toggleSelectAll}
-                        />
-                      </th>
+                      <div onClick={e => e.stopPropagation()}>
+                        <Checkbox checked={isSelected} onChange={() => toggleSelect(w.id)} />
+                      </div>
                     )}
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] sticky top-0 left-0 z-30 bg-white w-14" />
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] sticky top-0 z-20 bg-white">Watch</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden md:table-cell sticky top-0 z-20 bg-white">Brand</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden sm:table-cell sticky top-0 z-20 bg-white">Date</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden md:table-cell sticky top-0 z-20 bg-white">Condition</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden lg:table-cell sticky top-0 z-20 bg-white">Set</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] sticky top-0 z-20 bg-white">Status</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] hidden sm:table-cell sticky top-0 z-20 bg-white">Buy</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] sticky top-0 z-20 bg-white">Sell</th>
-                    {!bulkMode && <th className="w-10 sticky top-0 z-20 bg-white" />}
-                  </tr>
-                  <tr>
-                    <td colSpan={bulkMode ? 11 : 10} className="px-4 pb-1 sticky top-[42px] z-20 bg-white">
-                      <div className="h-px bg-gray-100" />
-                    </td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {processed.map((w, idx) => {
-                    const isSelected  = selectedIds.has(w.id)
-                    const isHighlight = w.id === highlightId
-                    const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
-                    const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
-                    return (
-                      <tr
-                        key={w.id}
-                        draggable={!bulkMode && sort === 'last_added'}
-                        onDragStart={() => onDragStart(idx)}
-                        onDragOver={e => onDragOver(e, idx)}
-                        onDragLeave={onDragLeave}
-                        onDrop={e => onDrop(e, idx)}
-                        className={`group cursor-pointer transition-colors ${
-                          dragOverIdx === idx ? 'bg-blue-50' :
-                          bulkMode && isSelected
-                            ? 'bg-gray-50'
-                            : 'hover:bg-gray-50/80'
-                        } ${isHighlight ? 'row-highlight' : (!isHighlight && staggerActive.current && idx < 20 ? 'stagger-item' : '')}`}
-                        style={!isHighlight && staggerActive.current && idx < 20 ? { animationDelay: `${idx * 40}ms` } : undefined}
-                        onClick={() => bulkMode ? toggleSelect(w.id) : router.push(`/dashboard/watches/${w.id}`)}
+
+                    <div className="flex items-center gap-4 min-w-0" style={{ paddingRight: 20 }}>
+                      {w.photos && w.photos.length > 0 ? (
+                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="rounded-2xl object-cover shrink-0" style={{ border: `1px solid ${INK_08}` }} />
+                      ) : (
+                        <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
+                      )}
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        {brandName && (
+                          <span className="text-[11px] font-bold uppercase tracking-wider truncate" style={{ color: brandColor ?? INK_45 }}>{brandName}</span>
+                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold truncate" style={{ fontSize: 15.5, letterSpacing: '-.01em', color: INK }}>{w.watch_name}</span>
+                          {w.is_draft ? (
+                            <span className="text-[10px] font-medium rounded px-1 py-0.5 leading-none shrink-0" style={{ background: CARD_BG, color: INK_45 }}>DRAFT</span>
+                          ) : (
+                            <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: GREEN }} title="Live" />
+                          )}
+                          <LabelBadges labels={w.labels} createdAt={w.created_at} />
+                        </div>
+                        <span className="text-[11.5px] truncate" style={{ color: INK_45 }}>
+                          {w.reference ? `Ref: ${w.reference}` : ''}{w.date_acquired ? ` · added ${new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: INK_60, fontVariantNumeric: 'tabular-nums' }}>{displayDate(w.date_on_card)}</div>
+                    <div><ConditionBadge condition={w.condition} /></div>
+                    <div className="whitespace-nowrap" style={{ fontSize: 13, color: INK_60 }}>{w.set_details}</div>
+                    <div>
+                      {w.is_draft ? (
+                        <span className="text-[11px] font-bold uppercase tracking-wide rounded-full px-3 py-1.5" style={{ background: CARD_BG, color: INK_45 }}>Draft</span>
+                      ) : (
+                        <StatusDot status={w.watch_status ?? w.status} />
+                      )}
+                    </div>
+                    <div className="text-right whitespace-nowrap" style={{ fontSize: 13, color: 'rgba(20,20,15,.5)', fontVariantNumeric: 'tabular-nums' }}>{formatLKR(w.purchase_cost)}</div>
+                    <div className="text-right whitespace-nowrap" style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.02em', color: INK, fontVariantNumeric: 'tabular-nums' }}>{formatLKR(w.selling_price)}</div>
+
+                    {/* Row hover actions — overlay so the 7-column grid above matches the design 1:1 */}
+                    {!bulkMode && (
+                      <div
+                        className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-150 bg-white rounded-xl"
+                        style={{ boxShadow: '0 4px 14px rgba(20,20,15,.12)', border: `1px solid ${INK_08}` }}
+                        onClick={e => e.stopPropagation()}
                       >
-                        {/* Bulk checkbox */}
-                        {bulkMode && (
-                          <td className="px-3 py-3 sticky left-0 transition-colors" onClick={e => e.stopPropagation()}>
-                            <Checkbox checked={isSelected} onChange={() => toggleSelect(w.id)} />
-                          </td>
-                        )}
-
-                        {/* Photo */}
-                        <td className={`px-4 py-3 sticky left-0 bg-white transition-colors ${bulkMode && isSelected ? 'bg-gray-50' : 'group-hover:bg-gray-50/80'}`}>
-                          {w.photos && w.photos.length > 0 ? (
-                            <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover border border-gray-100 shrink-0" />
-                          ) : (
-                            <WatchPlaceholder small />
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3 max-w-[220px]">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-text-primary truncate">{w.watch_name}</span>
-                            {w.is_draft ? (
-                              <span className="text-[10px] font-medium bg-gray-200 text-gray-500 rounded px-1 py-0.5 leading-none shrink-0">DRAFT</span>
-                            ) : (
-                              <span className="inline-block w-2 h-2 rounded-full bg-green-400 shrink-0" title="Live" />
-                            )}
-                            <LabelBadges labels={w.labels} createdAt={w.created_at} />
-                          </div>
-                          {w.reference && <div className="text-xs text-gray-400 mt-0.5">Ref: {w.reference}</div>}
-                          {w.date_acquired && (
-                            <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
-                              <CalendarIcon />
-                              {new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell whitespace-nowrap">
-                          {brandName ? (
-                            <span className="text-xs font-semibold" style={{ color: brandColor ?? '#9ca3af' }}>{brandName}</span>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs tabular-nums hidden sm:table-cell">{displayDate(w.date_on_card)}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden md:table-cell">{displayCondition(w.condition)}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden lg:table-cell">{w.set_details}</td>
-                        <td className="px-4 py-3"><StatusBadge status={w.watch_status ?? w.status} /></td>
-                        <td className="px-4 py-3 text-right text-gray-400 font-mono text-xs tabular-nums hidden sm:table-cell">{formatLKR(w.purchase_cost)}</td>
-                        <td className="px-4 py-3 text-right text-gray-700 font-mono text-xs tabular-nums font-medium">{formatLKR(w.selling_price)}</td>
-
-                        {/* Row hover actions */}
-                        {!bulkMode && (
-                          <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center gap-0.5 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150">
-                              <ActionBtn title="Edit"      onClick={e => { e.stopPropagation(); router.push(`/dashboard/watches/${w.id}/edit`) }}><EditIcon /></ActionBtn>
-                              <ActionBtn title="Duplicate" onClick={e => handleDuplicate(e, w)}><CopyIcon /></ActionBtn>
-                              <ActionBtn title="Share"     onClick={e => handleShare(e, w.id)}><ShareIcon /></ActionBtn>
-                              <ActionBtn title="Delete"    onClick={e => handleDelete(e, w.id)} danger><TrashIcon /></ActionBtn>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                        <ActionBtn title="Edit"      onClick={e => { e.stopPropagation(); router.push(`/dashboard/watches/${w.id}/edit`) }}><EditIcon /></ActionBtn>
+                        <ActionBtn title="Duplicate" onClick={e => handleDuplicate(e, w)}><CopyIcon /></ActionBtn>
+                        <ActionBtn title="Share"     onClick={e => handleShare(e, w.id)}><ShareIcon /></ActionBtn>
+                        <ActionBtn title="Delete"    onClick={e => handleDelete(e, w.id)} danger><TrashIcon /></ActionBtn>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </>
@@ -1665,7 +1740,7 @@ export default function WatchInventory({
 
       {/* ── Bulk action bar ───────────────────────────────────── */}
       {bulkMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-gray-900 text-white pl-4 pr-3 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white pl-4 pr-3 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none" style={{ background: INK }}>
           <span className="text-sm font-semibold tabular-nums whitespace-nowrap">
             {selectedIds.size} {selectedIds.size === 1 ? 'watch' : 'watches'}
           </span>
@@ -1820,18 +1895,19 @@ export default function WatchInventory({
 
       {/* ── Share toast ───────────────────────────────────────── */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+        <div className="fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none" style={{ background: INK }}>
           {toast}
         </div>
       )}
 
       {/* ── Undo toast ────────────────────────────────────────── */}
       {undoState && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none" style={{ background: INK }}>
           <span className="text-sm">{undoState.message}</span>
           <button
             onClick={handleUndo}
-            className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+            className="text-sm font-semibold transition-colors"
+            style={{ color: LIME }}
           >
             Undo
           </button>
@@ -1854,7 +1930,8 @@ export default function WatchInventory({
           href="/dashboard/watches/new"
           aria-label="Add Watch"
           title="Add Watch"
-          className="md:hidden fixed bottom-6 right-5 z-40 w-14 h-14 rounded-full bg-sidebar text-white flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+          className="md:hidden fixed bottom-6 right-5 z-40 w-14 h-14 rounded-full text-white flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+          style={{ background: INK }}
         >
           <PlusIcon />
         </Link>
@@ -1877,7 +1954,8 @@ function ActionBtn({
     <button
       title={title}
       onClick={onClick}
-      className={`p-1.5 rounded-lg transition-colors ${danger ? 'text-gray-300 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
+      className="p-2 transition-colors"
+      style={{ color: danger ? 'rgba(178,58,44,.6)' : INK_45 }}
     >
       {children}
     </button>
@@ -1895,7 +1973,8 @@ function TileBtn({
     <button
       title={title}
       onClick={onClick}
-      className="p-1.5 rounded-lg bg-white/90 backdrop-blur-sm text-gray-600 hover:text-gray-900 hover:bg-white shadow-sm transition-colors"
+      className="p-1.5 rounded-lg backdrop-blur-sm shadow-sm transition-colors"
+      style={{ background: 'rgba(255,255,255,.9)', color: INK_60 }}
     >
       {children}
     </button>

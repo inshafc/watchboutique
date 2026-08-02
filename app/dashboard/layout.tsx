@@ -6,36 +6,73 @@ import { usePathname } from 'next/navigation'
 
 import { useAuth } from '@/context/AuthContext'
 import ProfileEditModal from '@/components/ui/ProfileEditModal'
-import PaddleIcon from '@/components/ui/PaddleIcon'
 import type { UserRole } from '@/lib/auth'
 
-// ── Icons ────────────────────────────────────────────────────────────────────
+// ── Palette (matches the League Home / Inventory design) ────────────────────
+const INK   = '#14140f'
+const LIME  = '#d8f24a'
+const CREAM = '#eceae5'
 
-function GridIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z" /></svg> }
-function PeopleIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.276zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg> }
-function TagIcon()       { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2 1a1 1 0 0 0-1 1v4.586a1 1 0 0 0 .293.707l7 7a1 1 0 0 0 1.414 0l4.586-4.586a1 1 0 0 0 0-1.414l-7-7A1 1 0 0 0 6.586 1H2zm4 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg> }
-function HomeIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H2.5z"/></svg> }
-function ChartIcon()     { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07Z"/></svg> }
-function ReceiptIcon()   { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1.92.506a.5.5 0 0 1 .434.14L3 1.293l.646-.647a.5.5 0 0 1 .708 0L5 1.293l.646-.647a.5.5 0 0 1 .708 0L7 1.293l.646-.647a.5.5 0 0 1 .708 0L9 1.293l.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .801.13l.5 1A.5.5 0 0 1 15 2v12a.5.5 0 0 1-.053.224l-.5 1a.5.5 0 0 1-.8.13L13 14.707l-.646.647a.5.5 0 0 1-.708 0L11 14.707l-.646.647a.5.5 0 0 1-.708 0L9 14.707l-.646.647a.5.5 0 0 1-.708 0L7 14.707l-.646.647a.5.5 0 0 1-.708 0L5 14.707l-.646.647a.5.5 0 0 1-.708 0L3 14.707l-.646.647a.5.5 0 0 1-.801-.13l-.5-1A.5.5 0 0 1 1 14V2a.5.5 0 0 1 .053-.224l.5-1a.5.5 0 0 1 .367-.27zm.217 1.338L2 2.118v11.764l.137.274.51-.51a.5.5 0 0 1 .707 0l.646.647.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.509.509.137-.274V2.118l-.137-.274-.51.51a.5.5 0 0 1-.707 0L12 1.707l-.646.647a.5.5 0 0 1-.708 0L10 1.707l-.646.647a.5.5 0 0 1-.708 0L8 1.707l-.646.647a.5.5 0 0 1-.708 0L6 1.707l-.646.647a.5.5 0 0 1-.708 0L4 1.707l-.646.647a.5.5 0 0 1-.708 0l-.509-.51z"/><path d="M3 4.5a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5zm8-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5z"/></svg> }
-function TrendingUpIcon(){ return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M0 0h1v15h15v1H0zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07z"/></svg> }
-function GearIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/></svg> }
-function MenuIcon()      { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2z" clipRule="evenodd" /></svg> }
-function CloseIcon()     { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg> }
+// ── Icons — 22x22 stroke set matching the design ─────────────────────────────
+
+function NavIcon({ kind, color }: { kind: string; color: string }) {
+  const p = { width: 20, height: 20, viewBox: '0 0 22 22', fill: 'none', stroke: color, strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  switch (kind) {
+    case 'grid':
+      return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="2.2" /><rect x="12" y="3" width="7" height="7" rx="2.2" /><rect x="3" y="12" width="7" height="7" rx="2.2" /><rect x="12" y="12" width="7" height="7" rx="2.2" /></svg>
+    case 'box':
+      return <svg {...p}><path d="M3.4 7.2 11 3.2l7.6 4v7.6L11 18.8 3.4 14.8z" /><path d="M3.4 7.2 11 11.2l7.6-4M11 11.2v7.6" /></svg>
+    case 'users':
+      return <svg {...p}><circle cx="9" cy="8" r="3.2" /><path d="M3.6 18c.7-2.9 2.8-4.4 5.4-4.4S13.7 15.1 14.4 18" /><path d="M15 5.2a3 3 0 0 1 0 5.7M16.6 13.9c1.5.6 2.4 2 2.8 4.1" /></svg>
+    case 'tag':
+      return <svg {...p}><path d="M4 3.6h6.2l7 7-6.2 6.2-7-7z" /><circle cx="7.5" cy="7.1" r="1.4" /></svg>
+    case 'invoice':
+      return <svg {...p}><path d="M5 3.4h12v15.2l-2.3-1.5-2.3 1.5-2.4-1.5-2.3 1.5L5 18.6z" /><path d="M8.2 8h5.6M8.2 11.6h5.6" /></svg>
+    case 'coin':
+      return <svg {...p}><ellipse cx="11" cy="6.4" rx="7" ry="2.9" /><path d="M4 6.4v9.2c0 1.6 3.1 2.9 7 2.9s7-1.3 7-2.9V6.4" /><path d="M4 11c0 1.6 3.1 2.9 7 2.9s7-1.3 7-2.9" /></svg>
+    case 'report':
+      return <svg {...p}><rect x="3.4" y="3.4" width="15.2" height="15.2" rx="3.4" /><path d="M7.4 14.6V9.8M11 14.6V7.4M14.6 14.6v-3" /></svg>
+    case 'cog':
+      return <svg {...p}><circle cx="11" cy="11" r="3" /><path d="M17.6 13.4a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-2.6 1.1v.3a1.8 1.8 0 1 1-3.6 0v-.2a1.5 1.5 0 0 0-2.6-1l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0-1.1-2.6h-.3a1.8 1.8 0 1 1 0-3.6h.2a1.5 1.5 0 0 0 1-2.6l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.3a1.8 1.8 0 1 1 3.6 0v.2a1.5 1.5 0 0 0 2.6 1l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0 1.1 2.6h.3a1.8 1.8 0 1 1 0 3.6h-.2a1.5 1.5 0 0 0-1.4.9z" /></svg>
+    default:
+      return <svg {...p}><path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H2.5z" fill={color} stroke="none" /></svg>
+  }
+}
+
+function MenuIcon()  { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2zm0 4h14a1 1 0 0 1 0 2H3a1 1 0 0 1 0-2z" clipRule="evenodd" /></svg> }
+function CloseIcon() { return <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg> }
+
+function Logo({ size = 40, iconSize = 26 }: { size?: number; iconSize?: number }) {
+  return (
+    <div className="flex-none rounded-full flex items-center justify-center" style={{ width: size, height: size, background: INK }}>
+      <svg width={iconSize} height={iconSize} viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="16" fill={LIME} />
+        <circle cx="14" cy="13" r="2.3" fill={INK} />
+        <circle cx="24" cy="11.5" r="2.3" fill={INK} />
+        <circle cx="29" cy="19" r="2.3" fill={INK} />
+        <circle cx="20" cy="21" r="2.3" fill={INK} />
+        <circle cx="11" cy="22" r="2.3" fill={INK} />
+        <circle cx="25" cy="28" r="2.3" fill={INK} />
+        <circle cx="15" cy="30" r="2.3" fill={INK} />
+      </svg>
+    </div>
+  )
+}
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { label: 'Dashboard', href: '/dashboard',           Icon: HomeIcon,       exact: true,  roles: ['super_admin'] as UserRole[] },
-  { label: 'Inventory', href: '/dashboard/inventory', Icon: GridIcon,       exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
-  { label: 'Clients',   href: '/dashboard/clients',   Icon: PeopleIcon,     exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
-  { label: 'Sales',     href: '/dashboard/deals',     Icon: TagIcon,        exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
-  { label: 'Invoices',  href: '/dashboard/invoices',  Icon: ReceiptIcon,    exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
-  { label: 'Analytics', href: '/dashboard/analytics', Icon: ChartIcon,      exact: false, roles: ['super_admin'] as UserRole[] },
-  { label: 'Investors', href: '/dashboard/investors', Icon: TrendingUpIcon, exact: false, roles: ['super_admin'] as UserRole[] },
+  { label: 'Dashboard', href: '/dashboard',           icon: 'grid',    exact: true,  roles: ['super_admin'] as UserRole[] },
+  { label: 'Inventory', href: '/dashboard/inventory', icon: 'box',     exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
+  { label: 'Clients',   href: '/dashboard/clients',   icon: 'users',   exact: false, roles: ['super_admin', 'enterer', 'viewer', 'inventory_clerk'] as UserRole[] },
+  { label: 'Sales',     href: '/dashboard/deals',     icon: 'tag',     exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
+  { label: 'Invoices',  href: '/dashboard/invoices',  icon: 'invoice', exact: false, roles: ['super_admin', 'enterer'] as UserRole[] },
+  { label: 'Analytics', href: '/dashboard/analytics', icon: 'report',  exact: false, roles: ['super_admin'] as UserRole[] },
+  { label: 'Investors', href: '/dashboard/investors', icon: 'coin',    exact: false, roles: ['super_admin'] as UserRole[] },
 ]
 
 const BOTTOM_NAV = [
-  { label: 'Settings', href: '/dashboard/settings', Icon: GearIcon, exact: false, roles: ['super_admin'] as UserRole[] },
+  { label: 'Settings', href: '/dashboard/settings', icon: 'cog', exact: false, roles: ['super_admin'] as UserRole[] },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,10 +82,10 @@ function initials(name: string): string {
 }
 
 const ROLE_BADGE: Record<UserRole, { label: string; cls: string }> = {
-  super_admin:     { label: 'Admin',            cls: 'bg-gold text-white' },
-  enterer:         { label: 'Enterer',          cls: 'bg-white/10 text-white/70' },
-  viewer:          { label: 'Viewer',           cls: 'bg-white/10 text-white/70' },
-  inventory_clerk: { label: 'Inventory Clerk',  cls: 'bg-white/10 text-white/70' },
+  super_admin:     { label: 'Admin',            cls: 'bg-[#d8f24a] text-[#14140f]' },
+  enterer:         { label: 'Enterer',          cls: 'bg-[rgba(20,20,15,.06)] text-[rgba(20,20,15,.5)]' },
+  viewer:          { label: 'Viewer',           cls: 'bg-[rgba(20,20,15,.06)] text-[rgba(20,20,15,.5)]' },
+  inventory_clerk: { label: 'Inventory Clerk',  cls: 'bg-[rgba(20,20,15,.06)] text-[rgba(20,20,15,.5)]' },
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -56,6 +93,8 @@ const ROLE_BADGE: Record<UserRole, { label: string; cls: string }> = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname      = usePathname()
   const [open, setOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(true)
+  const [hoverNav, setHoverNav] = useState<string | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [profileToast, setProfileToast] = useState<string | null>(null)
@@ -71,134 +110,154 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const visibleNav       = loading || !role ? NAV       : NAV.filter(n => n.roles.includes(role))
   const visibleBottomNav = loading || !role ? BOTTOM_NAV : BOTTOM_NAV.filter(n => n.roles.includes(role))
 
-  const SidebarContent = () => (
-    <>
-      {/* Brand header */}
-      <div className="flex items-center justify-center gap-2 px-5 py-5 border-b border-white/8">
-        <div
-          style={{
-            width: '30px',
-            height: '30px',
-            borderRadius: '9px',
-            backgroundColor: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <PaddleIcon className="w-4 h-4" />
-        </div>
-        <span className="text-white text-[13px] font-semibold tracking-wide">Pickleball League</span>
-      </div>
-
-      {/* Main nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {visibleNav.map(({ label, href, Icon, exact }, i) => {
-          const active = exact ? pathname === href : pathname.startsWith(href)
-          const slideStyle = { animation: 'slideInLeft 0.3s ease-out forwards', animationDelay: `${i * 0.05}s`, opacity: 0 as const }
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors relative ${
-                active ? 'text-white border-l-2 pl-[10px]' : 'hover:bg-white/5'
-              }`}
-              style={active
-                ? { ...slideStyle, color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
-                : { ...slideStyle, color: '#888888' }
-              }
-            >
-              <Icon />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Bottom nav + user */}
-      <div className="px-3 pb-4 border-t border-white/8 pt-3 space-y-0.5">
-        {visibleBottomNav.map(({ label, href, Icon, exact }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href)
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
-                active
-                  ? 'text-white border-l-2 pl-[10px]'
-                  : 'hover:bg-white/5'
-              }`}
-              style={active
-                ? { color: '#ffffff', borderLeftColor: '#C9A84C', backgroundColor: 'rgba(255,255,255,0.06)' }
-                : { color: '#888888' }
-              }
-            >
-              <Icon />
-              {label}
-            </Link>
-          )
-        })}
-
-        {/* User indicator */}
-        {profile && role ? (
-          <div className="mt-3 pt-3 border-t border-white/8 relative">
-            {showProfileMenu && (
-              <div className="absolute bottom-full left-3 right-3 mb-1 bg-white rounded-xl shadow-lg border border-[#E8E6E1] overflow-hidden z-50 animate-scale-in">
-                <button
-                  onClick={() => { setShowProfileEdit(true); setShowProfileMenu(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors text-left"
-                >
-                  Edit Profile
-                </button>
-                <button
-                  onClick={signOut}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-gray-100 text-left"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
+  function SidebarContent({ collapsible }: { collapsible: boolean }) {
+    const isOpen = collapsible ? navOpen : true
+    return (
+      <>
+        {/* Brand header */}
+        <div className={`flex items-center gap-2.5 px-2 flex-wrap ${isOpen ? 'justify-start' : 'justify-center'}`}>
+          <Logo size={40} iconSize={26} />
+          {isOpen && (
+            <div className="flex flex-col leading-[1.15] min-w-0">
+              <span className="text-[14px] font-semibold tracking-tight" style={{ color: INK }}>SCOREBOARD</span>
+              <span className="text-[11px] whitespace-nowrap" style={{ color: 'rgba(20,20,15,.45)' }}>Pickleball League</span>
+            </div>
+          )}
+          {collapsible && (
             <button
-              onClick={() => setShowProfileMenu(v => !v)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+              onClick={() => setNavOpen(v => !v)}
+              title="Toggle sidebar"
+              className={`hidden md:flex w-[30px] h-[30px] flex-none rounded-[9px] items-center justify-center cursor-pointer transition-colors ${isOpen ? 'ml-auto' : ''}`}
+              style={{ border: '1px solid rgba(20,20,15,.1)', background: '#fff' }}
             >
-              <div className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[11px] font-bold shrink-0" style={{ backgroundColor: '#C9A84C' }}>
-                {initials(profile.full_name || profile.email)}
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-xs font-semibold text-white truncate">{profile.full_name || profile.email}</p>
-                {(() => {
-                  const badge = ROLE_BADGE[role] ?? ROLE_BADGE.viewer
-                  return (
-                    <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${badge.cls}`}>
-                      {badge.label}
-                    </span>
-                  )
-                })()}
-              </div>
-              <svg className="w-3 h-3 shrink-0 text-white/30" viewBox="0 0 12 12" fill="currentColor">
-                <path d={showProfileMenu ? 'M6 4L2 8h8L6 4z' : 'M6 8L2 4h8L6 8z'}/>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={INK} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2.8" width="12" height="10.4" rx="2.4" /><path d="M6.4 2.8v10.4" />
               </svg>
             </button>
-          </div>
-        ) : (
-          <p className="text-[10px] text-white/20 font-medium px-3 pt-2">Pickleball League · v1</p>
-        )}
-      </div>
-    </>
-  )
+          )}
+        </div>
+
+        {/* Main nav */}
+        <nav className="flex-1 flex flex-col gap-0.5 mt-6 overflow-y-auto">
+          {visibleNav.map(({ label, href, icon, exact }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                title={label}
+                onClick={() => { setOpen(false) }}
+                onMouseEnter={() => setHoverNav(label)}
+                onMouseLeave={() => setHoverNav(v => (v === label ? null : v))}
+                className={`flex items-center gap-3 rounded-xl text-[13.5px] whitespace-nowrap overflow-hidden transition-colors ${isOpen ? 'justify-start px-3.5 py-2.5' : 'justify-center py-3'}`}
+                style={{
+                  fontWeight: active ? 600 : 500,
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? INK : 'rgba(20,20,15,.6)',
+                  boxShadow: active ? '0 1px 2px rgba(20,20,15,.06)' : 'none',
+                }}
+              >
+                <span
+                  className="w-[22px] h-[22px] flex-none flex items-center justify-center"
+                  style={{ transform: hoverNav === label ? 'scale(1.16) rotate(-7deg)' : 'none', transition: 'transform .28s cubic-bezier(.34,1.56,.64,1)' }}
+                >
+                  <NavIcon kind={icon} color={active ? INK : 'rgba(20,20,15,.62)'} />
+                </span>
+                {isOpen && <span>{label}</span>}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Bottom nav + user */}
+        <div className="flex flex-col gap-0.5 pt-3 mt-3" style={{ borderTop: '1px solid rgba(20,20,15,.08)' }}>
+          {visibleBottomNav.map(({ label, href, icon, exact }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                title={label}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 rounded-xl text-[13.5px] whitespace-nowrap overflow-hidden transition-colors ${isOpen ? 'justify-start px-3.5 py-2.5' : 'justify-center py-3'}`}
+                style={{
+                  fontWeight: active ? 600 : 500,
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? INK : 'rgba(20,20,15,.6)',
+                  boxShadow: active ? '0 1px 2px rgba(20,20,15,.06)' : 'none',
+                }}
+              >
+                <span className="w-[22px] h-[22px] flex-none flex items-center justify-center">
+                  <NavIcon kind={icon} color={active ? INK : 'rgba(20,20,15,.62)'} />
+                </span>
+                {isOpen && <span>{label}</span>}
+              </Link>
+            )
+          })}
+
+          {/* User indicator */}
+          {profile && role ? (
+            <div className="mt-2 pt-3 relative" style={{ borderTop: '1px solid rgba(20,20,15,.08)' }}>
+              {showProfileMenu && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white rounded-xl shadow-lg border border-[#E8E6E1] overflow-hidden z-50 animate-scale-in">
+                  <button
+                    onClick={() => { setShowProfileEdit(true); setShowProfileMenu(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={signOut}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-gray-100 text-left"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => setShowProfileMenu(v => !v)}
+                title={profile.full_name || profile.email}
+                className={`w-full flex items-center gap-2.5 rounded-xl transition-colors hover:bg-[rgba(20,20,15,.04)] ${isOpen ? 'px-2 py-2' : 'justify-center py-2'}`}
+              >
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: LIME, color: INK }}>
+                  {initials(profile.full_name || profile.email)}
+                </div>
+                {isOpen && (
+                  <>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold truncate" style={{ color: INK }}>{profile.full_name || profile.email}</p>
+                      {(() => {
+                        const badge = ROLE_BADGE[role] ?? ROLE_BADGE.viewer
+                        return (
+                          <span className={`inline-block text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-0.5 mt-0.5 ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <svg className="w-3 h-3 shrink-0" style={{ color: 'rgba(20,20,15,.3)' }} viewBox="0 0 12 12" fill="currentColor">
+                      <path d={showProfileMenu ? 'M6 4L2 8h8L6 4z' : 'M6 8L2 4h8L6 8z'}/>
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            isOpen && <p className="text-[10px] font-medium px-2 pt-2" style={{ color: 'rgba(20,20,15,.3)' }}>Pickleball League · v1</p>
+          )}
+        </div>
+      </>
+    )
+  }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#F7F6F3' }}>
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: CREAM }}>
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex print:hidden flex-col w-[220px] shrink-0"
-        style={{ backgroundColor: '#111111', minHeight: '100vh' }}
+        className="hidden md:flex print:hidden flex-col shrink-0 transition-[width] duration-200"
+        style={{ width: navOpen ? '224px' : '92px', padding: '18px 12px 18px 18px' }}
       >
-        <SidebarContent />
+        <SidebarContent collapsible />
       </aside>
 
       {/* Mobile: overlay + drawer */}
@@ -206,32 +265,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setOpen(false)} />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[280px] transition-transform duration-200 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[260px] p-4 transition-transform duration-200 md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{ backgroundColor: '#111111' }}
+        style={{ backgroundColor: CREAM }}
       >
-        <SidebarContent />
+        <SidebarContent collapsible={false} />
       </aside>
 
       {/* Main */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <header className="flex items-center justify-between px-4 border-b border-border md:hidden print:hidden bg-white" style={{ height: '56px' }}>
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ padding: '18px 18px 18px 0' }}>
+        <header className="flex items-center justify-between px-4 md:hidden print:hidden bg-white rounded-2xl mb-3" style={{ height: '56px', border: '1px solid rgba(20,20,15,.07)' }}>
           <button
             onClick={() => setOpen(v => !v)}
-            className="p-1.5 rounded-lg text-text-secondary hover:bg-cream transition-colors"
+            className="p-1.5 rounded-lg transition-colors hover:bg-[rgba(20,20,15,.05)]"
+            style={{ color: INK }}
           >
             {open ? <CloseIcon /> : <MenuIcon />}
           </button>
           <div className="flex items-center gap-1.5">
-            <PaddleIcon className="w-5 h-5" />
-            <span className="text-text-primary text-[13px] font-semibold">Pickleball League</span>
+            <Logo size={26} iconSize={17} />
+            <span className="text-[13px] font-semibold" style={{ color: INK }}>SCOREBOARD</span>
           </div>
           {profile ? (
             <button
               onClick={() => setShowProfileEdit(true)}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-              style={{ backgroundColor: '#C9A84C' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+              style={{ background: LIME, color: INK }}
             >
               {initials(profile.full_name || profile.email)}
             </button>
@@ -240,7 +300,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </header>
 
-        <main className="flex-1 overflow-auto" style={{ backgroundColor: '#F7F6F3' }}>
+        <main className="flex-1 overflow-auto md:ml-0">
           {/* animate-fade-in-fast (opacity only, no transform) — animate-fade-in's
               translateY, even at rest via its forwards fill, establishes a new
               containing block for any position:fixed descendant (dialogs, toasts,
