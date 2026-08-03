@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
@@ -85,7 +85,7 @@ function WatchPicker({
         {selected ? (
           <>
             {selected.photos && selected.photos.length > 0 ? (
-              <Image src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
+              <LazyImage src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
             )}
@@ -132,7 +132,7 @@ function WatchPicker({
                     }`}
                   >
                     {w.photos && w.photos.length > 0 ? (
-                      <Image src={w.photos[0]} alt="" width={36} height={36} className={`rounded-lg object-cover shrink-0 ${isSold ? 'grayscale' : ''}`} />
+                      <LazyImage src={w.photos[0]} alt="" width={36} height={36} className={`rounded-lg object-cover shrink-0 ${isSold ? 'grayscale' : ''}`} />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
                     )}

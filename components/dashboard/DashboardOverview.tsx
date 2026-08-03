@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import { createClient } from '@/lib/supabase/client'
 import {
   type DealRow, type Target, type DateRange,
@@ -479,7 +479,7 @@ export default function DashboardOverview({
               style={{ background: '#c9c4b8', border: '2px solid #fff', color: INK }}
             >
               {profile?.avatar_url ? (
-                <Image src={profile.avatar_url} alt="" width={46} height={46} sizes="46px" className="w-full h-full object-cover" />
+                <LazyImage src={profile.avatar_url} alt="" width={46} height={46} sizes="46px" className="w-full h-full object-cover" />
               ) : (
                 initials(profile?.full_name ?? firstName)
               )}
@@ -491,7 +491,7 @@ export default function DashboardOverview({
                   <div className="flex items-center gap-2.5 px-3 py-2.5">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-none overflow-hidden" style={{ background: '#c9c4b8', color: INK }}>
                       {profile?.avatar_url ? (
-                        <Image src={profile.avatar_url} alt="" width={36} height={36} sizes="36px" className="w-full h-full object-cover" />
+                        <LazyImage src={profile.avatar_url} alt="" width={36} height={36} sizes="36px" className="w-full h-full object-cover" />
                       ) : (
                         initials(profile?.full_name ?? firstName)
                       )}
@@ -665,7 +665,7 @@ export default function DashboardOverview({
                   className="flex items-center gap-3 p-2.5 rounded-2xl transition-colors hover:bg-[#f7f6f3]"
                 >
                   {photo ? (
-                    <Image
+                    <LazyImage
                       src={photo}
                       alt=""
                       width={46}

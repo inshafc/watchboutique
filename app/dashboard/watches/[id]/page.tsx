@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
@@ -202,7 +202,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
         <Card>
           <div className="relative overflow-hidden" style={{ height: 380, borderRadius: 18, background: CARD_BG }}>
             {watch.photos && watch.photos.length > 0 ? (
-              <Image src={watch.photos[0]} alt={watch.watch_name} fill className="object-cover" />
+              <LazyImage src={watch.photos[0]} alt={watch.watch_name} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={INK_45} strokeWidth="1.5">
@@ -223,7 +223,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <div className="grid grid-cols-4 gap-2.5">
               {watch.photos.slice(1).map((url, i) => (
                 <div key={i} className="relative overflow-hidden" style={{ height: 100, borderRadius: 14, background: CARD_BG }}>
-                  <Image src={url} alt={`Photo ${i + 2}`} fill className="object-cover" />
+                  <LazyImage src={url} alt={`Photo ${i + 2}`} fill className="object-cover" />
                 </div>
               ))}
             </div>

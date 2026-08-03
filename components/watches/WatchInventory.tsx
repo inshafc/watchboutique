@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { createClient } from '@/lib/supabase/client'
@@ -1095,7 +1095,7 @@ export default function WatchInventory({
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f7f6f3] transition-colors text-left"
                 >
                   {w.photos && w.photos.length > 0 ? (
-                    <Image src={w.photos[0]} alt="" width={32} height={32} sizes="32px" className="rounded-lg object-cover shrink-0" />
+                    <LazyImage src={w.photos[0]} alt="" width={32} height={32} sizes="32px" className="rounded-lg object-cover shrink-0" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: CARD_BG }} />
                   )}
@@ -1328,7 +1328,7 @@ export default function WatchInventory({
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     {w.photos && w.photos.length > 0 ? (
-                      <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-50" style={{ border: `1px solid ${INK_08}` }} />
+                      <LazyImage src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-50" style={{ border: `1px solid ${INK_08}` }} />
                     ) : (
                       <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
                     )}
@@ -1395,7 +1395,7 @@ export default function WatchInventory({
                     onClick={() => router.push(`/dashboard/watches/${w.id}/edit`)}
                   >
                     {w.photos && w.photos.length > 0 ? (
-                      <Image src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-70" style={{ border: `1px solid ${INK_08}` }} />
+                      <LazyImage src={w.photos[0]} alt={w.watch_name} width={56} height={56} sizes="56px" className="rounded-xl object-cover opacity-70" style={{ border: `1px solid ${INK_08}` }} />
                     ) : (
                       <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
                     )}
@@ -1481,7 +1481,7 @@ export default function WatchInventory({
                     {/* Photo */}
                     <div className="relative overflow-hidden" style={{ height: 180, background: CARD_BG, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
                       {w.photos && w.photos.length > 0 ? (
-                        <Image
+                        <LazyImage
                           src={w.photos[0]}
                           alt={w.watch_name}
                           fill
@@ -1606,7 +1606,7 @@ export default function WatchInventory({
                   >
                     <div className="shrink-0">
                       {w.photos?.[0] ? (
-                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="w-16 h-16 rounded-xl object-cover" />
+                        <LazyImage src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="w-16 h-16 rounded-xl object-cover" />
                       ) : (
                         <WatchPlaceholder mark={brandName ? brandMark(brandName) : null} />
                       )}
@@ -1682,7 +1682,7 @@ export default function WatchInventory({
 
                     <div className="flex items-center gap-4 min-w-0" style={{ paddingRight: 20 }}>
                       {w.photos && w.photos.length > 0 ? (
-                        <Image src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="rounded-2xl object-cover shrink-0" style={{ border: `1px solid ${INK_08}` }} />
+                        <LazyImage src={w.photos[0]} alt={w.watch_name} width={64} height={64} sizes="64px" className="rounded-2xl object-cover shrink-0" style={{ border: `1px solid ${INK_08}` }} />
                       ) : (
                         <WatchPlaceholder small mark={brandName ? brandMark(brandName) : null} />
                       )}

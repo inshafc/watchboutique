@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -389,7 +389,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                   >
                     {/* Photo */}
                     {photo ? (
-                      <Image src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      <LazyImage src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
                         <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -445,7 +445,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                     <tr key={inv.id} className="group hover:bg-gray-50 transition-colors">
                       <td className="py-3.5 pr-4">
                         {photo ? (
-                          <Image src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          <LazyImage src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
                             <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 
 export type PhotoItem = { kind: 'url'; url: string } | { kind: 'file'; file: File }
 
@@ -79,7 +79,7 @@ export default function PhotoUpload({ items, onChange }: PhotoUploadProps) {
                 dragOverIdx === idx ? 'ring-2 ring-gray-900 scale-105' : ''
               }`}
             >
-              <Image
+              <LazyImage
                 src={getPreview(item)}
                 alt={`Photo ${idx + 1}`}
                 width={80}

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
@@ -91,7 +91,7 @@ function WatchPicker({
         {selected ? (
           <>
             {selected.photos && selected.photos.length > 0 ? (
-              <Image src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
+              <LazyImage src={selected.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
             )}
@@ -138,7 +138,7 @@ function WatchPicker({
                     }`}
                   >
                     {w.photos && w.photos.length > 0 ? (
-                      <Image src={w.photos[0]} alt="" width={36} height={36} className={`rounded-lg object-cover shrink-0 ${isSold ? 'grayscale' : ''}`} />
+                      <LazyImage src={w.photos[0]} alt="" width={36} height={36} className={`rounded-lg object-cover shrink-0 ${isSold ? 'grayscale' : ''}`} />
                     ) : (
                       <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0" />
                     )}
@@ -510,7 +510,7 @@ export default function AddDealForm({
             {initialWatchId ? (
               <div className="w-full flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm">
                 {selectedWatch?.photos && selectedWatch.photos.length > 0 ? (
-                  <Image src={selectedWatch.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
+                  <LazyImage src={selectedWatch.photos[0]} alt="" width={32} height={32} className="rounded-lg object-cover shrink-0" />
                 ) : (
                   <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
                 )}
