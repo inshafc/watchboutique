@@ -1,44 +1,66 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
-import LazyImage from '@/components/ui/LazyImage'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import type { InvoiceWithItems, InvoiceStatus, InvoiceType } from '@/types'
 
-type Tab      = 'all' | InvoiceStatus | 'deleted'
-type SortKey  = 'date_desc' | 'date_asc' | 'value_desc' | 'value_asc' | 'number_asc' | 'number_desc'
-type ViewMode = 'list' | 'tile'
+// ── Palette (matches the League Home / Inventory / Invoicing design) ────────
+const INK    = '#14140f'
+const GREEN  = '#1f6f43'
+const AMBER  = '#b5761a'
+const BLUE   = '#3f5f8a'
+const GOLD   = '#8a6f2e'
+const RED    = '#b23a2c'
+const INK_30 = 'rgba(20,20,15,.3)'
+const INK_35 = 'rgba(20,20,15,.35)'
+const INK_42 = 'rgba(20,20,15,.42)'
+const INK_45 = 'rgba(20,20,15,.45)'
+const INK_55 = 'rgba(20,20,15,.55)'
+const INK_60 = 'rgba(20,20,15,.6)'
+const INK_08 = 'rgba(20,20,15,.08)'
+const CARD_BG = '#f2f1ed'
 
-const STATUS_CONFIG: Record<InvoiceStatus, { label: string; dot: string; text: string }> = {
-  paid_in_full: { label: 'Paid in Full', dot: 'bg-emerald-500', text: 'text-emerald-700' },
-  advance_paid: { label: 'Advance Paid', dot: 'bg-amber-500',   text: 'text-amber-700'   },
-  overdue:      { label: 'Overdue',      dot: 'bg-red-500',     text: 'text-red-700'      },
-  draft:        { label: 'Draft',        dot: 'bg-gray-400',    text: 'text-gray-500'     },
+type Tab      = 'All' | 'General' | 'Sale' | 'Advance Paid' | 'Completed' | 'Overdue' | 'Deleted'
+type SortKey  = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
+type ViewMode = 'list' | 'grid3' | 'grid4'
+type MenuKey  = 'type' | 'client' | 'sort' | null
+
+const TYPE_STYLE: Record<InvoiceType, { bg: string; fg: string; label: string }> = {
+  sale:     { bg: 'rgba(63,95,138,.12)',  fg: BLUE, label: 'Sale' },
+  sourcing: { bg: 'rgba(138,111,46,.14)', fg: GOLD, label: 'Sourcing' },
+  general:  { bg: 'rgba(20,20,15,.07)',   fg: INK_60, label: 'General' },
 }
 
-const TYPE_LABELS: Record<InvoiceType, string> = {
-  sale:     'Sale',
-  general:  'General',
-  sourcing: 'Sourcing',
+const STATUS_STYLE: Record<InvoiceStatus, { label: string; fg: string }> = {
+  paid_in_full: { label: 'Paid in Full', fg: GREEN },
+  advance_paid: { label: 'Advance Paid', fg: AMBER },
+  draft:        { label: 'Draft',        fg: INK_42 },
+  overdue:      { label: 'Overdue',      fg: RED },
 }
 
-const TYPE_COLORS: Record<InvoiceType, string> = {
-  sale:     'bg-sky-50 text-sky-600 ring-sky-200',
-  general:  'bg-gray-50 text-gray-600 ring-gray-200',
-  sourcing: 'bg-violet-50 text-violet-600 ring-violet-200',
-}
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'date_desc',   label: 'Date (newest first)' },
-  { key: 'date_asc',    label: 'Date (oldest first)'  },
-  { key: 'value_desc',  label: 'Value (high to low)'  },
-  { key: 'value_asc',   label: 'Value (low to high)'  },
-  { key: 'number_asc',  label: 'Name A → Z'           },
-  { key: 'number_desc', label: 'Name Z → A'           },
+const TABS: { key: Tab; tone: string }[] = [
+  { key: 'All',           tone: INK },
+  { key: 'General',       tone: INK_60 },
+  { key: 'Sale',          tone: BLUE },
+  { key: 'Advance Paid',  tone: AMBER },
+  { key: 'Completed',     tone: GREEN },
+  { key: 'Overdue',       tone: RED },
+  { key: 'Deleted',       tone: INK_35 },
 ]
+
+const TYPES: (InvoiceType | 'all')[] = ['all', 'sale', 'general', 'sourcing']
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'date_desc',   label: 'Date (newest first)' },
+  { key: 'date_asc',    label: 'Date (oldest first)' },
+  { key: 'amount_desc', label: 'Amount: high to low' },
+  { key: 'amount_asc',  label: 'Amount: low to high' },
+]
+
+const AVATARS = ['#e2ddd0', '#d8e3d9', '#e6ded6', '#dcdde6', '#e5e2d3']
+
+// ── Helpers ───────────────────────────────────────────────────
 
 function fmt(amount: number | null | undefined, currency: string) {
   if (amount == null) return '—'
@@ -51,7 +73,7 @@ function fmt(amount: number | null | undefined, currency: string) {
 }
 
 function fmtDate(d: string) {
-  try { return new Date(d).toLocaleDateString('en-LK', { dateStyle: 'medium' }) }
+  try { return new Date(d).toLocaleDateString('en-LK', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return d }
 }
 
@@ -62,86 +84,151 @@ function getWatchName(inv: InvoiceWithItems): string | null {
   return null
 }
 
-function getWatchPhoto(inv: InvoiceWithItems): string | null {
-  const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ photo_url?: string | null }> | null
-  if (lineItems && lineItems.length > 0 && lineItems[0].photo_url) return lineItems[0].photo_url
-  if (inv.invoice_items && inv.invoice_items.length > 0) return inv.invoice_items[0].photo_url ?? null
-  return null
-}
-
 function getSubtotal(inv: InvoiceWithItems): number {
   const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ amount?: number | null }> | null
   if (lineItems && lineItems.length > 0) return lineItems.reduce((s, it) => s + (it.amount ?? 0), 0)
   return (inv.invoice_items ?? []).reduce((s, it) => s + (it.amount ?? 0), 0)
 }
 
-// ── Icons ──────────────────────────────────────────────────────
+// LKR-equivalent, for mixing currencies in the aggregate totals row.
+function toLKR(inv: InvoiceWithItems, amount: number): number {
+  if (inv.currency === 'LKR' || !inv.currency) return amount
+  return amount * (inv.exchange_rate ?? 1)
+}
 
-function ListIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg> }
-function GridIcon()    { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg> }
-function PrintIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg> }
-function EditIcon()    { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg> }
-function TrashIcon()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg> }
-function RestoreIcon() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path fillRule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/></svg> }
+function initials(name: string): string {
+  return name.replace(/^(Dr|Mr|Mrs|Ms)\.?\s+/i, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
 
-// ── Component ──────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────
+
+function SearchIcon()  { return <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke={INK_45} strokeWidth="1.5"><circle cx="6.5" cy="6.5" r="4.5" /><path d="M10.5 10.5 14 14" /></svg> }
+function FunnelIcon({ color }: { color: string }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="M3.4 5.2h13.2L11.4 11v4.6l-2.8 1.4V11z" /></svg> }
+function ChevronIcon({ color = INK_45 }: { color?: string }) { return <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round"><path d="m3 4.6 3 3 3-3" /></svg> }
+function PlusIcon()    { return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round"><path d="M10 4.2v11.6M4.2 10h11.6" /></svg> }
+function InvoiceIcon({ color = 'rgba(20,20,15,.5)' }: { color?: string }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.4 3.4h6.2l3.4 3.4v9.8H5.4z" /><path d="M8 10.2h4M8 12.8h4" /></svg> }
+function ListViewIcon({ active }: { active: boolean }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={active ? INK : INK_45} strokeWidth="1.7" strokeLinecap="round"><path d="M4 6h12M4 10h12M4 14h12" /></svg> }
+function Grid3ViewIcon({ active }: { active: boolean }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={active ? INK : INK_45} strokeWidth="1.7"><rect x="3.2" y="5" width="3.8" height="10" rx="1.4" /><rect x="8.1" y="5" width="3.8" height="10" rx="1.4" /><rect x="13" y="5" width="3.8" height="10" rx="1.4" /></svg> }
+function Grid4ViewIcon({ active }: { active: boolean }) { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={active ? INK : INK_45} strokeWidth="1.7"><rect x="3.6" y="3.6" width="5.4" height="5.4" rx="1.6" /><rect x="11" y="3.6" width="5.4" height="5.4" rx="1.6" /><rect x="3.6" y="11" width="5.4" height="5.4" rx="1.6" /><rect x="11" y="11" width="5.4" height="5.4" rx="1.6" /></svg> }
+
+// ── Component ─────────────────────────────────────────────────
 
 export default function InvoiceList({ initialInvoices }: { initialInvoices: InvoiceWithItems[] }) {
-  const router = useRouter()
-  const [invoices,   setInvoices]   = useState(initialInvoices)
-  const [tab,        setTab]        = useState<Tab>('all')
-  const [typeFilter, setTypeFilter] = useState<InvoiceType | ''>('')
-  const [search,     setSearch]     = useState('')
-  const [sort,       setSort]       = useState<SortKey>('date_desc')
-  const [view,       setView]       = useState<ViewMode>('list')
+  const [invoices, setInvoices] = useState(initialInvoices)
+
+  const [view,        setView]        = useState<ViewMode>('list')
+  const [filtersOpen, setFiltersOpen]  = useState(true)
+  const [selectMode,  setSelectMode]  = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const [search, setSearch] = useState('')
+  const [type,   setType]   = useState<InvoiceType | 'all'>('all')
+  const [client, setClient] = useState<string>('all')
+  const [sort,   setSort]   = useState<SortKey>('date_desc')
+  const [tab,    setTab]    = useState<Tab>('All')
+  const [openMenu, setOpenMenu] = useState<MenuKey>(null)
+
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [undoState, setUndoState]   = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+  const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
 
-  const counts = useMemo(() => ({
-    all:          invoices.filter(i => !i.deleted_at).length,
-    deleted:      invoices.filter(i => !!i.deleted_at).length,
-    draft:        invoices.filter(i => !i.deleted_at && i.status === 'draft').length,
-    advance_paid: invoices.filter(i => !i.deleted_at && i.status === 'advance_paid').length,
-    paid_in_full: invoices.filter(i => !i.deleted_at && i.status === 'paid_in_full').length,
-    overdue:      invoices.filter(i => !i.deleted_at && i.status === 'overdue').length,
-  }), [invoices])
-
-  const displayed = useMemo(() => {
-    let list = [...invoices]
-
-    if (tab === 'deleted') {
-      list = list.filter(i => !!i.deleted_at)
-    } else if (tab === 'all') {
-      list = list.filter(i => !i.deleted_at)
-    } else {
-      list = list.filter(i => !i.deleted_at && i.status === tab)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest('[data-filter-menu]')) setOpenMenu(null)
     }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
-    if (typeFilter) list = list.filter(i => i.type === typeFilter)
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
 
+  // ── Derived data ────────────────────────────────────────────
+
+  const clientNames = useMemo(
+    () => Array.from(new Set(invoices.map(i => i.client_name).filter((v): v is string => Boolean(v)))),
+    [invoices]
+  )
+
+  function matchesTabAndFilters(inv: InvoiceWithItems, forTab: Tab) {
+    if (forTab === 'Deleted') return !!inv.deleted_at
+    if (!!inv.deleted_at) return false
+    if (forTab === 'General' || forTab === 'Sale') {
+      if (inv.type !== forTab.toLowerCase()) return false
+    } else if (forTab === 'Advance Paid') {
+      if (inv.status !== 'advance_paid') return false
+    } else if (forTab === 'Completed') {
+      if (inv.status !== 'paid_in_full') return false
+    } else if (forTab === 'Overdue') {
+      if (inv.status !== 'overdue') return false
+    }
+    if (type !== 'all' && inv.type !== type) return false
+    if (client !== 'all' && inv.client_name !== client) return false
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(i =>
-        i.invoice_number.toLowerCase().includes(q) ||
-        (i.client_name ?? '').toLowerCase().includes(q)
-      )
+      const watch = getWatchName(inv) ?? ''
+      if (
+        !inv.invoice_number.toLowerCase().includes(q) &&
+        !(inv.client_name ?? '').toLowerCase().includes(q) &&
+        !watch.toLowerCase().includes(q)
+      ) return false
     }
+    return true
+  }
 
-    list.sort((a, b) => {
-      switch (sort) {
-        case 'date_asc':    return new Date(a.date).getTime() - new Date(b.date).getTime()
-        case 'value_desc':  return getSubtotal(b) - getSubtotal(a)
-        case 'value_asc':   return getSubtotal(a) - getSubtotal(b)
-        case 'number_asc':  return a.invoice_number.localeCompare(b.invoice_number)
-        case 'number_desc': return b.invoice_number.localeCompare(a.invoice_number)
-        default:            return new Date(b.date).getTime() - new Date(a.date).getTime()
-      }
-    })
+  const counts = useMemo(() => {
+    const c: Record<Tab, number> = { All: 0, General: 0, Sale: 0, 'Advance Paid': 0, Completed: 0, Overdue: 0, Deleted: 0 }
+    for (const t of TABS) c[t.key] = invoices.filter(inv => matchesTabAndFilters(inv, t.key)).length
+    return c
+  }, [invoices, type, client, search]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const rows = useMemo(() => {
+    let list = invoices.filter(inv => matchesTabAndFilters(inv, tab))
+    switch (sort) {
+      case 'date_asc':    list = [...list].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); break
+      case 'amount_desc': list = [...list].sort((a, b) => getSubtotal(b) - getSubtotal(a)); break
+      case 'amount_asc':  list = [...list].sort((a, b) => getSubtotal(a) - getSubtotal(b)); break
+      default:             list = [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }
     return list
-  }, [invoices, tab, typeFilter, search, sort])
+  }, [invoices, tab, type, client, search, sort]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Undo ──────────────────────────────────────────────────────
+  const filterCount = (type !== 'all' ? 1 : 0) + (client !== 'all' ? 1 : 0)
+
+  const invoicedTotal = useMemo(() => rows.reduce((s, r) => s + toLKR(r, getSubtotal(r)), 0), [rows])
+  const outstandingTotal = useMemo(
+    () => rows.reduce((s, r) => s + toLKR(r, Math.max(0, getSubtotal(r) - (r.amount_paid ?? 0))), 0),
+    [rows]
+  )
+
+  // ── Sliding tab pill ────────────────────────────────────────
+
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+  useLayoutEffect(() => {
+    const el = tabRefs.current[tab]
+    if (!el) return
+    const next = { left: el.offsetLeft, width: el.offsetWidth }
+    setPill(p => (p && p.left === next.left && p.width === next.width) ? p : next)
+  }, [tab, filtersOpen])
+
+  // ── Menu helpers ────────────────────────────────────────────
+
+  function menuStyle(key: Exclude<MenuKey, null>, active: boolean) {
+    const open = openMenu === key
+    const on = open || active
+    return {
+      bg:     on ? INK : '#fff',
+      fg:     on ? '#fff' : INK,
+      border: on ? INK : INK_08,
+      capFg:  on ? 'rgba(255,255,255,.5)' : INK_45 as string,
+      chev:   on ? 'rgba(255,255,255,.6)' : 'rgba(20,20,15,.5)',
+    }
+  }
+
+  // ── Bulk delete (soft) with undo ───────────────────────────
 
   function showUndo(message: string, restore: () => Promise<void>) {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
@@ -158,387 +245,378 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
     await restore()
   }
 
-  // ── Actions ───────────────────────────────────────────────────
-
-  async function handleDelete(inv: InvoiceWithItems) {
-    const deletedAt = new Date().toISOString()
-    await createClient().from('invoices').update({ deleted_at: deletedAt }).eq('id', inv.id)
-    void logActivity({ actionType: 'invoice_deleted', entityType: 'invoice', entityId: inv.id, entityLabel: inv.invoice_number })
-    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: deletedAt } : i))
-    showUndo(`Invoice ${inv.invoice_number} deleted`, async () => {
-      await createClient().from('invoices').update({ deleted_at: null }).eq('id', inv.id)
-      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: null } : i))
-    })
-  }
-
   async function handleRestore(inv: InvoiceWithItems) {
     await createClient().from('invoices').update({ deleted_at: null }).eq('id', inv.id)
     setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, deleted_at: null } : i))
   }
 
-  // ── Tabs config ───────────────────────────────────────────────
+  async function bulkDelete() {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    const deletedAt = new Date().toISOString()
+    const snapshot = invoices.filter(i => ids.includes(i.id))
+    await createClient().from('invoices').update({ deleted_at: deletedAt }).in('id', ids)
+    for (const inv of snapshot) {
+      void logActivity({ actionType: 'invoice_deleted', entityType: 'invoice', entityId: inv.id, entityLabel: inv.invoice_number })
+    }
+    setInvoices(prev => prev.map(i => ids.includes(i.id) ? { ...i, deleted_at: deletedAt } : i))
+    exitSelectMode()
+    showUndo(`${ids.length} ${ids.length === 1 ? 'invoice' : 'invoices'} deleted`, async () => {
+      await createClient().from('invoices').update({ deleted_at: null }).in('id', ids)
+      setInvoices(prev => prev.map(i => ids.includes(i.id) ? { ...i, deleted_at: null } : i))
+    })
+  }
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'all',          label: `All (${counts.all})` },
-    { key: 'draft',        label: `Draft (${counts.draft})` },
-    { key: 'advance_paid', label: `Advance Paid (${counts.advance_paid})` },
-    { key: 'paid_in_full', label: `Paid (${counts.paid_in_full})` },
-    { key: 'overdue',      label: `Overdue (${counts.overdue})` },
-    { key: 'deleted',      label: `Deleted (${counts.deleted})` },
-  ]
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // ── Render ──────────────────────────────────────────────────
+
+  const gridCols = view === 'grid3' ? 'repeat(3,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))'
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="p-4 md:p-7" style={{ color: INK }}>
 
-      {/* ── Top bar ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 px-6 pt-6 pb-4 border-b border-border">
-        <h1 className="text-2xl font-semibold text-text-primary tracking-tight">Invoices</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-            <button
-              onClick={() => setView('list')}
-              title="List view"
-              className={`p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
-            >
-              <ListIcon />
-            </button>
-            <button
-              onClick={() => setView('tile')}
-              title="Grid view"
-              className={`p-2 rounded-lg transition-colors ${view === 'tile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
-            >
-              <GridIcon />
-            </button>
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="flex items-start justify-between mb-5 gap-4 flex-wrap">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="m-0" style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1 }}>Invoicing</h1>
+          <span className="text-[13px]" style={{ color: INK_45 }}>{rows.length} of {invoices.filter(i => !i.deleted_at).length} invoices shown</span>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-end">
+          <div className="flex gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+            <button onClick={() => setView('list')}  title="List view"            className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'list'  ? CARD_BG : 'transparent' }}><ListViewIcon active={view === 'list'} /></button>
+            <button onClick={() => setView('grid3')} title="Cards — 3 per row"    className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'grid3' ? CARD_BG : 'transparent' }}><Grid3ViewIcon active={view === 'grid3'} /></button>
+            <button onClick={() => setView('grid4')} title="Cards — 4 per row"    className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'grid4' ? CARD_BG : 'transparent' }}><Grid4ViewIcon active={view === 'grid4'} /></button>
           </div>
+
+          <button
+            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+            className="whitespace-nowrap transition-colors"
+            style={{ height: 46, padding: '0 22px', borderRadius: 999, border: `1px solid ${selectMode ? INK : INK_08}`, background: selectMode ? INK : '#fff', color: selectMode ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </button>
+
+          <button
+            onClick={() => setFiltersOpen(v => !v)}
+            title="Filters"
+            className="relative flex items-center justify-center shrink-0 transition-colors"
+            style={{ width: 46, height: 46, borderRadius: '50%', border: `1px solid ${filtersOpen ? INK : INK_08}`, background: filtersOpen ? INK : '#fff' }}
+          >
+            <FunnelIcon color={filtersOpen ? '#d8f24a' : INK} />
+            {filterCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-white" style={{ width: 14, height: 14, background: GREEN, fontSize: 9, fontWeight: 700 }}>{filterCount}</span>
+            )}
+          </button>
+
           <Link
             href="/dashboard/invoices/new"
-            className="bg-sidebar text-white text-[13px] font-medium px-4 py-2.5 rounded-lg hover:bg-[#333] transition-colors flex items-center gap-1.5 btn-press"
+            title="New Invoice"
+            className="flex items-center justify-center shrink-0 rounded-full transition-colors"
+            style={{ width: 46, height: 46, background: INK }}
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M6 1v10M1 6h10" strokeLinecap="round"/>
-            </svg>
-            New Invoice
+            <PlusIcon />
           </Link>
         </div>
       </div>
 
-      {/* ── Status tabs ──────────────────────────────────────── */}
-      <div className="flex items-center gap-1 px-6 pt-3 pb-0 overflow-x-auto">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.key
-                ? t.key === 'deleted' ? 'bg-red-50 text-red-600' : 'bg-gray-900 text-white'
-                : t.key === 'deleted' ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* ── Search ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-4" style={{ height: 60, padding: '0 22px', borderRadius: 18, background: '#fff', border: `1px solid ${INK_08}` }}>
+        <SearchIcon />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search invoice number, client or watch…"
+          className="border-0 outline-none bg-transparent w-full"
+          style={{ fontSize: 15, color: INK }}
+        />
       </div>
 
-      {/* ── Search + Type filter + Sort ───────────────────────── */}
-      <div className="flex items-center gap-3 px-6 py-3 flex-wrap">
-        <div className="relative flex-1 min-w-[180px] max-w-sm">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="6.5" cy="6.5" r="4.5"/><path d="m10.5 10.5 3 3" strokeLinecap="round"/>
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search invoices…"
-            className="w-full bg-white border border-gray-200 text-gray-900 rounded-xl pl-9 pr-4 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
-          />
-        </div>
+      {/* ── Filters ────────────────────────────────────────── */}
+      {filtersOpen && (
+        <div className="flex items-center gap-2.5 mb-4 flex-wrap" ref={menuRef}>
 
-        <div className="flex gap-1.5 shrink-0">
-          {(['', 'sale', 'general', 'sourcing'] as const).map(t => (
+          {/* Type */}
+          <div className="relative" data-filter-menu>
+            {(() => { const m = menuStyle('type', type !== 'all'); return (
+              <button onClick={() => setOpenMenu(v => v === 'type' ? null : 'type')} className="flex items-center gap-2 whitespace-nowrap transition-colors" style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${m.border}`, background: m.bg, color: m.fg, fontSize: 13.5, fontWeight: 600 }}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: m.capFg }}>Type</span>
+                <span>{type === 'all' ? 'All types' : TYPE_STYLE[type].label}</span>
+                <ChevronIcon color={m.chev} />
+              </button>
+            )})()}
+            {openMenu === 'type' && (
+              <div className="absolute z-40 flex flex-col gap-0.5" style={{ top: 52, left: 0, minWidth: 200, background: '#fff', border: '1px solid rgba(20,20,15,.08)', borderRadius: 16, boxShadow: '0 14px 36px rgba(20,20,15,.16)', padding: 6 }}>
+                {TYPES.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setType(t); setOpenMenu(null) }}
+                    className="flex items-center gap-2.5 text-left rounded-[11px] whitespace-nowrap transition-colors hover:bg-[#f2f1ed]"
+                    style={{ padding: '10px 12px', fontSize: 13, fontWeight: type === t ? 600 : 500, background: type === t ? CARD_BG : 'transparent', color: INK }}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t === 'all' ? 'rgba(20,20,15,.25)' : TYPE_STYLE[t].fg }} />
+                    {t === 'all' ? 'All types' : TYPE_STYLE[t].label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Client */}
+          <div className="relative" data-filter-menu>
+            {(() => { const m = menuStyle('client', client !== 'all'); return (
+              <button onClick={() => setOpenMenu(v => v === 'client' ? null : 'client')} className="flex items-center gap-2 whitespace-nowrap transition-colors" style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${m.border}`, background: m.bg, color: m.fg, fontSize: 13.5, fontWeight: 600 }}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: m.capFg }}>Client</span>
+                <span>{client === 'all' ? 'All clients' : client}</span>
+                <ChevronIcon color={m.chev} />
+              </button>
+            )})()}
+            {openMenu === 'client' && (
+              <div className="absolute z-40 flex flex-col gap-0.5 overflow-auto" style={{ top: 52, left: 0, minWidth: 230, maxHeight: 320, background: '#fff', border: '1px solid rgba(20,20,15,.08)', borderRadius: 16, boxShadow: '0 14px 36px rgba(20,20,15,.16)', padding: 6 }}>
+                <button
+                  onClick={() => { setClient('all'); setOpenMenu(null) }}
+                  className="text-left rounded-[11px] whitespace-nowrap transition-colors hover:bg-[#f2f1ed]"
+                  style={{ padding: '10px 12px', fontSize: 13, fontWeight: client === 'all' ? 600 : 500, background: client === 'all' ? CARD_BG : 'transparent', color: INK }}
+                >All clients</button>
+                {clientNames.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => { setClient(c); setOpenMenu(null) }}
+                    className="text-left rounded-[11px] whitespace-nowrap transition-colors hover:bg-[#f2f1ed]"
+                    style={{ padding: '10px 12px', fontSize: 13, fontWeight: client === c ? 600 : 500, background: client === c ? CARD_BG : 'transparent', color: INK }}
+                  >{c}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sort */}
+          <div className="relative" data-filter-menu>
+            {(() => { const m = menuStyle('sort', sort !== 'date_desc'); return (
+              <button onClick={() => setOpenMenu(v => v === 'sort' ? null : 'sort')} className="flex items-center gap-2 whitespace-nowrap transition-colors" style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${m.border}`, background: m.bg, color: m.fg, fontSize: 13.5, fontWeight: 600 }}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: m.capFg }}>Sort by</span>
+                <span>{SORTS.find(s => s.key === sort)?.label}</span>
+                <ChevronIcon color={m.chev} />
+              </button>
+            )})()}
+            {openMenu === 'sort' && (
+              <div className="absolute z-40 flex flex-col gap-0.5" style={{ top: 52, left: 0, minWidth: 236, background: '#fff', border: '1px solid rgba(20,20,15,.08)', borderRadius: 16, boxShadow: '0 14px 36px rgba(20,20,15,.16)', padding: 6 }}>
+                {SORTS.map(s => (
+                  <button
+                    key={s.key}
+                    onClick={() => { setSort(s.key); setOpenMenu(null) }}
+                    className="text-left rounded-[11px] whitespace-nowrap transition-colors hover:bg-[#f2f1ed]"
+                    style={{ padding: '10px 12px', fontSize: 13, fontWeight: sort === s.key ? 600 : 500, background: sort === s.key ? CARD_BG : 'transparent', color: INK }}
+                  >{s.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {filterCount > 0 && (
+            <button onClick={() => { setType('all'); setClient('all'); setOpenMenu(null) }} className="transition-colors hover:bg-[rgba(31,111,67,.08)]" style={{ height: 44, padding: '0 16px', borderRadius: 999, border: 0, background: 'transparent', fontSize: 13, fontWeight: 600, color: GREEN }}>
+              Reset filters
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Tabs + totals ──────────────────────────────────── */}
+      <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+        <div className="relative flex items-center gap-0.5">
+          <div
+            className="absolute top-1/2 rounded-full"
+            style={{
+              height: 42, background: '#fff', boxShadow: '0 1px 3px rgba(20,20,15,.09)',
+              left: pill ? pill.left : 0, width: pill ? pill.width : 0,
+              transform: 'translateY(-50%)', opacity: pill ? 1 : 0,
+              transition: 'left .34s cubic-bezier(.22,1,.36,1), width .34s cubic-bezier(.22,1,.36,1)',
+            }}
+          />
+          {TABS.map(t => (
             <button
-              key={t}
-              onClick={() => setTypeFilter(t as InvoiceType | '')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                typeFilter === t
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-900'
-              }`}
+              key={t.key}
+              ref={el => { tabRefs.current[t.key] = el }}
+              onClick={() => setTab(t.key)}
+              className="relative z-[1] flex items-center gap-1.5 whitespace-nowrap"
+              style={{ height: 42, lineHeight: 1, padding: '0 15px', border: 0, borderRadius: 999, background: 'transparent', fontSize: 14, fontWeight: tab === t.key ? 600 : 500, color: t.tone }}
             >
-              {t === '' ? 'All Types' : TYPE_LABELS[t as InvoiceType]}
+              <span>{t.key}</span>
+              <span style={{ fontSize: 12.5, color: tab === t.key ? INK_45 : INK_35 }}>{counts[t.key]}</span>
             </button>
           ))}
         </div>
 
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value as SortKey)}
-          className="shrink-0 bg-white border border-gray-200 text-gray-600 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all"
-        >
-          {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-        </select>
+        <div className="ml-auto flex items-center gap-5 pr-3.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[12.5px]" style={{ color: INK_45 }}>Invoiced</span>
+            <span className="tabular-nums" style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.02em' }}>{fmt(invoicedTotal, 'LKR')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[12.5px]" style={{ color: INK_45 }}>Outstanding</span>
+            <span className="tabular-nums" style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.02em', color: outstandingTotal > 0 ? AMBER : GREEN }}>{fmt(outstandingTotal, 'LKR')}</span>
+          </div>
+        </div>
       </div>
 
-      {/* ── Content ──────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-6 pb-8">
-        {displayed.length === 0 ? (
+      {/* ── Content ────────────────────────────────────────── */}
+      {rows.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24" style={{ color: INK_35 }}>
+          <InvoiceIcon color={INK_35} />
+          <p className="text-sm mt-3">No invoices found</p>
+        </div>
+      ) : view === 'list' ? (
 
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <svg className="w-10 h-10 mb-3 text-gray-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-            <p className="text-sm">No invoices found</p>
+        /* ── List view ─────────────────────────────────────── */
+        <div className="flex flex-col gap-2.5">
+          <div className="hidden md:grid items-center px-5 gap-2" style={{ gridTemplateColumns: `${selectMode ? '28px ' : ''}minmax(300px,2.4fr) 116px minmax(190px,1.2fr) 118px 160px 132px`, fontSize: 10.5, fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: INK_42 }}>
+            {selectMode && <div />}
+            <div>Invoice</div>
+            <div>Date</div>
+            <div>Client</div>
+            <div>Type</div>
+            <div className="text-right">Amount</div>
+            <div className="text-right">Status</div>
           </div>
 
-        ) : view === 'tile' ? (
+          {rows.map((inv, idx) => {
+            const ty     = TYPE_STYLE[inv.type] ?? TYPE_STYLE.general
+            const st     = STATUS_STYLE[inv.status] ?? STATUS_STYLE.draft
+            const watch  = getWatchName(inv)
+            const amount = getSubtotal(inv)
+            const has    = !!inv.client_name
+            const checked = selectedIds.has(inv.id)
 
-          /* ── Tile view ─────────────────────────────────────── */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-            {displayed.map((inv, idx) => {
-              const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
-              const amt   = getSubtotal(inv)
-              const watch = getWatchName(inv)
-              return (
-                <div
-                  key={inv.id}
-                  onClick={() => router.push(`/dashboard/invoices/${inv.id}/edit`)}
-                  className="group relative bg-white border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-gray-200 transition-all flex flex-col gap-2.5 card-hover"
-                  style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
-                >
-                  {/* Type + status row */}
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${TYPE_COLORS[inv.type] ?? TYPE_COLORS.general}`}>
-                      {TYPE_LABELS[inv.type] ?? inv.type}
-                    </span>
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`} title={sc.label} />
-                  </div>
-
-                  {/* Invoice # + client + watch */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 font-mono truncate">{inv.invoice_number}</p>
-                    {inv.client_name && (
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{inv.client_name}</p>
-                    )}
-                    {watch && (
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{watch}</p>
-                    )}
-                  </div>
-
-                  {/* Date + amount */}
-                  <div className="flex items-end justify-between gap-2 pt-2 border-t border-gray-50">
-                    <span className="text-[11px] text-gray-400 leading-none">{fmtDate(inv.date)}</span>
-                    <span className="text-sm font-bold text-gray-900 tabular-nums leading-none">
-                      {fmt(amt || null, inv.currency)}
-                    </span>
-                  </div>
-
-                  {/* Hover actions */}
-                  <div
-                    className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            const RowInner = (
+              <div
+                className="grid items-center gap-2 md:gap-0 group transition-shadow"
+                style={{
+                  gridTemplateColumns: `${selectMode ? '28px ' : ''}minmax(300px,2.4fr) 116px minmax(190px,1.2fr) 118px 160px 132px`,
+                  padding: '15px 22px', background: '#fff', borderRadius: 20,
+                  border: `1px solid ${INK_08}`, boxShadow: '0 1px 2px rgba(20,20,15,.05)',
+                }}
+              >
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={checked}
                     onClick={e => e.stopPropagation()}
-                  >
-                    <Link
-                      href={`/dashboard/invoices/${inv.id}/edit`}
-                      onClick={e => e.stopPropagation()}
-                      className="p-1.5 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg shadow-sm border border-gray-100 transition-colors"
-                      title="Edit"
-                    >
-                      <EditIcon />
-                    </Link>
-                    {inv.deleted_at ? (
-                      <button
-                        onClick={() => handleRestore(inv)}
-                        className="p-1.5 bg-white text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm border border-gray-100 transition-colors"
-                        title="Restore"
-                      >
-                        <RestoreIcon />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleDelete(inv)}
-                        className="p-1.5 bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shadow-sm border border-gray-100 transition-colors"
-                        title="Delete"
-                      >
-                        <TrashIcon />
-                      </button>
-                    )}
-                  </div>
+                    onChange={() => toggleSelect(inv.id)}
+                    className="w-4 h-4 rounded cursor-pointer accent-gray-900"
+                  />
+                )}
+                <div className="flex items-center gap-3 min-w-0 pr-5">
+                  <span className="flex items-center justify-center shrink-0 rounded-xl" style={{ width: 38, height: 38, background: CARD_BG }}>
+                    <InvoiceIcon />
+                  </span>
+                  <span className="flex flex-col gap-0.5 min-w-0">
+                    <span className="tabular-nums whitespace-nowrap" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em' }}>{inv.invoice_number}</span>
+                    <span className="truncate" style={{ fontSize: 12.5, color: watch ? INK_60 : INK_30 }}>{watch ?? '—'}</span>
+                  </span>
                 </div>
-              )
-            })}
-          </div>
+                <div className="whitespace-nowrap" style={{ fontSize: 13, color: INK_55 }}>{fmtDate(inv.date)}</div>
+                <div className="flex items-center gap-2.5 min-w-0 pr-3.5">
+                  {has && (
+                    <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 32, height: 32, background: AVATARS[idx % AVATARS.length], fontSize: 11, fontWeight: 600 }}>
+                      {initials(inv.client_name!)}
+                    </span>
+                  )}
+                  <span className="truncate" style={{ fontSize: 14.5, fontWeight: 500, color: has ? INK : INK_30 }}>{inv.client_name ?? '—'}</span>
+                </div>
+                <div>
+                  <span className="rounded-full whitespace-nowrap" style={{ fontSize: 11, fontWeight: 600, padding: '5px 11px', background: ty.bg, color: ty.fg }}>{ty.label}</span>
+                </div>
+                <div className="text-right tabular-nums whitespace-nowrap" style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.02em', color: amount > 0 ? INK : INK_30 }}>
+                  {amount > 0 ? fmt(amount, inv.currency) : '—'}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <span className="rounded-full shrink-0" style={{ width: 8, height: 8, background: st.fg }} />
+                  <span className="whitespace-nowrap" style={{ fontSize: 13, fontWeight: 600, color: st.fg }}>{st.label}</span>
+                  {inv.deleted_at && (
+                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); void handleRestore(inv) }} className="ml-1 shrink-0" title="Restore" style={{ fontSize: 11, fontWeight: 600, color: GREEN }}>
+                      Restore
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
 
-        ) : (
+            return selectMode ? (
+              <div key={inv.id} onClick={() => toggleSelect(inv.id)} className="cursor-pointer">{RowInner}</div>
+            ) : (
+              <Link key={inv.id} href={`/dashboard/invoices/${inv.id}/edit`} className="hover:shadow-[0_10px_26px_rgba(20,20,15,.12)]" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>
+                {RowInner}
+              </Link>
+            )
+          })}
+        </div>
 
-          /* ── List view ─────────────────────────────────────── */
-          <>
-            {/* Mobile card list (FIX 6 + FIX 8) */}
-            <div className="md:hidden -mx-6 px-0">
-              {displayed.map((inv, idx) => {
-                const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
-                const amt   = getSubtotal(inv)
-                const watch = getWatchName(inv)
-                const photo = getWatchPhoto(inv)
-                return (
-                  <div
-                    key={inv.id}
-                    onClick={() => router.push(`/dashboard/invoices/${inv.id}/edit`)}
-                    className="flex items-center gap-3 px-6 py-3 border-b border-[#E8E6E1] cursor-pointer active:bg-gray-50"
-                    style={{ animation: 'fadeIn 0.3s ease-out forwards', animationDelay: `${idx > 10 ? 0.4 : idx * 0.04}s`, opacity: 0 }}
-                  >
-                    {/* Photo */}
-                    {photo ? (
-                      <LazyImage src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                        <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                          <polyline points="14 2 14 8 20 8"/>
-                        </svg>
-                      </div>
-                    )}
-                    {/* Left: invoice # + date */}
-                    <div className="w-24 shrink-0">
-                      <p className="font-semibold truncate" style={{ fontSize: '13px', color: '#111' }}>{inv.invoice_number}</p>
-                      <p style={{ fontSize: '11px', color: '#9CA3AF' }}>{fmtDate(inv.date)}</p>
-                    </div>
-                    {/* Middle: client + watch */}
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate" style={{ fontSize: '13px', color: '#374151' }}>{inv.client_name ?? '—'}</p>
-                      {watch && <p className="truncate" style={{ fontSize: '11px', color: '#6B6B6B' }}>{watch}</p>}
-                    </div>
-                    {/* Right: amount + status */}
-                    <div className="shrink-0 text-right">
-                      <p className="font-bold tabular-nums" style={{ fontSize: '13px', color: '#C9A84C' }}>
-                        {fmt(amt || null, inv.currency)}
-                      </p>
-                      <span className={`text-[10px] font-semibold ${sc.text}`}>{sc.label}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+      ) : (
 
-            {/* Desktop table (FIX 8: photo column) */}
-            <table className="hidden md:table w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 w-12" />
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Invoice #</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Date</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Client</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden md:table-cell">Watch</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4 hidden sm:table-cell">Type</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Amount</th>
-                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Status</th>
-                  <th className="pb-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {displayed.map(inv => {
-                  const sc    = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.draft
-                  const amt   = getSubtotal(inv)
-                  const watch = getWatchName(inv)
-                  const photo = getWatchPhoto(inv)
-                  return (
-                    <tr key={inv.id} className="group hover:bg-gray-50 transition-colors">
-                      <td className="py-3.5 pr-4">
-                        {photo ? (
-                          <LazyImage src={photo} alt="" width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                            <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                              <polyline points="14 2 14 8 20 8"/>
-                            </svg>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <Link
-                          href={`/dashboard/invoices/${inv.id}/edit`}
-                          className="text-sm font-mono font-semibold text-gray-900 hover:text-gray-600 transition-colors"
-                        >
-                          {inv.invoice_number}
-                        </Link>
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <span className="text-sm text-gray-500">{fmtDate(inv.date)}</span>
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <span className="text-sm text-gray-700">
-                          {inv.client_name ?? <span className="text-gray-300">—</span>}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4 hidden md:table-cell max-w-[160px]">
-                        <span className="text-sm text-gray-500 truncate block">
-                          {watch ?? <span className="text-gray-300">—</span>}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4 hidden sm:table-cell">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${TYPE_COLORS[inv.type] ?? TYPE_COLORS.general}`}>
-                          {TYPE_LABELS[inv.type] ?? inv.type}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                          {fmt(amt || null, inv.currency)}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pr-4">
-                        <span className={`flex items-center gap-1.5 text-xs font-semibold ${sc.text}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sc.dot}`} />
-                          {sc.label}
-                        </span>
-                      </td>
-                      <td className="py-3.5">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                          <Link
-                            href={`/dashboard/invoices/${inv.id}/print`}
-                            target="_blank"
-                            className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Print"
-                          >
-                            <PrintIcon />
-                          </Link>
-                          <Link
-                            href={`/dashboard/invoices/${inv.id}/edit`}
-                            className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <EditIcon />
-                          </Link>
-                          {inv.deleted_at ? (
-                            <button
-                              onClick={() => handleRestore(inv)}
-                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="Restore"
-                            >
-                              <RestoreIcon />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleDelete(inv)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <TrashIcon />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </>
+        /* ── Grid view ─────────────────────────────────────── */
+        <div className="grid gap-4" style={{ gridTemplateColumns: gridCols }}>
+          {rows.map(inv => {
+            const ty     = TYPE_STYLE[inv.type] ?? TYPE_STYLE.general
+            const st     = STATUS_STYLE[inv.status] ?? STATUS_STYLE.draft
+            const watch  = getWatchName(inv)
+            const amount = getSubtotal(inv)
+            const checked = selectedIds.has(inv.id)
 
-        )}
-      </div>
+            const CardInner = (
+              <div className="flex flex-col gap-3.5 rounded-[24px] p-5 cursor-pointer transition-shadow hover:shadow-[0_14px_32px_rgba(20,20,15,.14)]" style={{ background: '#fff', boxShadow: '0 2px 6px rgba(20,20,15,.07)' }}>
+                <div className="flex items-center gap-3">
+                  {selectMode && (
+                    <input type="checkbox" checked={checked} onClick={e => e.stopPropagation()} onChange={() => toggleSelect(inv.id)} className="w-4 h-4 rounded cursor-pointer accent-gray-900" />
+                  )}
+                  <span className="rounded-full" style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', background: ty.bg, color: ty.fg }}>{ty.label}</span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <span className="rounded-full shrink-0" style={{ width: 9, height: 9, background: st.fg }} />
+                    <span className="whitespace-nowrap" style={{ fontSize: 12, fontWeight: 600, color: st.fg }}>{st.label}</span>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{inv.invoice_number}</span>
+                  <span className="truncate" style={{ fontSize: 14.5, color: inv.client_name ? INK : INK_30 }}>{inv.client_name ?? '—'}</span>
+                  <span className="truncate" style={{ fontSize: 13, color: watch ? INK_60 : INK_30 }}>{watch ?? '—'}</span>
+                </div>
+                <div className="flex items-baseline gap-3 mt-auto pt-3.5" style={{ borderTop: `1px solid ${INK_08}` }}>
+                  <span className="whitespace-nowrap" style={{ fontSize: 12.5, color: INK_42 }}>{fmtDate(inv.date)}</span>
+                  <span className="ml-auto tabular-nums whitespace-nowrap" style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.025em', color: amount > 0 ? INK : INK_30 }}>
+                    {amount > 0 ? fmt(amount, inv.currency) : '—'}
+                  </span>
+                </div>
+              </div>
+            )
 
-      {/* ── Undo toast ───────────────────────────────────────── */}
+            return selectMode ? (
+              <div key={inv.id} onClick={() => toggleSelect(inv.id)}>{CardInner}</div>
+            ) : (
+              <Link key={inv.id} href={`/dashboard/invoices/${inv.id}/edit`} style={{ color: 'inherit', textDecoration: 'none' }}>{CardInner}</Link>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Bulk action bar ────────────────────────────────── */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 text-white rounded-full shadow-2xl" style={{ background: INK, padding: '10px 10px 10px 22px' }}>
+          <span className="text-sm">{selectedIds.size} selected</span>
+          <button onClick={bulkDelete} className="rounded-full text-sm font-semibold transition-colors hover:bg-[#b23a2c]" style={{ background: 'rgba(178,58,44,.85)', padding: '10px 18px' }}>Delete</button>
+          <button onClick={exitSelectMode} className="rounded-full text-white/60 hover:text-white transition-colors" style={{ padding: 10 }} aria-label="Cancel">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Undo toast ─────────────────────────────────────── */}
       {undoState && (
         <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
           <span className="text-sm">{undoState.message}</span>
@@ -548,13 +626,10 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
             className="text-white/40 hover:text-white/80 transition-colors ml-1"
             aria-label="Dismiss"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-            </svg>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" /></svg>
           </button>
         </div>
       )}
-
     </div>
   )
 }
