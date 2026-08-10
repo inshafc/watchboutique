@@ -364,8 +364,9 @@ export default function WatchInventory({
       list = list.filter(w => w.is_draft && w.watch_status !== 'sourced')
     } else if (statusFilter === 'Consigned') {
       // Consignment is an ownership type, not a status — a consigned watch can be
-      // Available/On Hold/Sold and still shows here, same as it does in its status tab.
-      list = list.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
+      // Available/On Hold and still shows here, same as it does in its status tab.
+      // Once sold, status overrides: it moves to the Sold tab only.
+      list = list.filter(w => w.inventory_type === 'consign' && w.status !== 'Sold' && !w.is_draft && w.watch_status !== 'sourced')
     } else {
       list = list.filter(w => w.watch_status !== 'sourced')
       if (statusFilter !== 'All') {
@@ -417,7 +418,7 @@ export default function WatchInventory({
       return list.length
     }
     if (f === 'Consigned') {
-      let list = watches.filter(w => w.inventory_type === 'consign' && !w.is_draft && w.watch_status !== 'sourced')
+      let list = watches.filter(w => w.inventory_type === 'consign' && w.status !== 'Sold' && !w.is_draft && w.watch_status !== 'sourced')
       if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
       if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
       return list.length
