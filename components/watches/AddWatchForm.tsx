@@ -14,6 +14,7 @@ import { useIdleLock } from '@/lib/hooks/useIdleLock'
 import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
+import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, AMBER, BLUE, RADII, CARD_PADDING } from '@/lib/design-tokens'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -28,27 +29,116 @@ import {
   type Brand,
 } from '@/types'
 
-const inp = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
-const lbl = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
-const card = 'bg-card border border-border rounded-xl p-5 md:p-6'
-const cardTitle = 'text-[11px] font-medium text-text-muted uppercase tracking-[0.08em] mb-4'
+// Values pulled from Add Watch.dc.html that don't match anything in
+// lib/design-tokens.ts. Flagged here rather than rounded to an existing
+// token (e.g. .42 is NOT INK_45's .45; 52px is NOT CONTROL_HEIGHT_LG's 54px)
+// — see the PR description for the full list of candidates to promote.
+const LABEL_INK    = 'rgba(20,20,15,.42)' // section eyebrow labels
+const FIELD_BORDER = 'rgba(20,20,15,.12)' // default input/select/segment border
+const CHIP_BORDER  = 'rgba(20,20,15,.05)' // Watch ID chip border
+const FIELD_H      = 52                    // input/select/segment height
+const SEGMENT_H    = 44                    // pill-segment height
+const CHIP_RADIUS  = 16                    // Watch ID chip / notes textarea radius
+
+const fieldStyle: React.CSSProperties = {
+  height: FIELD_H, padding: '0 18px', border: `1px solid ${FIELD_BORDER}`,
+  borderRadius: RADII.sm, background: '#fff', fontSize: 15, color: INK, outline: 'none', width: '100%',
+}
+
+function Section({ label, right, children }: { label: string; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="bg-white flex flex-col gap-5" style={{ borderRadius: RADII.lg, padding: CARD_PADDING }}>
+      <div className="flex items-baseline gap-3">
+        <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '.09em', color: LABEL_INK }}>{label}</span>
+        {right && <span className="ml-auto text-[12px]" style={{ color: LABEL_INK }}>{right}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <span className="text-[11px] font-semibold uppercase" style={{ letterSpacing: '.08em', color: INK_45 }}>{children}</span>
+}
+
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </div>
+  )
+}
+
+function Segment<T extends string>({
+  options, labels, value, onChange, tone, pill,
+}: {
+  options: readonly T[]
+  labels?: Record<T, string>
+  value: T
+  onChange: (v: T) => void
+  tone?: Partial<Record<T, { bg: string; fg: string }>>
+  pill?: boolean
+}) {
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {options.map(opt => {
+        const active = value === opt
+        const t = tone?.[opt]
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`font-semibold transition-colors ${pill ? '' : 'flex-1'}`}
+            style={{
+              height: pill ? SEGMENT_H : FIELD_H,
+              padding: pill ? '0 20px' : '0 12px',
+              borderRadius: pill ? RADII.pill : RADII.sm,
+              border: `1px solid ${active ? (t?.fg ?? INK) : FIELD_BORDER}`,
+              background: active ? (t?.bg ?? INK) : '#fff',
+              color: active ? (t?.fg ?? '#fff') : 'rgba(20,20,15,.6)',
+              fontSize: pill ? 13.5 : 14,
+            }}
+          >
+            {labels?.[opt] ?? opt}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function LabelToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-        checked
-          ? 'bg-gray-900 text-white border-gray-900'
-          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-      }`}
+      className="flex items-center gap-2 font-semibold transition-colors"
+      style={{
+        height: SEGMENT_H, padding: '0 18px', borderRadius: RADII.pill,
+        border: `1px solid ${checked ? INK : FIELD_BORDER}`,
+        background: checked ? INK : '#fff',
+        color: checked ? '#fff' : 'rgba(20,20,15,.6)',
+        fontSize: 13.5,
+      }}
     >
-      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${checked ? 'border-white' : 'border-gray-300'}`}>
-        {checked && <span className="w-2 h-2 rounded-full bg-white" />}
+      <span
+        className="rounded-full flex items-center justify-center shrink-0"
+        style={{ width: 14, height: 14, border: `2px solid ${checked ? '#fff' : 'rgba(20,20,15,.25)'}` }}
+      >
+        {checked && <span className="rounded-full" style={{ width: 6, height: 6, background: '#fff' }} />}
       </span>
       {label}
     </button>
+  )
+}
+
+function ErrorBanner({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-sm" style={{ background: 'rgba(178,58,44,.07)', border: `1px solid rgba(178,58,44,.25)`, color: RED, borderRadius: RADII.sm, padding: '12px 16px' }}>
+      {children}
+    </div>
   )
 }
 
@@ -149,6 +239,10 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       setForm(f => ({ ...f, [key]: e.target.value }))
   }
 
+  function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
+    setForm(f => ({ ...f, [key]: value }))
+  }
+
   const totalPct = investors.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
   // watch_investors is RLS-denied for inventory_clerk — the investor split
   // isn't something a clerk can set, so skip the requirement and let a
@@ -156,6 +250,20 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const investorsValid = form.inventory_type === 'consign' || isClerk
     ? true
     : investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
+
+  // Expected-margin preview — purely derived from cost/price already in
+  // state, mirrors the formula used on the watch detail page. Add Watch.dc.html
+  // also shows a generic "Investor payout" figure computed as margin * 0.6,
+  // which doesn't correspond to the real per-investor percentages entered
+  // below; that tile is dropped rather than shown with a fabricated number
+  // (see PR description).
+  const margin = useMemo(() => {
+    const c = form.purchase_cost ? num(form.purchase_cost) : 0
+    const p = form.selling_price ? num(form.selling_price) : 0
+    if (!(c > 0) || !(p > 0)) return null
+    const amount = p - c
+    return { amount, pct: (amount / p) * 100 }
+  }, [form.purchase_cost, form.selling_price])
 
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
@@ -277,7 +385,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const handleSaveDraft = () => save(true)
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4" style={{ color: INK }}>
       {locked && <IdleLockOverlay onResume={resume} />}
 
       {draft.status === 'prompt' && (
@@ -292,216 +400,225 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
         <DraftSaveIndicator status={draft.saveStatus} />
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      {/* ── Watch Details ─────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Watch Details</p>
-        <div className="space-y-4">
-
-          <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Watch ID</p>
-              <p className="text-base font-bold text-gray-900 tracking-wide font-mono">
-                {loadingId ? '…' : (watchId ?? '—')}
-              </p>
-            </div>
+      {/* ── Watch details ──────────────────────────────────── */}
+      <Section label="Watch details">
+        <div className="flex items-center gap-4" style={{ borderRadius: CHIP_RADIUS, background: CARD_BG, border: `1px solid ${CHIP_BORDER}`, padding: '16px 20px' }}>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10.5px] font-semibold uppercase" style={{ letterSpacing: '.09em', color: LABEL_INK }}>Watch ID</span>
+            <span className="text-[20px] font-semibold tabular-nums" style={{ letterSpacing: '.01em' }}>{loadingId ? '…' : (watchId ?? '—')}</span>
           </div>
+          <span className="ml-auto text-[12px]" style={{ color: LABEL_INK }}>Generated automatically</span>
+        </div>
 
-          {/* Brand */}
-          <div>
-            <label className={lbl}>Brand</label>
-            {showNewBrand ? (
-              <div className="space-y-1.5">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newBrandName}
-                    onChange={e => { setNewBrandName(e.target.value); setBrandError(null) }}
-                    onBlur={() => checkBrandDuplicate(newBrandName)}
-                    placeholder="Enter brand name"
-                    className={inp}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { setShowNewBrand(false); setNewBrandName(''); setBrandError(null) }}
-                    className="shrink-0 text-sm text-gray-400 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-xl transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                {brandError && <p className="text-xs text-red-500">{brandError}</p>}
+        {/* Brand — kept as a native select (unchanged interaction/validation);
+            the mockup's custom dropdown renders a per-brand logo image, which
+            our Brand type doesn't carry (id/name/color only, no logo asset) —
+            flagged rather than faked. */}
+        <Field label="Brand">
+          {showNewBrand ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newBrandName}
+                  onChange={e => { setNewBrandName(e.target.value); setBrandError(null) }}
+                  onBlur={() => checkBrandDuplicate(newBrandName)}
+                  placeholder="Enter brand name"
+                  style={fieldStyle}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowNewBrand(false); setNewBrandName(''); setBrandError(null) }}
+                  className="shrink-0 font-semibold"
+                  style={{ height: FIELD_H, padding: '0 18px', borderRadius: RADII.sm, border: `1px solid ${FIELD_BORDER}`, background: '#fff', color: INK_60, fontSize: 13.5 }}
+                >
+                  Cancel
+                </button>
               </div>
-            ) : (
-              <select
-                value={brandId ?? ''}
-                onChange={e => {
-                  if (e.target.value === '__new__') { setShowNewBrand(true); setBrandId(null) }
-                  else setBrandId(e.target.value || null)
-                }}
-                className={inp}
-              >
-                <option value="">— Select brand —</option>
-                {brands.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-                <option value="__new__">+ Add new brand</option>
-              </select>
-            )}
-          </div>
-
-          <div>
-            <label className={lbl}>Watch Name *</label>
-            <input type="text" value={form.watch_name} onChange={field('watch_name')} placeholder="e.g. Rolex Submariner" className={inp} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Reference</label>
-              <input type="text" value={form.reference} onChange={field('reference')} placeholder="116610LN" className={inp} />
+              {brandError && <p className="text-xs" style={{ color: RED }}>{brandError}</p>}
             </div>
-            <div>
-              <label className={lbl}>Serial Number</label>
-              <input type="text" value={form.serial_number} onChange={field('serial_number')} placeholder="R123456" className={inp} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Date on Card</label>
-              <input type="date" value={form.date_on_card} onChange={field('date_on_card')} className={inp} />
-            </div>
-            <div>
-              <label className={lbl}>Condition</label>
-              <select value={form.condition} onChange={field('condition')} className={inp}>
-                {WATCH_CONDITIONS.map(c => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className={lbl}>Set Details</label>
-            <select value={form.set_details} onChange={field('set_details')} className={inp}>
-              {WATCH_SET_DETAILS.map(s => <option key={s}>{s}</option>)}
+          ) : (
+            <select
+              value={brandId ?? ''}
+              onChange={e => {
+                if (e.target.value === '__new__') { setShowNewBrand(true); setBrandId(null) }
+                else setBrandId(e.target.value || null)
+              }}
+              style={{ ...fieldStyle, padding: '0 18px' }}
+            >
+              <option value="">— Select brand —</option>
+              {brands.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+              <option value="__new__">+ Add new brand</option>
             </select>
-          </div>
+          )}
+        </Field>
+
+        <Field label={<>Watch name <span style={{ color: RED }}>*</span></>}>
+          <input type="text" value={form.watch_name} onChange={field('watch_name')} placeholder="e.g. Rolex Submariner Date" style={fieldStyle} />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Reference">
+            <input type="text" value={form.reference} onChange={field('reference')} placeholder="116610LN" style={fieldStyle} />
+          </Field>
+          <Field label="Serial number">
+            <input type="text" value={form.serial_number} onChange={field('serial_number')} placeholder="R123456" style={fieldStyle} />
+          </Field>
+          <Field label="Date on card">
+            <input type="date" value={form.date_on_card} onChange={field('date_on_card')} style={fieldStyle} />
+          </Field>
+          <Field label="Condition">
+            <Segment options={WATCH_CONDITIONS} labels={CONDITION_LABELS} value={form.condition} onChange={v => setField('condition', v)} />
+          </Field>
         </div>
-      </div>
 
-      {/* ── Purchase ─────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Purchase</p>
-        <div className="space-y-4">
-          <div>
-            <label className={lbl}>Inventory Type</label>
-            <select value={form.inventory_type} onChange={field('inventory_type')} className={inp}>
-              {INVENTORY_TYPES.map(t => <option key={t} value={t}>{INVENTORY_TYPE_LABELS[t]}</option>)}
-            </select>
-          </div>
-          {form.inventory_type === 'consign' && (
-            <div>
-              <label className={lbl}>Consignee Name *</label>
-              <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" className={inp} />
-            </div>
+        <Field label="Set details">
+          <Segment options={WATCH_SET_DETAILS} value={form.set_details} onChange={v => setField('set_details', v)} pill />
+        </Field>
+      </Section>
+
+      {/* ── Purchase ───────────────────────────────────────── */}
+      <Section label="Purchase">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Inventory type">
+            <Segment
+              options={INVENTORY_TYPES}
+              labels={INVENTORY_TYPE_LABELS}
+              value={form.inventory_type}
+              onChange={v => setField('inventory_type', v)}
+              tone={{ consign: { bg: 'rgba(63,95,138,.14)', fg: BLUE } }}
+            />
+          </Field>
+          {form.inventory_type === 'consign' ? (
+            <Field label={<>Consignee name <span style={{ color: RED }}>*</span></>}>
+              <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" style={fieldStyle} />
+            </Field>
+          ) : (
+            <Field label="Purchased from">
+              <input type="text" value={form.purchased_from} onChange={field('purchased_from')} placeholder="Seller name or source" style={fieldStyle} />
+            </Field>
           )}
-          {form.inventory_type === 'twb' && (
-            <div>
-              <label className={lbl}>Purchased From</label>
-              <input type="text" value={form.purchased_from} onChange={field('purchased_from')} placeholder="Seller name or source" className={inp} />
-            </div>
-          )}
-          <div>
-            <label className={lbl}>Date Acquired</label>
-            <input type="date" value={form.date_acquired} onChange={field('date_acquired')} className={inp} />
-            <p className="text-[11px] text-gray-400 mt-1">When was this watch purchased/acquired?</p>
-          </div>
-          <div>
-            <label className={lbl}>{form.inventory_type === 'consign' ? 'Consignee Fee' : 'Purchase Cost'}</label>
+          <Field label="Date acquired">
+            <input type="date" value={form.date_acquired} onChange={field('date_acquired')} style={fieldStyle} />
+          </Field>
+          <Field label={form.inventory_type === 'consign' ? 'Consignee fee' : 'Purchase cost'}>
             <CurrencyInput value={form.purchase_cost} onChange={v => setForm(f => ({ ...f, purchase_cost: v }))} />
-          </div>
+          </Field>
         </div>
-      </div>
+      </Section>
 
-      {/* ── Sale ─────────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Sale</p>
-        <div className="space-y-4">
-          <div>
-            <label className={lbl}>Status</label>
-            <select value={form.status} onChange={field('status')} className={inp}>
-              {WATCH_STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={lbl}>Selling Price</label>
+      {/* ── Sale ───────────────────────────────────────────── */}
+      <Section label="Sale">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Status">
+            <Segment
+              options={WATCH_STATUSES}
+              value={form.status}
+              onChange={v => setField('status', v)}
+              pill
+              tone={{
+                'Available': { bg: 'rgba(31,111,67,.12)', fg: GREEN },
+                'On Hold':   { bg: 'rgba(181,118,26,.16)', fg: AMBER },
+                'Sold':      { bg: 'rgba(20,20,15,.09)',   fg: INK_60 },
+              }}
+            />
+          </Field>
+          <Field label="Selling price">
             <CurrencyInput value={form.selling_price} onChange={v => setForm(f => ({ ...f, selling_price: v }))} />
+          </Field>
+        </div>
+
+        <div
+          className="flex items-center gap-6"
+          style={{
+            borderRadius: RADII.md, padding: '18px 22px',
+            background: margin == null ? CARD_BG : margin.amount >= 0 ? 'rgba(31,111,67,.07)' : 'rgba(178,58,44,.07)',
+            border: `1px solid ${margin == null ? 'rgba(20,20,15,.06)' : margin.amount >= 0 ? 'rgba(31,111,67,.2)' : 'rgba(178,58,44,.2)'}`,
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-[10.5px] font-semibold uppercase" style={{ letterSpacing: '.09em', color: LABEL_INK }}>Expected margin</span>
+            <span className="text-[26px] font-semibold tabular-nums" style={{ letterSpacing: '-.03em', lineHeight: 1, color: margin == null ? 'rgba(20,20,15,.35)' : margin.amount >= 0 ? GREEN : RED }}>
+              {margin == null ? '—' : `${margin.amount >= 0 ? '+ ' : '− '}LKR ${Math.abs(margin.amount).toLocaleString('en-LK')}`}
+            </span>
+          </div>
+          <div className="ml-auto flex flex-col items-end gap-1">
+            <span className="text-[10.5px] font-semibold uppercase" style={{ letterSpacing: '.09em', color: LABEL_INK }}>Margin %</span>
+            <span className="text-[20px] font-semibold tabular-nums" style={{ letterSpacing: '-.02em', color: margin == null ? 'rgba(20,20,15,.35)' : margin.amount >= 0 ? GREEN : RED }}>
+              {margin == null ? '—' : `${margin.pct >= 0 ? '+' : '−'}${Math.abs(margin.pct).toFixed(1)}%`}
+            </span>
           </div>
         </div>
-      </div>
+      </Section>
 
-      {/* ── Labels ───────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Labels</p>
+      {/* ── Labels — no mockup reference; styled to match the segmented-pill
+             language used throughout the rest of this design ──────────── */}
+      <Section label="Labels">
         <div className="flex gap-2 flex-wrap">
           <LabelToggle label="New Arrival" checked={labelNewArrival} onChange={setLabelNewArrival} />
           <LabelToggle label="🔥 Hot Sell"  checked={labelHotSell}    onChange={setLabelHotSell} />
           <LabelToggle label="💰 Expensive" checked={labelExpensive}  onChange={setLabelExpensive} />
         </div>
-      </div>
+      </Section>
 
-      {/* ── Investors — hidden for inventory_clerk (watch_investors denied) ── */}
+      {/* ── Investors — hidden for inventory_clerk (watch_investors denied).
+             InvestorsCard is shared with Edit Watch; left unrestyled so this
+             change doesn't silently ripple into that page. ─────────────── */}
       {form.inventory_type === 'twb' && !isClerk && (
         <InvestorsCard investors={investors} setInvestors={setInvestors} totalPct={totalPct} investorsValid={investorsValid} />
       )}
 
-      {/* ── Photos ───────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Photos</p>
+      {/* ── Photos — PhotoUpload is shared with Edit Watch; left unrestyled
+             for the same reason. ───────────────────────────────────────── */}
+      <Section label="Photos">
         <PhotoUpload items={photoItems} onChange={setPhotoItems} />
-      </div>
+      </Section>
 
-      {/* ── Notes ────────────────────────────────────────── */}
-      <div className={card}>
-        <p className={cardTitle}>Notes</p>
+      {/* ── Notes ──────────────────────────────────────────── */}
+      <Section label="Notes">
         <textarea
           value={form.comments} onChange={field('comments')}
-          rows={3} placeholder="Any additional notes about this watch…"
-          className={inp}
+          rows={4} placeholder="Any additional notes about this watch…"
+          className="resize-y"
+          style={{ padding: '16px 18px', border: `1px solid ${FIELD_BORDER}`, borderRadius: CHIP_RADIUS, background: '#fff', fontSize: 15, lineHeight: 1.5, color: INK, outline: 'none', minHeight: 130, width: '100%' }}
         />
-      </div>
+      </Section>
 
-      {/* ── Action buttons ────────────────────────────────────── */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">
-          {error}
-        </div>
-      )}
-      <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* ── Action buttons ─────────────────────────────────── */}
+      <div className="flex items-center gap-3 flex-wrap" style={{ padding: '4px 0 40px' }}>
         <button
           type="button"
           onClick={handlePublish}
           disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-5 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50"
+          className="flex items-center gap-2.5 font-semibold transition-colors disabled:opacity-50"
+          style={{ height: FIELD_H, padding: '0 26px', border: 0, borderRadius: RADII.pill, background: INK, color: '#fff', fontSize: 14.5 }}
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4.4 10.4 8.2 14l7.4-8"/></svg>
           {loading ? 'Saving…' : 'Publish'}
         </button>
         <button
           type="button"
           onClick={handleSaveDraft}
           disabled={loading || !!brandError}
-          className="flex items-center gap-1.5 bg-card text-text-secondary text-[13px] font-medium px-5 py-2.5 rounded-lg border border-border hover:border-text-muted transition-colors disabled:opacity-50"
+          className="flex items-center gap-2.5 font-semibold transition-colors disabled:opacity-50"
+          style={{ height: FIELD_H, padding: '0 24px', border: `1px solid ${FIELD_BORDER}`, borderRadius: RADII.pill, background: '#fff', color: INK, fontSize: 14.5 }}
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 10.5V3.5H3.5v9h7l3-3z" strokeLinejoin="round"/><path d="M13.5 10.5h-3v3" strokeLinejoin="round"/></svg>
-          Save Draft
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.4 4.4h9.2l3 3v8.2H4.4z"/><path d="M7 4.4v4h6M7 16v-4h6v4"/></svg>
+          Save draft
         </button>
         <Link
           href="/dashboard/inventory"
-          className="flex items-center gap-1.5 text-[13px] font-medium text-negative px-5 py-2.5 rounded-lg border border-[#FEE2E2] hover:bg-[#FEE2E2] transition-colors ml-auto"
+          className="flex items-center gap-2.5 font-semibold transition-colors ml-auto"
+          style={{ height: FIELD_H, padding: '0 24px', border: `1px solid rgba(178,58,44,.25)`, borderRadius: RADII.pill, background: '#fff', color: RED, fontSize: 14.5 }}
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={RED} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 5.8h10.8M8.2 5.8V4.2h3.6v1.6M6 5.8l.7 10h6.6l.7-10"/></svg>
           Discard
         </Link>
       </div>
