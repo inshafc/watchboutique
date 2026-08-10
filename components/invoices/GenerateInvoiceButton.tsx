@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { INK, GREEN, AMBER } from '@/lib/design-tokens'
 
 interface ExistingInvoice {
   id: string
@@ -13,14 +14,26 @@ interface Props {
   dealStage?:       string
 }
 
+const pillCls = 'inline-flex items-center gap-2.5 text-[13.5px] font-semibold transition-colors whitespace-nowrap'
+const pillStyle: React.CSSProperties = { height: 46, padding: '0 22px', borderRadius: 999 }
+
+function InvoiceIcon({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.4 3.6h6.2l3.4 3.4v9.4H5.4z"/><path d="M8 10.4h4M8 13h4"/>
+    </svg>
+  )
+}
+
 export default function GenerateInvoiceButton({ dealId, existingInvoice, draftInvoice }: Props) {
   if (existingInvoice) {
     return (
       <Link
         href={`/dashboard/invoices/${existingInvoice.id}/edit`}
-        className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-emerald-200"
+        className={pillCls}
+        style={{ ...pillStyle, background: 'rgba(31,111,67,.1)', color: GREEN, border: '1px solid rgba(31,111,67,.2)' }}
       >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
         </svg>
         {existingInvoice.invoice_number}
@@ -32,11 +45,10 @@ export default function GenerateInvoiceButton({ dealId, existingInvoice, draftIn
     return (
       <Link
         href={`/dashboard/invoices/${draftInvoice.id}/edit`}
-        className="inline-flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-amber-200"
+        className={pillCls}
+        style={{ ...pillStyle, background: 'rgba(181,118,26,.14)', color: AMBER, border: '1px solid rgba(181,118,26,.25)' }}
       >
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
-        </svg>
+        <InvoiceIcon color={AMBER} />
         Continue Invoice
       </Link>
     )
@@ -45,11 +57,10 @@ export default function GenerateInvoiceButton({ dealId, existingInvoice, draftIn
   return (
     <Link
       href={`/dashboard/invoices/new?deal_id=${dealId}`}
-      className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+      className={pillCls}
+      style={{ ...pillStyle, background: INK, color: '#fff' }}
     >
-      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
-      </svg>
+      <InvoiceIcon color="#fff" />
       Generate Invoice
     </Link>
   )

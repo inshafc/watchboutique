@@ -2,29 +2,24 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { INK_45, GREEN, RED, AMBER, AMBER_BG, BLUE } from '@/lib/design-tokens'
 import type { DealStage } from '@/types'
 
 const STAGES: DealStage[] = ['Idle', 'Inquiry', 'Offer', 'Delivered']
 
-const STAGE_STYLES: Record<string, string> = {
-  Idle:        'border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50',
-  Inquiry:     'border-gray-300 text-gray-600 hover:border-gray-500 hover:bg-gray-50',
-  Offer:       'border-sky-300 text-sky-700 hover:border-sky-500 hover:bg-sky-50',
-  Delivered:   'border-teal-300 text-teal-700 hover:border-teal-500 hover:bg-teal-50',
-  Negotiation: 'border-amber-300 text-amber-700 hover:border-amber-500 hover:bg-amber-50',
-  Closed:      'border-emerald-300 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-50',
-  Lost:        'border-red-300 text-red-600 hover:border-red-500 hover:bg-red-50',
+// Tone per stage — mirrors the Sale Detail mockup's stage pill colors.
+// Falls back to a neutral tone for legacy stage values not in STAGES
+// (Negotiation / Closed / Lost) that can still be on older records.
+const STAGE_TONE: Record<string, { bg: string; fg: string }> = {
+  Idle:        { bg: 'rgba(20,20,15,.07)', fg: INK_45 },
+  Inquiry:     { bg: 'rgba(63,95,138,.14)', fg: BLUE },
+  Offer:       { bg: AMBER_BG, fg: AMBER },
+  Delivered:   { bg: 'rgba(31,111,67,.14)', fg: GREEN },
+  Negotiation: { bg: AMBER_BG, fg: AMBER },
+  Closed:      { bg: 'rgba(31,111,67,.14)', fg: GREEN },
+  Lost:        { bg: 'rgba(178,58,44,.1)', fg: RED },
 }
-
-const STAGE_ACTIVE: Record<string, string> = {
-  Idle:        'bg-gray-400 border-gray-400 text-white',
-  Inquiry:     'bg-gray-900 border-gray-900 text-white',
-  Offer:       'bg-sky-600 border-sky-600 text-white',
-  Delivered:   'bg-teal-600 border-teal-600 text-white',
-  Negotiation: 'bg-amber-500 border-amber-500 text-white',
-  Closed:      'bg-emerald-600 border-emerald-600 text-white',
-  Lost:        'bg-red-500 border-red-500 text-white',
-}
+const DEFAULT_TONE = { bg: 'rgba(20,20,15,.07)', fg: INK_45 }
 
 export default function StageSelector({
   dealId,
@@ -71,26 +66,32 @@ export default function StageSelector({
   const displayStages = STAGES.includes(stage) ? STAGES : [...STAGES, stage]
 
   return (
-    <div>
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Stage</p>
+    <div className="flex flex-col gap-4">
+      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: INK_45 }}>Stage</span>
       <div className="flex flex-wrap gap-2">
-        {displayStages.map(s => (
-          <button
-            key={s}
-            type="button"
-            disabled={loading}
-            onClick={() => update(s)}
-            className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all disabled:cursor-not-allowed ${
-              stage === s
-                ? (STAGE_ACTIVE[s] ?? 'bg-gray-900 border-gray-900 text-white')
-                : (STAGE_STYLES[s] ?? 'border-gray-200 text-gray-500')
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+        {displayStages.map(s => {
+          const on = s === stage
+          const tone = STAGE_TONE[s] ?? DEFAULT_TONE
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={loading}
+              onClick={() => update(s)}
+              className="font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                height: 44, padding: '0 22px', borderRadius: 999, fontSize: 13.5,
+                border: `1px solid ${on ? tone.fg : 'rgba(20,20,15,.12)'}`,
+                background: on ? tone.bg : '#fff',
+                color: on ? tone.fg : 'rgba(20,20,15,.55)',
+              }}
+            >
+              {s}
+            </button>
+          )
+        })}
       </div>
-      {error && <p className="text-xs text-amber-600 mt-2">{error}</p>}
+      {error && <p className="text-xs" style={{ color: AMBER }}>{error}</p>}
     </div>
   )
 }

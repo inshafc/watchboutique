@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { INK, RED } from '@/lib/design-tokens'
 import type { DealWithRelations } from '@/types'
 
-function EditIcon()      { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2.5l2.5 2.5-8 8H3v-2.5l8-8z" strokeLinejoin="round"/></svg> }
-function DuplicateIcon() { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8" strokeLinecap="round"/></svg> }
-function TrashIcon()     { return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h10M6 5V3h4v2M5.5 5l.5 8h4l.5-8" strokeLinecap="round" strokeLinejoin="round"/></svg> }
+function EditIcon()      { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M13.2 3.9 16.1 6.8 7.4 15.5l-3.5.6.6-3.5z"/></svg> }
+function DuplicateIcon() { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="9" height="9" rx="2.2"/><path d="M13 4.6H6.2A1.6 1.6 0 0 0 4.6 6.2V13" strokeLinecap="round"/></svg> }
+function TrashIcon()     { return <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke={RED} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 5.8h10.8M8.2 5.8V4.2h3.6v1.6M6 5.8l.7 10h6.6l.7-10"/></svg> }
 
 const UNDO_DELAY = 5000
 
@@ -51,24 +52,30 @@ export default function DealDetailActions({ deal }: { deal: DealWithRelations })
     setPendingDelete(false)
   }
 
-  const btnCls = 'p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors'
+  const btnCls = 'flex items-center justify-center transition-colors hover:bg-[#f7f6f3]'
+  const btnStyle: React.CSSProperties = { width: 46, height: 46, borderRadius: '50%', border: '1px solid rgba(20,20,15,.1)', background: '#fff' }
 
   return (
     <>
-      <div className="flex items-center gap-1">
-        <a href={`/dashboard/deals/${deal.id}/edit`} className={btnCls} title="Edit">
+      <div className="flex items-center gap-2.5">
+        <a href={`/dashboard/deals/${deal.id}/edit`} className={btnCls} style={btnStyle} title="Edit">
           <EditIcon />
         </a>
-        <button onClick={handleDuplicate} className={btnCls} title="Duplicate">
+        <button onClick={handleDuplicate} className={btnCls} style={btnStyle} title="Duplicate">
           <DuplicateIcon />
         </button>
-        <button onClick={handleDelete} className="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+        <button
+          onClick={handleDelete}
+          className="flex items-center justify-center transition-colors hover:bg-[rgba(178,58,44,.07)]"
+          style={{ ...btnStyle, border: '1px solid rgba(178,58,44,.25)' }}
+          title="Delete"
+        >
           <TrashIcon />
         </button>
       </div>
 
       {pendingDelete && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-gray-900 text-white text-sm px-4 py-3 rounded-2xl shadow-xl">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 text-white text-sm px-4 py-3 rounded-2xl shadow-xl" style={{ background: INK }}>
           <span>Sale moved to deleted</span>
           <div className="w-20 h-1 bg-white/20 rounded-full overflow-hidden">
             <div
