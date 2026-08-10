@@ -12,19 +12,7 @@ import { logActivity } from '@/lib/activityLog'
 import { displayCondition } from '@/lib/watch-condition'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
-
-// ── Palette (matches the League Home / Inventory design) ────────────────────
-const INK    = '#14140f'
-const LIME   = '#d8f24a'
-const GREEN  = '#1f6f43'
-const AMBER  = '#8a5c15'
-const AMBER_BG = 'rgba(181,118,26,.14)'
-const BLUE   = '#3f5f8a'
-const RED    = '#b23a2c'
-const INK_45 = 'rgba(20,20,15,.45)'
-const INK_60 = 'rgba(20,20,15,.6)'
-const INK_08 = 'rgba(20,20,15,.08)'
-const CARD_BG = '#f7f6f3'
+import { INK, LIME, GREEN, AMBER, AMBER_BG, BLUE, RED, INK_45, INK_60, INK_08, CARD_BG, RADII, CONTROL_HEIGHT_LG } from '@/lib/design-tokens'
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -94,7 +82,7 @@ function ConditionBadge({ condition }: { condition?: string | null }) {
   const label = displayCondition(condition)
   const isUnworn = label === 'Unworn'
   return (
-    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold whitespace-nowrap" style={{ padding: '5px 10px', borderRadius: 999, background: isUnworn ? 'rgba(31,111,67,.09)' : 'rgba(138,111,46,.11)', color: isUnworn ? GREEN : AMBER }}>
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold whitespace-nowrap" style={{ padding: '5px 10px', borderRadius: RADII.pill, background: isUnworn ? 'rgba(31,111,67,.09)' : 'rgba(138,111,46,.11)', color: isUnworn ? GREEN : AMBER }}>
       <ConditionIcon condition={condition} />{label}
     </span>
   )
@@ -989,7 +977,7 @@ export default function WatchInventory({
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-end">
           {/* List / Tile toggle */}
           {!bulkMode && !showingDeleted && !showingDrafts && (
-            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: RADII.sm, background: '#fff', border: `1px solid ${INK_08}` }}>
               <button onClick={() => setView('list')} title="List view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'list' ? CARD_BG : 'transparent' }}><ListViewIcon active={view === 'list'} /></button>
               <button onClick={() => setView('tile')} title="Tile view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'tile' ? CARD_BG : 'transparent' }}><GridViewIcon active={view === 'tile'} /></button>
             </div>
@@ -997,7 +985,7 @@ export default function WatchInventory({
 
           {/* Grid density (desktop, tile view only) */}
           {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+            <div className="hidden md:flex gap-0.5" style={{ padding: 4, borderRadius: RADII.sm, background: '#fff', border: `1px solid ${INK_08}` }}>
               {([3, 4, 5] as const).map(n => (
                 <button
                   key={n}
@@ -1017,14 +1005,14 @@ export default function WatchInventory({
             <button
               onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
               className="hidden md:flex items-center whitespace-nowrap transition-colors"
-              style={{ height: 46, padding: '0 20px', borderRadius: 999, border: `1px solid ${bulkMode ? INK : INK_08}`, background: bulkMode ? INK : '#fff', color: bulkMode ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+              style={{ height: 46, padding: '0 20px', borderRadius: RADII.pill, border: `1px solid ${bulkMode ? INK : INK_08}`, background: bulkMode ? INK : '#fff', color: bulkMode ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
             >
               {bulkMode ? 'Cancel' : 'Select'}
             </button>
           )}
 
           {!bulkMode && !showingDeleted && !showingDrafts && (
-            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: RADII.sm, background: '#fff', border: `1px solid ${INK_08}` }}>
               <button onClick={() => setView('list')} title="List view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'list' ? CARD_BG : 'transparent' }}><ListViewIcon active={view === 'list'} /></button>
               <button onClick={() => setView('tile')} title="Tile view" className="w-9 h-9 rounded-[11px] flex items-center justify-center transition-colors" style={{ background: view === 'tile' ? CARD_BG : 'transparent' }}><GridViewIcon active={view === 'tile'} /></button>
             </div>
@@ -1032,7 +1020,7 @@ export default function WatchInventory({
 
           {/* Grid density (mobile, tile view only) */}
           {!bulkMode && !showingDeleted && !showingDrafts && view === 'tile' && (
-            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: 14, background: '#fff', border: `1px solid ${INK_08}` }}>
+            <div className="flex md:hidden gap-0.5" style={{ padding: 4, borderRadius: RADII.sm, background: '#fff', border: `1px solid ${INK_08}` }}>
               {([1, 2] as const).map(n => (
                 <button
                   key={n}
@@ -1074,7 +1062,7 @@ export default function WatchInventory({
       {/* ── Search ───────────────────────────────────────────── */}
       {!bulkMode && (
         <div className="relative mb-4" ref={searchRef}>
-          <div className="flex items-center gap-3" style={{ height: 54, padding: '0 20px', borderRadius: 18, background: '#fff', border: `1px solid ${INK_08}` }}>
+          <div className="flex items-center gap-3" style={{ height: CONTROL_HEIGHT_LG, padding: '0 20px', borderRadius: RADII.md, background: '#fff', border: `1px solid ${INK_08}` }}>
             <SearchIcon />
             <input
               type="text"
@@ -1120,7 +1108,7 @@ export default function WatchInventory({
             <button
               onClick={() => setOpenMenu(v => v === 'brand' ? null : 'brand')}
               className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
-              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'brand' || brandIds.length > 0 ? INK : INK_08}`, background: openMenu === 'brand' || brandIds.length > 0 ? INK : '#fff', color: openMenu === 'brand' || brandIds.length > 0 ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+              style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, border: `1px solid ${openMenu === 'brand' || brandIds.length > 0 ? INK : INK_08}`, background: openMenu === 'brand' || brandIds.length > 0 ? INK : '#fff', color: openMenu === 'brand' || brandIds.length > 0 ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
             >
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'brand' || brandIds.length > 0 ? 'rgba(255,255,255,.5)' : INK_45 }}>Brand</span>
               <span>{brandLabel()}</span>
@@ -1163,7 +1151,7 @@ export default function WatchInventory({
             <button
               onClick={() => setOpenMenu(v => v === 'condition' ? null : 'condition')}
               className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
-              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'condition' || conditionFilter !== 'All' ? INK : INK_08}`, background: openMenu === 'condition' || conditionFilter !== 'All' ? INK : '#fff', color: openMenu === 'condition' || conditionFilter !== 'All' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+              style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, border: `1px solid ${openMenu === 'condition' || conditionFilter !== 'All' ? INK : INK_08}`, background: openMenu === 'condition' || conditionFilter !== 'All' ? INK : '#fff', color: openMenu === 'condition' || conditionFilter !== 'All' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
             >
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'condition' || conditionFilter !== 'All' ? 'rgba(255,255,255,.5)' : INK_45 }}>Condition</span>
               <span>{conditionFilter}</span>
@@ -1190,7 +1178,7 @@ export default function WatchInventory({
             <button
               onClick={() => setOpenMenu(v => v === 'sort' ? null : 'sort')}
               className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
-              style={{ height: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${openMenu === 'sort' || sort !== 'last_added' ? INK : INK_08}`, background: openMenu === 'sort' || sort !== 'last_added' ? INK : '#fff', color: openMenu === 'sort' || sort !== 'last_added' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+              style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, border: `1px solid ${openMenu === 'sort' || sort !== 'last_added' ? INK : INK_08}`, background: openMenu === 'sort' || sort !== 'last_added' ? INK : '#fff', color: openMenu === 'sort' || sort !== 'last_added' ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
             >
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: openMenu === 'sort' || sort !== 'last_added' ? 'rgba(255,255,255,.5)' : INK_45 }}>Sort by</span>
               <span>{SORT_LABELS[sort]}</span>
@@ -1216,7 +1204,7 @@ export default function WatchInventory({
             <button
               onClick={() => { setBrandIds([]); setConditionFilter('All'); setOpenMenu(null) }}
               className="border-0 cursor-pointer"
-              style={{ height: 44, padding: '0 16px', borderRadius: 999, background: 'transparent', fontSize: 13, fontWeight: 600, color: GREEN }}
+              style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, background: 'transparent', fontSize: 13, fontWeight: 600, color: GREEN }}
             >
               Reset filters
             </button>
@@ -1251,7 +1239,7 @@ export default function WatchInventory({
                     ref={el => { tabRefs.current[f] = el }}
                     onClick={() => setStatusFilter(f)}
                     className="relative z-[1] flex items-center gap-1.5 whitespace-nowrap transition-colors"
-                    style={{ height: 40, padding: '0 14px', borderRadius: 999, background: 'transparent', fontSize: 13.5, fontWeight: isActive ? 600 : 500, color: TAB_COLORS[f] }}
+                    style={{ height: 40, padding: '0 14px', borderRadius: RADII.pill, background: 'transparent', fontSize: 13.5, fontWeight: isActive ? 600 : 500, color: TAB_COLORS[f] }}
                   >
                     {f}
                     {(f !== 'Deleted' || deletedWatches !== null) && (
@@ -1325,7 +1313,7 @@ export default function WatchInventory({
                   <div
                     key={w.id}
                     className="flex items-center gap-4 cursor-pointer transition-colors"
-                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
+                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: RADII.md }}
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     {w.photos && w.photos.length > 0 ? (
@@ -1392,7 +1380,7 @@ export default function WatchInventory({
                   <div
                     key={w.id}
                     className="flex items-center gap-4 cursor-pointer transition-colors"
-                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
+                    style={{ padding: '12px 16px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: RADII.md }}
                     onClick={() => router.push(`/dashboard/watches/${w.id}/edit`)}
                   >
                     {w.photos && w.photos.length > 0 ? (
@@ -1473,7 +1461,7 @@ export default function WatchInventory({
                     key={w.id}
                     className={`group relative bg-white overflow-visible cursor-pointer transition-all duration-200 card-hover ${isHighlight ? 'row-highlight' : ''} ${staggerActive.current && tileIdx < 20 ? 'stagger-item' : ''}`}
                     style={{
-                      borderRadius: 24,
+                      borderRadius: RADII.lg,
                       border: bulkMode && isSelected ? `2px solid ${INK}` : `1px solid ${INK_08}`,
                       ...(staggerActive.current && tileIdx < 20 ? { animationDelay: `${tileIdx * 40}ms` } : {}),
                     }}
@@ -1496,7 +1484,7 @@ export default function WatchInventory({
                       )}
 
                       {brandName && (
-                        <span className="absolute top-3 left-3 pointer-events-none flex items-center" style={{ height: 28, padding: '0 12px', background: 'rgba(255,255,255,.94)', borderRadius: 999, boxShadow: '0 2px 8px rgba(20,20,15,.12)' }}>
+                        <span className="absolute top-3 left-3 pointer-events-none flex items-center" style={{ height: 28, padding: '0 12px', background: 'rgba(255,255,255,.94)', borderRadius: RADII.pill, boxShadow: '0 2px 8px rgba(20,20,15,.12)' }}>
                           <span className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: brandColor ?? INK }}>{brandName}</span>
                         </span>
                       )}
@@ -1602,7 +1590,7 @@ export default function WatchInventory({
                   <div
                     key={w.id}
                     className="flex items-start gap-3 cursor-pointer transition-colors"
-                    style={{ padding: '14px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: 18 }}
+                    style={{ padding: '14px', background: '#fff', border: `1px solid ${INK_08}`, borderRadius: RADII.md }}
                     onClick={() => router.push(`/dashboard/watches/${w.id}`)}
                   >
                     <div className="shrink-0">

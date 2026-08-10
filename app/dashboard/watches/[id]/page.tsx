@@ -11,15 +11,8 @@ import { avatarColor, getInitials } from '@/lib/client-utils'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
 import { displayCondition } from '@/lib/watch-condition'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
+import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, GOLD, RADII, CONTROL_HEIGHT_LG, CARD_PADDING } from '@/lib/design-tokens'
 import type { WatchWithInvestors } from '@/types'
-
-const INK    = '#14140f'
-const INK_45 = 'rgba(20,20,15,.45)'
-const INK_60 = 'rgba(20,20,15,.6)'
-const CARD_BG = '#f7f6f3'
-const GREEN  = '#1f6f43'
-const RED    = '#b23a2c'
-const GOLD   = '#8a6f2e'
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
   'Available': { bg: 'rgba(31,111,67,.1)',   fg: GREEN },
@@ -58,7 +51,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <section className="bg-white rounded-[24px] flex flex-col gap-4" style={{ padding: 26 }}>
+    <section className="bg-white rounded-[24px] flex flex-col gap-4" style={{ padding: CARD_PADDING }}>
       {children}
     </section>
   )
@@ -200,7 +193,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
 
         {/* ── Photos ─────────────────────────────────────────── */}
         <Card>
-          <div className="relative overflow-hidden" style={{ height: 380, borderRadius: 18, background: CARD_BG }}>
+          <div className="relative overflow-hidden" style={{ height: 380, borderRadius: RADII.md, background: CARD_BG }}>
             {watch.photos && watch.photos.length > 0 ? (
               <LazyImage src={watch.photos[0]} alt={watch.watch_name} fill className="object-cover" />
             ) : (
@@ -254,7 +247,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <Link
               href={`/dashboard/deals/new?watch_id=${watch.id}`}
               className="flex items-center justify-center gap-2.5 transition-colors"
-              style={{ height: 54, borderRadius: 18, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}
+              style={{ height: CONTROL_HEIGHT_LG, borderRadius: RADII.md, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}
             >
               Record sale
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3.6 10h12.8M11.4 5l5 5-5 5"/></svg>
@@ -402,7 +395,7 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             </div>
           </Card>
         ) : (
-          <section className="rounded-[24px] flex flex-col gap-2.5" style={{ padding: 26, border: '1px dashed rgba(20,20,15,.16)' }}>
+          <section className="rounded-[24px] flex flex-col gap-2.5" style={{ padding: CARD_PADDING, border: '1px dashed rgba(20,20,15,.16)' }}>
             <SectionLabel>Sale history</SectionLabel>
             <span className="text-[14px]" style={{ color: INK_45 }}>Ownership and price history will appear here once sales are recorded.</span>
           </section>
