@@ -36,7 +36,7 @@ export default async function InvestorsPage() {
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-        <StatCard label="Total Invested" value={formatLKR(totalAmountInvested)} sub="from investor_names" />
+        <StatCard label="Committed Capital" value={formatLKR(totalAmountInvested)} sub="entered in Settings" />
         <StatCard label="Capital Deployed" value={formatLKR(totalCapitalDeployed)} sub="tied in unsold watches" />
         <StatCard label="Profit Returned" value={formatLKR(totalProfitReturned)} sub="across all sold watches" />
         <StatCard label="Active Watches" value={activeWatchCount.toString()} sub="with investor backing" />
@@ -53,11 +53,12 @@ export default async function InvestorsPage() {
             <thead>
               <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                 <th className="text-left px-5 py-3">Investor</th>
+                <th className="text-right px-5 py-3">Committed Capital</th>
                 <th className="text-right px-5 py-3">Active Watches</th>
                 <th className="text-right px-5 py-3">Capital Tied Up</th>
                 <th className="text-right px-5 py-3">Sold</th>
                 <th className="text-right px-5 py-3">Net Profit</th>
-                <th className="text-right px-5 py-3">ROI %</th>
+                <th className="text-right px-5 py-3">ROI % (Closed)</th>
               </tr>
             </thead>
             <tbody>
@@ -65,6 +66,7 @@ export default async function InvestorsPage() {
                 <Link key={inv.key} href={`/dashboard/investors/${encodeURIComponent(inv.key)}`} legacyBehavior>
                   <tr className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors">
                     <td className="px-5 py-3.5 font-semibold text-gray-900">{inv.displayName}</td>
+                    <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{formatLKR(inv.amountInvested)}</td>
                     <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{inv.activeWatches}</td>
                     <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{formatLKR(inv.capitalTiedUp)}</td>
                     <td className="px-5 py-3.5 text-right text-gray-600 tabular-nums">{inv.watchesSold}</td>
@@ -79,7 +81,7 @@ export default async function InvestorsPage() {
               ))}
               {investorStats.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No investors found</td>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-gray-400">No investors found</td>
                 </tr>
               )}
             </tbody>

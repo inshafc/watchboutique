@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
+import { isTwbInvestor } from '@/lib/investor-stats'
 
 function formatLKR(n: number | null | undefined) {
   if (n == null || isNaN(n)) return 'LKR 0'
@@ -91,13 +92,21 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
     saleDate: string | null
   }
 
+  // TWB is the business, not an investor — it contributes zero capital to any
+  // watch an investor funded. Guards this page being reached for a TWB key.
+  const isTwb = isTwbInvestor(investorKey, investorName)
+
   const watchRows: WatchRow[] = holdings
     .filter(h => h.watches)
     .map(h => {
       const watch = h.watches!
       const isSold = watch.status === 'Sold'
       const cost = watch.purchase_cost ?? 0
-      const capitalInvested = cost * (h.percentage / 100)
+      // CAPITAL IS NEVER SCALED BY `percentage`. A watch is funded either
+      // entirely by TWB or entirely by one third-party investor; `percentage`
+      // governs the profit split only. Being named on the watch means the
+      // FULL purchase_cost is this investor's capital.
+      const capitalInvested = isTwb ? 0 : cost
       const deal = dealByWatch.get(watch.id) ?? null
       let netProfit: number | null = null
       let share: number | null = null
@@ -123,7 +132,11 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
   const totalInvested  = watchRows.reduce((s, r) => s + r.capitalInvested, 0)
   const totalReturned  = soldWatches.reduce((s, r) => s + (r.share ?? 0), 0)
   const netProfit      = totalReturned
-  const roi            = totalInvested > 0 ? (totalReturned / totalInvested) * 100 : 0
+  // ROI is CLOSED-only on both sides. The denominator previously spanned every
+  // holding, so unsold inventory dragged down a figure labelled "(Closed)".
+  // Same definition as the investors list (lib/investor-stats.ts).
+  const closedCapital  = soldWatches.reduce((s, r) => s + r.capitalInvested, 0)
+  const roi            = closedCapital > 0 ? (totalReturned / closedCapital) * 100 : null
 
   // Active since
   const firstCreated = watchRows.map(r => r.watch.created_at).sort()[0] ?? null
@@ -172,7 +185,11 @@ export default async function InvestorDetailPage({ params }: { params: { name: s
         <StatCard label="Capital Invested" value={formatLKR(totalInvested)} />
         <StatCard label="Net Profit (Sold)" value={formatLKR(netProfit)} color={netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'} />
         <StatCard label="Active Watches" value={activeWatches.length.toString()} />
-        <StatCard label="ROI % (Closed)" value={`${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`} color={roi >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+        <StatCard
+          label="ROI % (Closed)"
+          value={roi == null ? '—' : `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`}
+          color={roi == null ? 'text-gray-300' : roi >= 0 ? 'text-emerald-600' : 'text-red-500'}
+        />
       </div>
 
       {/* Active Watches */}

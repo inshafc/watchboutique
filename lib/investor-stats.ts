@@ -6,13 +6,14 @@ type ServerSupabase = ReturnType<typeof createClient>
 export type InvestorStat = {
   key:            string
   displayName:    string
-  amountInvested: number
+  amountInvested: number // hand-entered in Settings — displayed as "Committed Capital", never a divisor
   activeWatches:  number
-  capitalTiedUp:  number
+  capitalTiedUp:  number // full purchase_cost of their unsold watches, NOT percentage-scaled
+  capitalClosed:  number // full purchase_cost of their sold watches — the ROI denominator
   watchesSold:    number
   totalSales:     number // this investor's % share of sold_price on their sold watches (revenue, before costs)
   netProfit:      number
-  roi:            number | null // null => amountInvested is 0, render "—"
+  roi:            number | null // null => no closed positions yet, render "—"
 }
 
 export type InvestorStatsResult = {
@@ -94,16 +95,28 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
   }
 
   // Top-level stats — across ALL watches with investor splits
+  //
+  // CAPITAL IS NEVER SCALED BY `percentage`. A watch is funded either entirely
+  // by TWB or entirely by one third-party investor; `percentage` governs the
+  // PROFIT SPLIT only, never capital ownership. So an investor named on a
+  // watch has that watch's FULL purchase_cost employed, and TWB's capital on
+  // such a watch is zero. `rows` is already TWB-filtered above via
+  // isTwbInvestor, so every row here belongs to a real investor.
+  //
+  // Profit shares below DO scale by percentage — that is what the column means.
   let totalCapitalDeployed = 0
   let totalProfitReturned = 0
   const activeWatchIds = new Set<string>()
 
   for (const row of rows) {
     if (!row.watches) continue
-    const cost = row.watches.purchase_cost ?? 0
     const isSold = row.watches.status === 'Sold'
     if (!isSold) {
-      totalCapitalDeployed += cost * (row.percentage / 100)
+      // Add each unsold watch's cost once. Guards the rule-violating case of
+      // two investor rows on one watch, which would otherwise double-count.
+      if (!activeWatchIds.has(row.watches.id)) {
+        totalCapitalDeployed += row.watches.purchase_cost ?? 0
+      }
       activeWatchIds.add(row.watches.id)
     } else {
       const gp = grossProfitFor(row.watches)
@@ -116,19 +129,25 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
     const holdings = byKey.get(inv.key) ?? []
     let activeWatches = 0
     let capitalTiedUp = 0
+    let capitalClosed = 0
     let watchesSold = 0
     let totalSales = 0
     let netProfit = 0
+    const countedWatchIds = new Set<string>()
 
     for (const { percentage, watch } of holdings) {
       const isSold = watch.status === 'Sold'
       const cost = watch.purchase_cost ?? 0
+      // Capital counts the watch once; see the unscaled-capital note above.
+      const firstRowForWatch = !countedWatchIds.has(watch.id)
+      countedWatchIds.add(watch.id)
 
       if (!isSold) {
         activeWatches++
-        capitalTiedUp += cost * (percentage / 100)
+        if (firstRowForWatch) capitalTiedUp += cost
       } else {
         watchesSold++
+        if (firstRowForWatch) capitalClosed += cost
         const sp = salePriceFor(watch)
         if (sp != null) totalSales += sp * (percentage / 100)
         const gp = grossProfitFor(watch)
@@ -136,10 +155,19 @@ export async function getInvestorStats(supabase: ServerSupabase): Promise<Invest
       }
     }
 
+    // ROI = profit on CLOSED positions ÷ the capital those closed positions
+    // employed. Identical definition to the investor detail page, so the two
+    // pages can no longer disagree.
+    //
+    // Previously this divided by investor_names.amount_invested — a static,
+    // hand-typed field that is 0 for investors created inline from the watch
+    // form, which rendered their ROI as "—" however much they had earned.
+    // amount_invested is still surfaced, as "Committed Capital", but is no
+    // longer a divisor.
     const amountInvested = inv.amount_invested ?? 0
-    const roi = amountInvested > 0 ? (netProfit / amountInvested) * 100 : null
+    const roi = capitalClosed > 0 ? (netProfit / capitalClosed) * 100 : null
 
-    return { key: inv.key, displayName: inv.display_name, amountInvested, activeWatches, capitalTiedUp, watchesSold, totalSales, netProfit, roi }
+    return { key: inv.key, displayName: inv.display_name, amountInvested, activeWatches, capitalTiedUp, capitalClosed, watchesSold, totalSales, netProfit, roi }
   })
 
   investorStats.sort((a, b) => a.displayName.localeCompare(b.displayName))

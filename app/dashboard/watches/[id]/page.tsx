@@ -9,6 +9,7 @@ import WatchDetailActions from '@/components/watches/WatchDetailActions'
 import DeletedWatchActions from '@/components/watches/DeletedWatchActions'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
+import { isTwbInvestor } from '@/lib/investor-stats'
 import { displayCondition } from '@/lib/watch-condition'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
 import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, GOLD, RADII, CONTROL_HEIGHT_LG, CARD_PADDING } from '@/lib/design-tokens'
@@ -319,7 +320,11 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <SectionLabel>Investor{watch.watch_investors.length > 1 ? 's' : ''}</SectionLabel>
             <div className="flex flex-col gap-4">
               {watch.watch_investors.map(inv => {
-                const capitalEmployed = cost * (inv.percentage / 100)
+                // CAPITAL IS NEVER SCALED BY `percentage`. A watch is funded
+                // either entirely by TWB or entirely by one third-party
+                // investor, so the named investor employs the FULL purchase
+                // cost and TWB employs nothing. `percentage` splits PROFIT.
+                const capitalEmployed = isTwbInvestor(inv.investor_name, investorNames.get(inv.investor_name)) ? 0 : cost
                 const payout = netProfit != null ? netProfit * (inv.percentage / 100) : null
                 return (
                   <div key={inv.id} className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3" style={{ paddingBottom: 12, borderBottom: '1px solid rgba(20,20,15,.06)' }}>
