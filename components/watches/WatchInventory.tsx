@@ -139,6 +139,16 @@ function displayDate(d: string | null) {
   return `${dd}/${mm}/${yyyy}`
 }
 
+// Year of the watch, derived from `date_on_card` (there is no `year` column on
+// `watches`). Returns null — not a placeholder — so callers can omit the element
+// entirely when the date is missing.
+function displayYear(d: string | null) {
+  if (!d) return null
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return null
+  return String(dt.getUTCFullYear())
+}
+
 function brandMark(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
@@ -1456,6 +1466,13 @@ export default function WatchInventory({
                 const brandName   = w.brands?.name  ?? brands.find(b => b.id === w.brand_id)?.name  ?? null
                 const brandColor  = w.brands?.color ?? brands.find(b => b.id === w.brand_id)?.color ?? null
                 const s = STATUS_STYLE[w.watch_status ?? w.status] ?? STATUS_STYLE.Sold
+                // Ref · year · acquired — each segment drops out when its field is
+                // null, so a watch with no reference or no date_on_card leaves no empty gap.
+                const tileMeta = [
+                  w.reference ? `Ref: ${w.reference}` : null,
+                  displayYear(w.date_on_card),
+                  w.date_acquired ? new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' }) : null,
+                ].filter(Boolean).join(' · ')
                 return (
                   <div
                     key={w.id}
@@ -1558,8 +1575,8 @@ export default function WatchInventory({
                         )}
                         <LabelBadges labels={w.labels} createdAt={w.created_at} />
                       </div>
-                      {w.reference && (
-                        <p className="text-[12px] truncate" style={{ color: INK_45 }}>Ref: {w.reference}{w.date_acquired ? ` · ${new Date(w.date_acquired + 'T00:00:00').toLocaleDateString('en-LK', { dateStyle: 'medium' })}` : ''}</p>
+                      {tileMeta && (
+                        <p className="text-[12px] truncate" style={{ color: INK_45 }}>{tileMeta}</p>
                       )}
                       <div className="mt-2.5 pt-2.5 flex flex-col gap-2" style={{ borderTop: `1px solid ${INK_08}` }}>
                         <div className="flex items-center gap-2 min-w-0">
