@@ -133,6 +133,18 @@ export function getDateBounds(range: DateRange): [Date, Date] {
   }
 }
 
+// Bounds for one calendar month given as 'YYYY-MM' (the value an
+// <input type="month"> produces). Returns null for an empty/malformed value so
+// callers can treat "nothing picked yet" as "don't narrow".
+export function getMonthBounds(month: string): [Date, Date] | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(month)
+  if (!m) return null
+  const year = Number(m[1])
+  const monthIndex = Number(m[2]) - 1
+  if (monthIndex < 0 || monthIndex > 11) return null
+  return [new Date(year, monthIndex, 1), new Date(year, monthIndex + 1, 0)]
+}
+
 export function getPrevBounds(range: DateRange): [Date, Date] {
   const now = new Date()
   const y = now.getFullYear()

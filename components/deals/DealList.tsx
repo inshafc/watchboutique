@@ -8,8 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
-import { getDateBounds, inDateBounds } from '@/lib/analytics'
-import PeriodPicker, { PERIOD_RANGES_WITH_ALL, type PeriodValue } from '@/components/ui/PeriodPicker'
+import { getDateBounds, getMonthBounds, inDateBounds } from '@/lib/analytics'
+import PeriodPicker, { SALES_PERIOD_RANGES, type PeriodValue } from '@/components/ui/PeriodPicker'
 import { INK, INK_45, INK_60, INK_08, CARD_BG, GREEN, RED, GOLD, AMBER, AMBER_BG, BLUE, RADII } from '@/lib/design-tokens'
 import type { DealWithRelations, DealStage, DealType, SalesManager } from '@/types'
 
@@ -205,6 +205,7 @@ export default function DealList({
   const [showFilters,  setShowFilters]  = useState(false)
   const [period,       setPeriod]       = useState<PeriodValue>('all')
   const [periodOpen,   setPeriodOpen]   = useState(false)
+  const [customMonth,  setCustomMonth]  = useState('')   // 'YYYY-MM' from the picker
   const [selectMode,   setSelectMode]   = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
 
@@ -242,12 +243,16 @@ export default function DealList({
   // via inDateBounds() keeps this window identical to the dashboard Overview
   // cards, which scope on sale_date too (closed_at is a data-entry timestamp).
   // 'all' is the default, so the page opens on the full, unnarrowed list.
-  const periodDeals = period === 'all'
+  // 'custom' before a month is picked narrows nothing, so opening the picker
+  // never blanks the list out from under the user.
+  const periodBounds: [Date, Date] | null =
+    period === 'all'    ? null
+    : period === 'custom' ? getMonthBounds(customMonth)
+    : getDateBounds(period)
+
+  const periodDeals = periodBounds === null
     ? deals
-    : (() => {
-        const [start, end] = getDateBounds(period)
-        return deals.filter(d => inDateBounds(d.sale_date, start, end))
-      })()
+    : deals.filter(d => inDateBounds(d.sale_date, periodBounds[0], periodBounds[1]))
 
   const filtered = periodDeals.filter(d => {
     if (stage !== 'All' && stage !== 'Deleted' && d.stage !== stage) return false
@@ -526,10 +531,12 @@ export default function DealList({
             {/* Period — same control the dashboard header uses */}
             <PeriodPicker
               value={period}
-              options={PERIOD_RANGES_WITH_ALL}
+              options={SALES_PERIOD_RANGES}
               onChange={setPeriod}
               open={periodOpen}
               onOpenChange={o => { setPeriodOpen(o); if (o) setOpenMenu(null) }}
+              customMonth={customMonth}
+              onCustomMonthChange={setCustomMonth}
             />
 
             {/* Select */}
