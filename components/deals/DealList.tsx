@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
+import { getDateBounds, inDateBounds } from '@/lib/analytics'
+import PeriodPicker, { PERIOD_RANGES_WITH_ALL, type PeriodValue } from '@/components/ui/PeriodPicker'
 import { INK, INK_45, INK_60, INK_08, CARD_BG, GREEN, RED, GOLD, AMBER, AMBER_BG, BLUE, RADII } from '@/lib/design-tokens'
 import type { DealWithRelations, DealStage, DealType, SalesManager } from '@/types'
 
@@ -201,6 +203,8 @@ export default function DealList({
   const [gridCols,     setGridCols]     = useState<3 | 4 | 5>(3)
   const [managerFilter, setManagerFilter] = useState<string | null>(null)
   const [showFilters,  setShowFilters]  = useState(false)
+  const [period,       setPeriod]       = useState<PeriodValue>('all')
+  const [periodOpen,   setPeriodOpen]   = useState(false)
   const [selectMode,   setSelectMode]   = useState(false)
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
 
@@ -233,7 +237,19 @@ export default function DealList({
     }
   }, [stage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = deals.filter(d => {
+  // The period narrows the working set first; stage / brand / VIP / Club /
+  // manager / search / sort then all apply *within* it. Filtering on sale_date
+  // via inDateBounds() keeps this window identical to the dashboard Overview
+  // cards, which scope on sale_date too (closed_at is a data-entry timestamp).
+  // 'all' is the default, so the page opens on the full, unnarrowed list.
+  const periodDeals = period === 'all'
+    ? deals
+    : (() => {
+        const [start, end] = getDateBounds(period)
+        return deals.filter(d => inDateBounds(d.sale_date, start, end))
+      })()
+
+  const filtered = periodDeals.filter(d => {
     if (stage !== 'All' && stage !== 'Deleted' && d.stage !== stage) return false
     if (brandFilter   && d.watches?.brands?.id !== brandFilter)          return false
     if (vipFilter     && !d.clients?.is_vip)                              return false
@@ -404,7 +420,7 @@ export default function DealList({
   const filterCount = (brandFilter ? 1 : 0) + (vipFilter ? 1 : 0) + (clubFilter ? 1 : 0) + (managerFilter ? 1 : 0)
 
   const brandLabel = brandFilter ? (brands.find(b => b.id === brandFilter)?.name ?? 'All brands') : 'All brands'
-  const brandCounts = deals.reduce<Record<string, number>>((acc, d) => {
+  const brandCounts = periodDeals.reduce<Record<string, number>>((acc, d) => {
     const id = d.watches?.brands?.id
     if (id) acc[id] = (acc[id] ?? 0) + 1
     return acc
@@ -416,10 +432,10 @@ export default function DealList({
   const profitTotal  = sorted.reduce((sum, d) => sum + (grossProfit(d) ?? 0), 0)
 
   const tabCounts: Record<StageFilter, number | null> = {
-    All:         deals.length,
-    Delivered:   deals.filter(d => d.stage === 'Delivered').length,
-    Inquiry:     deals.filter(d => d.stage === 'Inquiry').length,
-    Offer:       deals.filter(d => d.stage === 'Offer').length,
+    All:         periodDeals.length,
+    Delivered:   periodDeals.filter(d => d.stage === 'Delivered').length,
+    Inquiry:     periodDeals.filter(d => d.stage === 'Inquiry').length,
+    Offer:       periodDeals.filter(d => d.stage === 'Offer').length,
     Deleted:     deletedDeals?.length ?? null,
     Idle:        null,
     Negotiation: null,
@@ -440,7 +456,7 @@ export default function DealList({
 
   const countLine = showingDeleted
     ? `${deletedDeals?.length ?? 0} deleted ${(deletedDeals?.length ?? 0) === 1 ? 'sale' : 'sales'}`
-    : `${sorted.length} of ${deals.length} ${deals.length === 1 ? 'sale' : 'sales'} shown`
+    : `${sorted.length} of ${periodDeals.length} ${periodDeals.length === 1 ? 'sale' : 'sales'} shown`
 
   function menuButtonStyle(active: boolean) {
     return {
@@ -506,6 +522,15 @@ export default function DealList({
                 ))}
               </div>
             )}
+
+            {/* Period — same control the dashboard header uses */}
+            <PeriodPicker
+              value={period}
+              options={PERIOD_RANGES_WITH_ALL}
+              onChange={setPeriod}
+              open={periodOpen}
+              onOpenChange={o => { setPeriodOpen(o); if (o) setOpenMenu(null) }}
+            />
 
             {/* Select */}
             <button

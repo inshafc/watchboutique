@@ -104,13 +104,20 @@ export function computeGP(d: DealRow): number {
   return preGP - investorPayout
 }
 
-export function filterDeals(deals: DealRow[], start: Date, end: Date): DealRow[] {
+// Single source of truth for "is this deal inside the selected period?".
+// The date field is sale_date, NOT closed_at — see the note above the Overview
+// cards in DashboardOverview.tsx: closed_at is a data-entry timestamp, so it
+// drops deals out of the month they were actually sold in. The Sales list's
+// period filter calls this so its window matches the dashboard's exactly.
+export function inDateBounds(saleDate: string | null | undefined, start: Date, end: Date): boolean {
   const endOfDay = new Date(end)
   endOfDay.setHours(23, 59, 59, 999)
-  return deals.filter(d => {
-    const dt = d.sale_date ? new Date(d.sale_date) : null
-    return dt && dt >= start && dt <= endOfDay
-  })
+  const dt = saleDate ? new Date(saleDate) : null
+  return !!dt && dt >= start && dt <= endOfDay
+}
+
+export function filterDeals(deals: DealRow[], start: Date, end: Date): DealRow[] {
+  return deals.filter(d => inDateBounds(d.sale_date, start, end))
 }
 
 export function getDateBounds(range: DateRange): [Date, Date] {

@@ -15,6 +15,7 @@ import {
 import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { InvestorStat } from '@/lib/investor-stats'
 import { useAuth } from '@/context/AuthContext'
+import PeriodPicker, { PERIOD_RANGES } from '@/components/ui/PeriodPicker'
 
 // ── Palette (matches the Sales Dashboard design) ────────────────────────────
 const INK        = '#14140f'
@@ -27,14 +28,6 @@ const RED        = '#b23a2c'
 const CARD_BG    = '#f7f6f3'
 const SEG_COLORS = ['#14140f', '#1f6f43', '#43b877', '#b9a271', '#c9c4b8']
 const AVATARS    = ['#e2ddd0', '#d8e3d9', '#e6ded6', '#dcdde6', '#e5e2d3']
-
-const RANGES: { label: string; value: DateRange }[] = [
-  { label: 'This Month',    value: 'this_month' },
-  { label: 'Last Month',    value: 'last_month' },
-  { label: 'Last 3 Months', value: 'last_3'     },
-  { label: 'Last 6 Months', value: 'last_6'     },
-  { label: 'This Year',     value: 'this_year'  },
-]
 
 function deltaColor(n: number | null) {
   if (n == null) return { bg: INK_08, fg: INK_50 }
@@ -402,36 +395,13 @@ export default function DashboardOverview({
           </div>
 
           {/* Period picker */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => { setPeriodOpen(v => !v); setAddOpen(false) }}
-              className="flex items-center gap-2 h-[46px] px-4 rounded-full bg-white text-[13.5px] font-semibold whitespace-nowrap"
-              style={{ border: `1px solid ${INK_08}`, color: INK }}
-            >
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke={INK} strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4.6" width="14" height="12.4" rx="3" /><path d="M3 8.6h14M6.8 3.2v2.8M13.2 3.2v2.8" /></svg>
-              {RANGES.find(r => r.value === range)?.label}
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={INK_50} strokeWidth="1.6" strokeLinecap="round"><path d="m3 4.6 3 3 3-3" /></svg>
-            </button>
-            {periodOpen && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setPeriodOpen(false)} />
-                <div className="absolute top-[52px] right-0 z-40 min-w-[180px] bg-white rounded-2xl p-1.5 flex flex-col gap-0.5" style={{ border: `1px solid ${INK_08}`, boxShadow: '0 12px 32px rgba(20,20,15,.16)' }}>
-                  {RANGES.map(r => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => { setRange(r.value); setPeriodOpen(false) }}
-                      className="text-left border-0 cursor-pointer text-[13px] px-3.5 py-2.5 rounded-xl whitespace-nowrap"
-                      style={{ fontWeight: r.value === range ? 600 : 500, background: r.value === range ? '#f2f1ed' : 'transparent', color: r.value === range ? INK : INK_60 }}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <PeriodPicker
+            value={range}
+            options={PERIOD_RANGES}
+            onChange={setRange}
+            open={periodOpen}
+            onOpenChange={o => { setPeriodOpen(o); if (o) setAddOpen(false) }}
+          />
 
           {/* Add new */}
           <div className="relative">

@@ -6,6 +6,7 @@
 export const INK      = '#14140f'
 export const INK_08   = 'rgba(20,20,15,.08)'
 export const INK_45   = 'rgba(20,20,15,.45)'
+export const INK_50   = 'rgba(20,20,15,.5)'
 export const INK_60   = 'rgba(20,20,15,.6)'
 export const CARD_BG  = '#f7f6f3'
 

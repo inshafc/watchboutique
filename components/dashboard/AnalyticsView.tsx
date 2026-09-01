@@ -12,14 +12,9 @@ import {
   salesByBrand, salesByManager, salesByReferral, topClients, clubTwbDeals, newVsExisting,
   targetForPeriod, fmtLKR, fmtCompact,
 } from '@/lib/analytics'
+import { PERIOD_RANGES as RANGES } from '@/components/ui/PeriodPicker'
 
-const RANGES: { label: string; value: DateRange }[] = [
-  { label: 'This Month',    value: 'this_month' },
-  { label: 'Last Month',    value: 'last_month' },
-  { label: 'Last 3 Months', value: 'last_3'     },
-  { label: 'Last 6 Months', value: 'last_6'     },
-  { label: 'This Year',     value: 'this_year'  },
-]
+
 
 const DONUT_COLORS = ['#111827', '#d1d5db']
 
