@@ -39,6 +39,15 @@ CREATE INDEX IF NOT EXISTS idx_watches_discount_price
 -- hand-written SQL update) is stamped identically and the client can never
 -- forge or freeze the trail. When discount_price is unchanged the previous
 -- stamp is restored, so an unrelated watch edit does not re-date the sale.
+--
+-- _updated_by is resolved through a subselect on profiles rather than taking
+-- auth.uid() directly. An auth.users row with no matching profiles row (users
+-- predating sprint17.sql, or a profile deleted by hand — the
+-- on_auth_user_created trigger prevents new ones) would otherwise violate the
+-- FK and abort the whole write with a raw constraint error the moment that
+-- user touched a Sale Price. This degrades attribution to NULL instead;
+-- _updated_at still stamps, and the detail page already falls back to
+-- "set by a team member" when the name does not resolve.
 CREATE OR REPLACE FUNCTION stamp_discount_price_audit()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -47,7 +56,7 @@ AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.discount_price IS NOT NULL THEN
-      NEW.discount_price_updated_by := auth.uid();
+      NEW.discount_price_updated_by := (SELECT id FROM profiles WHERE id = auth.uid());
       NEW.discount_price_updated_at := now();
     ELSE
       NEW.discount_price_updated_by := NULL;
@@ -55,7 +64,7 @@ BEGIN
     END IF;
   ELSIF NEW.discount_price IS DISTINCT FROM OLD.discount_price THEN
     -- set, changed OR cleared — all three stamp.
-    NEW.discount_price_updated_by := auth.uid();
+    NEW.discount_price_updated_by := (SELECT id FROM profiles WHERE id = auth.uid());
     NEW.discount_price_updated_at := now();
   ELSE
     NEW.discount_price_updated_by := OLD.discount_price_updated_by;
