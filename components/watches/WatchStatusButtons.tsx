@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import { useAuth } from '@/context/AuthContext'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import type { WatchStatusNew } from '@/types'
@@ -33,7 +34,7 @@ export default function WatchStatusButtons({
   const [saving,   setSaving]   = useState(false)
   const [dialog,   setDialog]   = useState<DialogState>(null)
   const [acting,   setActing]   = useState(false)
-  const [toast,    setToast]    = useState<string | null>(null)
+  const toast = useToast()
 
   async function handleSelect(status: WatchStatusNew) {
     if (status === current || saving) return
@@ -80,8 +81,7 @@ export default function WatchStatusButtons({
     setCurrent('Available')
     setDialog(null)
     setActing(false)
-    setToast('Sale removed — watch is now available')
-    setTimeout(() => setToast(null), 4000)
+    toast.success('Sale removed — watch is now available')
     router.refresh()
   }
 
@@ -148,16 +148,6 @@ export default function WatchStatusButtons({
 
   return (
     <>
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none" style={{ background: '#14140f' }}>
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="text-sm font-medium">{toast}</span>
-        </div>
-      )}
-
       <div className="flex flex-wrap gap-2">
         {WATCH_STATUS_NEW.map(s => {
           const blocked = isClerk && s === 'Available' && current === 'Sold'

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import { logActivity } from '@/lib/activityLog'
 import { useAuth } from '@/context/AuthContext'
 import { generateInvoiceHTML } from '@/lib/generateInvoiceHTML'
@@ -259,7 +260,7 @@ export default function InvoiceEditorClient({
   const [loadingPhotos,     setLoadingPhotos]     = useState(false)
   const [sourcingPromptOpen, setSourcingPromptOpen] = useState(false)
   const [sourcingAdding,     setSourcingAdding]     = useState(false)
-  const [sourcingToast,      setSourcingToast]      = useState(false)
+  const toast = useToast()
   const sourcingPromptedRef = useRef(false)
 
   // Client dropdown
@@ -499,9 +500,8 @@ export default function InvoiceEditorClient({
     }
     setSourcingAdding(false)
     setSourcingPromptOpen(false)
-    setSourcingToast(true)
-    setTimeout(() => setSourcingToast(false), 4000)
-  }, [invoice.id, items])
+    toast.success('Watch added to sourced inventory')
+  }, [invoice.id, items, toast])
 
   const previewItems = items.map(it => ({
     watch_name:    it.watch_name,
@@ -1355,16 +1355,6 @@ export default function InvoiceEditorClient({
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Sourcing toast */}
-      {sourcingToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none">
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="text-sm font-medium">Watch added to sourced inventory</span>
         </div>
       )}
 

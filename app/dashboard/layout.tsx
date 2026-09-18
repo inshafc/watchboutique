@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { useAuth } from '@/context/AuthContext'
 import ProfileEditModal from '@/components/ui/ProfileEditModal'
+import NavProgress from '@/components/ui/NavProgress'
+import { useToast } from '@/components/ui/ToastProvider'
 import type { UserRole } from '@/lib/auth'
 
 // ── Palette (matches the League Home / Inventory design) ────────────────────
@@ -97,15 +99,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [hoverNav, setHoverNav] = useState<string | null>(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
-  const [profileToast, setProfileToast] = useState<string | null>(null)
   const { profile, role, signOut, loading, refreshProfile } = useAuth()
-
-  useEffect(() => {
-    if (profileToast) {
-      const t = setTimeout(() => setProfileToast(null), 3000)
-      return () => clearTimeout(t)
-    }
-  }, [profileToast])
+  const toast = useToast()
 
   const visibleNav       = loading || !role ? NAV       : NAV.filter(n => n.roles.includes(role))
   const visibleBottomNav = loading || !role ? BOTTOM_NAV : BOTTOM_NAV.filter(n => n.roles.includes(role))
@@ -252,6 +247,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: CREAM }}>
+      {/* Route-transition bar. Fixed-position sibling of the shell — never an
+          ancestor of {children}, and width/opacity only. */}
+      <NavProgress />
+
       {/* Desktop sidebar */}
       <aside
         className="hidden md:flex print:hidden flex-col shrink-0 transition-[width] duration-200"
@@ -321,17 +320,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onSave={async () => {
             await refreshProfile()
             setShowProfileEdit(false)
-            setProfileToast('Profile updated')
+            toast.success('Profile updated')
           }}
         />
       )}
 
-      {/* Toast */}
-      {profileToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-lg pointer-events-none">
-          {profileToast}
-        </div>
-      )}
     </div>
   )
 }

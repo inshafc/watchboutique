@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient as supabase } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import type { ClientBadgeType } from '@/lib/client-badges'
 import { INK, INK_45, INK_60, INK_08, CARD_BG, GREEN, RED, GOLD, AMBER, BLUE, LIME, RADII } from '@/lib/design-tokens'
@@ -210,8 +211,7 @@ export default function ClientList({
   }, [])
 
   // Undo
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+  const toast = useToast()
 
   // Inline confirm for permanent delete
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -315,19 +315,10 @@ export default function ClientList({
 
   // ── Undo ─────────────────────────────────────────────────
 
+  // Delegates to the shared, stacked toast system — this used to be a
+  // copy-pasted local implementation in four list components.
   function showUndo(message: string, restore: () => Promise<void>) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    setUndoState({ message, restore })
-    undoTimerRef.current = setTimeout(() => { setUndoState(null); undoTimerRef.current = null }, 6000)
-  }
-
-  async function handleUndo() {
-    if (!undoState) return
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    undoTimerRef.current = null
-    const restore = undoState.restore
-    setUndoState(null)
-    await restore()
+    toast.undo(message, restore)
   }
 
   // ── Deleted clients ───────────────────────────────────────
@@ -958,15 +949,6 @@ export default function ClientList({
       )}
 
       {/* ── Undo toast ──────────────────────────────────────── */}
-      {undoState && (
-        <div className="fixed z-50 flex items-center gap-3 select-none" style={{ bottom: 24, left: 24, background: INK, color: '#fff', padding: '10px 16px', borderRadius: RADII.md, boxShadow: '0 20px 40px rgba(20,20,15,.28)' }}>
-          <span className="text-sm">{undoState.message}</span>
-          <button onClick={handleUndo} className="text-sm font-semibold transition-colors" style={{ color: '#7dd3fc' }}>Undo</button>
-          <button onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); undoTimerRef.current = null; setUndoState(null) }} className="ml-1 transition-colors" style={{ color: 'rgba(255,255,255,.4)' }}>
-            <XSmallIcon />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

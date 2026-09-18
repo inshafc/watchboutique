@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/components/ui/ToastProvider'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import { displayCondition } from '@/lib/watch-condition'
 
@@ -66,7 +67,7 @@ export default function WatchDetailActions({
   const [busy,   setBusy]   = useState(false)
   const [dialog, setDialog] = useState<AvailableDialog>(null)
   const [acting, setActing] = useState(false)
-  const [toast,  setToast]  = useState<string | null>(null)
+  const toast = useToast()
 
   async function publish() {
     setBusy(true)
@@ -98,8 +99,7 @@ export default function WatchDetailActions({
     const segments = [watchName, condition ? displayCondition(condition) : null, reference ? `Ref: ${reference}` : null]
       .filter((s): s is string => Boolean(s && s.trim()))
     void navigator.clipboard.writeText(segments.join(' — '))
-    setToast('Copied to clipboard')
-    setTimeout(() => setToast(null), 2200)
+    toast.success('Copied to clipboard')
   }
 
   async function handleMarkArrived() {
@@ -111,8 +111,7 @@ export default function WatchDetailActions({
       is_draft:     false,
     }).eq('id', watchId)
     setBusy(false)
-    setToast('Watch is now available in inventory')
-    setTimeout(() => setToast(null), 4000)
+    toast.success('Watch is now available in inventory')
     router.refresh()
   }
 
@@ -134,8 +133,7 @@ export default function WatchDetailActions({
       setBusy(true)
       await supabase.from('watches').update({ watch_status: 'Available', status: 'Available', sold_price: null }).eq('id', watchId)
       setBusy(false)
-      setToast('Watch marked as Available')
-      setTimeout(() => setToast(null), 4000)
+      toast.success('Watch marked as Available')
       router.refresh()
     }
   }
@@ -148,8 +146,7 @@ export default function WatchDetailActions({
     await supabase.from('watches').update({ watch_status: 'Available', status: 'Available', sold_price: null }).eq('id', watchId)
     setDialog(null)
     setActing(false)
-    setToast('Sale removed — watch is now available')
-    setTimeout(() => setToast(null), 4000)
+    toast.success('Sale removed — watch is now available')
     router.refresh()
   }
 
@@ -203,13 +200,6 @@ export default function WatchDetailActions({
 
   return (
     <>
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white px-5 py-3 rounded-2xl shadow-2xl select-none pointer-events-none" style={{ background: INK }}>
-          <CheckIcon />
-          <span className="text-sm font-medium">{toast}</span>
-        </div>
-      )}
-
       <div className="flex items-center gap-2.5 flex-wrap">
         {watchStatus === 'sourced' && (
           <button

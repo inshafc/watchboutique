@@ -9,6 +9,7 @@ import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
+import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
 import { useIdleLock } from '@/lib/hooks/useIdleLock'
@@ -150,6 +151,10 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const { profile, setInactivityLogoutSuspended } = useAuth()
   const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
+  // Publish is a LONG task: insert, then one sequential upload per photo.
+  // Determinate once we know how many files there are.
+  const [uploaded, setUploaded] = useState(0)
+  const [uploadTotal, setUploadTotal] = useState(0)
   const [error, setError]     = useState<string | null>(null)
 
   const [watchId,   setWatchId]   = useState<string | null>(null)
@@ -347,6 +352,9 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       }
 
       const photoUrls: string[] = []
+      const fileCount = photoItems.filter(i => i.kind === 'file').length
+      setUploadTotal(fileCount)
+      setUploaded(0)
       for (const item of photoItems) {
         if (item.kind === 'file') {
           const ext = item.file.name.split('.').pop() ?? 'jpg'
@@ -358,6 +366,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
             const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
             photoUrls.push(data.publicUrl)
           }
+          setUploaded(n => n + 1)
         }
       }
       if (photoUrls.length > 0) {
@@ -614,6 +623,14 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       </Section>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* Publish is a LONG task — insert plus one sequential upload per photo.
+          Determinate once there is at least one file to count against. */}
+      {loading && (
+        <div style={{ maxWidth: 360 }}>
+          <LongTaskProgress active progress={uploadTotal > 0 ? uploaded / uploadTotal : undefined} />
+        </div>
+      )}
 
       {/* ── Action buttons ─────────────────────────────────── */}
       <div className="flex items-center gap-3 flex-wrap" style={{ padding: '4px 0 40px' }}>

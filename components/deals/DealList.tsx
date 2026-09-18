@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import { logActivity } from '@/lib/activityLog'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
@@ -221,8 +222,7 @@ export default function DealList({
   }, [])
 
   // Undo
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+  const toast = useToast()
 
   // Inline confirm for permanent delete
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -281,19 +281,10 @@ export default function DealList({
 
   // ── Undo ───────────────────────────────────────────────────
 
+  // Delegates to the shared, stacked toast system — this used to be a
+  // copy-pasted local implementation in four list components.
   function showUndo(message: string, restore: () => Promise<void>) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    setUndoState({ message, restore })
-    undoTimerRef.current = setTimeout(() => { setUndoState(null); undoTimerRef.current = null }, 6000)
-  }
-
-  async function handleUndo() {
-    if (!undoState) return
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    undoTimerRef.current = null
-    const restore = undoState.restore
-    setUndoState(null)
-    await restore()
+    toast.undo(message, restore)
   }
 
   // ── Deleted ────────────────────────────────────────────────
@@ -1147,19 +1138,6 @@ export default function DealList({
       )}
 
       {/* ── Undo toast ─────────────────────────────────────── */}
-      {undoState && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 select-none" style={{ background: INK, color: '#fff', padding: '10px 16px', borderRadius: RADII.md, boxShadow: '0 18px 40px rgba(20,20,15,.28)' }}>
-          <span className="text-sm">{undoState.message}</span>
-          <button onClick={handleUndo} className="text-sm font-semibold transition-colors" style={{ color: CARD_BG }}>Undo</button>
-          <button
-            onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); undoTimerRef.current = null; setUndoState(null) }}
-            className="ml-1 transition-colors"
-            style={{ color: 'rgba(255,255,255,.5)' }}
-          >
-            <XSmallIcon />
-          </button>
-        </div>
-      )}
     </div>
   )
 }

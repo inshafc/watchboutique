@@ -149,3 +149,68 @@ input[type="file"] {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Loading & feedback primitives ───────────────────────── */
+/* NOTE: none of these are ever applied to an ancestor of the dashboard
+   layout's {children} wrapper. A transform/filter/will-change on such an
+   ancestor establishes a containing block for position:fixed descendants and
+   pushes every toast, the bulk action bar and the mobile FAB off-screen on any
+   page taller than the viewport. See app/dashboard/layout.tsx. */
+
+@keyframes spin-token {
+  to { transform: rotate(360deg); }
+}
+.spinner-rotate {
+  animation: spin-token 0.7s linear infinite;
+  transform-origin: center;
+}
+
+/* Indeterminate bar — animates background-position, NOT transform, so it is
+   safe anywhere in the tree. */
+@keyframes bar-indeterminate {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.bar-indeterminate {
+  background-image: linear-gradient(
+    90deg,
+    rgba(20,20,15,.06) 0%,
+    rgba(20,20,15,.06) 35%,
+    rgba(20,20,15,.34) 50%,
+    rgba(20,20,15,.06) 65%,
+    rgba(20,20,15,.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: bar-indeterminate 1.4s ease-in-out infinite;
+}
+
+/* Top-of-screen navigation progress. Width + opacity only — no transform. */
+@keyframes nav-progress-grow {
+  0%   { width: 0%;  }
+  40%  { width: 62%; }
+  70%  { width: 82%; }
+  100% { width: 92%; }
+}
+.nav-progress-bar {
+  animation: nav-progress-grow 6s cubic-bezier(.22,.9,.3,1) forwards;
+}
+
+/* Fade used by the 300ms-delayed reveals. Opacity only. */
+@keyframes feedback-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.feedback-in {
+  animation: feedback-in 0.2s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No rotation, no shimmer, no creeping bar — static equivalents instead. */
+  .spinner-rotate    { animation: none; }
+  .skeleton          { animation: none; background: #ececec; }
+  .bar-indeterminate { animation: none; background-image: none; background-color: rgba(20,20,15,.22); }
+  .nav-progress-bar  { animation: none; width: 92%; }
+  .feedback-in       { animation: none; }
+  .stagger-item      { animation: none; }
+  .row-highlight     { animation: none; }
+}

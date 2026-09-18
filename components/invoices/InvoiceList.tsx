@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/ToastProvider'
 import { logActivity } from '@/lib/activityLog'
 import type { InvoiceWithItems, InvoiceStatus, InvoiceType } from '@/types'
 
@@ -128,8 +129,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
   const [tab,    setTab]    = useState<Tab>('All')
   const [openMenu, setOpenMenu] = useState<MenuKey>(null)
 
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [undoState, setUndoState] = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+  const toast = useToast()
 
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -230,19 +230,10 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
 
   // ── Bulk delete (soft) with undo ───────────────────────────
 
+  // Delegates to the shared, stacked toast system — this used to be a
+  // copy-pasted local implementation in four list components.
   function showUndo(message: string, restore: () => Promise<void>) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    setUndoState({ message, restore })
-    undoTimerRef.current = setTimeout(() => { setUndoState(null); undoTimerRef.current = null }, 6000)
-  }
-
-  async function handleUndo() {
-    if (!undoState) return
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    undoTimerRef.current = null
-    const restore = undoState.restore
-    setUndoState(null)
-    await restore()
+    toast.undo(message, restore)
   }
 
   async function handleRestore(inv: InvoiceWithItems) {
@@ -617,19 +608,6 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
       )}
 
       {/* ── Undo toast ─────────────────────────────────────── */}
-      {undoState && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none">
-          <span className="text-sm">{undoState.message}</span>
-          <button onClick={handleUndo} className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors">Undo</button>
-          <button
-            onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); undoTimerRef.current = null; setUndoState(null) }}
-            className="text-white/40 hover:text-white/80 transition-colors ml-1"
-            aria-label="Dismiss"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" /></svg>
-          </button>
-        </div>
-      )}
     </div>
   )
 }
