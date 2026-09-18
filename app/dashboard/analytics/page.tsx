@@ -7,7 +7,7 @@ import type { DealRow, Target } from '@/lib/analytics'
 
 const AnalyticsView = nextDynamic(
   () => import('@/components/dashboard/AnalyticsView'),
-  { ssr: false, loading: () => <div className="p-4 md:p-7"><DashboardSkeleton /></div> }
+  { ssr: false, loading: () => <div className="p-4 md:p-7"><DashboardSkeleton message /></div> }
 )
 
 export default async function AnalyticsPage() {

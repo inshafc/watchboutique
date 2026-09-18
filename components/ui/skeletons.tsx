@@ -10,6 +10,7 @@
  */
 
 import Skeleton from '@/components/ui/Skeleton'
+import SkeletonMessage from '@/components/ui/SkeletonMessage'
 import { INK_08, CARD_BG, RADII, CARD_PADDING } from '@/lib/design-tokens'
 
 function Card({ children, padding = CARD_PADDING }: { children: React.ReactNode; padding?: number }) {
@@ -173,10 +174,17 @@ export function FormSkeleton({ sections = 3, fieldsPerSection = 4 }: { sections?
   )
 }
 
-/** Dashboard / analytics — KPI cards then chart blocks. */
-export function DashboardSkeleton() {
+/**
+ * Dashboard / analytics — KPI cards then chart blocks.
+ *
+ * `message` turns on the rotating copy above the content. Reserved for the
+ * genuinely slow pages (dashboard, inventory, analytics); everywhere else gets
+ * a plain skeleton.
+ */
+export function DashboardSkeleton({ message = false }: { message?: boolean }) {
   return (
     <div className="flex flex-col gap-4">
+      {message && <SkeletonMessage className="pt-1" />}
       <PageHeaderSkeleton withActions={false} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {Array.from({ length: 4 }).map((_, i) => (

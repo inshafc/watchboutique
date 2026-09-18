@@ -12,30 +12,25 @@
 
 import { useEffect, useState } from 'react'
 import { useDelayedFlag } from '@/lib/hooks/useDelayedFlag'
-import { INK, INK_45, INK_08, CARD_BG, RADII } from '@/lib/design-tokens'
-
-export const WATCH_PHRASES = [
-  'Winding the watch…',
-  'Setting the time…',
-  'Polishing the crystal…',
-  'Checking the movement…',
-  'Almost there…',
-] as const
-
-const PHRASE_MS = 1800
+import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion'
+import { INK, INK_45, INK_08, RADII } from '@/lib/design-tokens'
+import { WATCH_PHRASES, PHRASE_MS } from '@/lib/watch-phrases'
 
 export function useRotatingPhrase(active: boolean, phrases: readonly string[] = WATCH_PHRASES) {
   const [idx, setIdx] = useState(0)
+  const reduced = usePrefersReducedMotion()
 
   useEffect(() => {
     if (!active) { setIdx(0); return }
+    // Static under reduced motion — first phrase only, never swapped.
+    if (reduced) return
     const t = setInterval(() => {
       // Stops on the last phrase rather than looping back to "Winding the
       // watch…", which would read as if the task had restarted.
       setIdx(i => Math.min(i + 1, phrases.length - 1))
     }, PHRASE_MS)
     return () => clearInterval(t)
-  }, [active, phrases.length])
+  }, [active, reduced, phrases.length])
 
   return phrases[idx]
 }
@@ -44,16 +39,14 @@ export default function LongTaskProgress({
   active,
   progress,
   label,
-  fullScreen = false,
   delayMs = 300,
 }: {
-  active:      boolean
+  active:    boolean
   /** 0-1 when known. Omit for an indeterminate bar. */
-  progress?:   number
+  progress?: number
   /** Overrides the rotating copy. */
-  label?:      string
-  fullScreen?: boolean
-  delayMs?:    number
+  label?:    string
+  delayMs?:  number
 }) {
   const show = useDelayedFlag(active, delayMs)
   const phrase = useRotatingPhrase(show)
@@ -97,14 +90,5 @@ export default function LongTaskProgress({
     </div>
   )
 
-  if (!fullScreen) return <div className="feedback-in w-full">{bar}</div>
-
-  return (
-    <div
-      className="feedback-in fixed inset-0 z-[250] flex items-center justify-center p-6"
-      style={{ background: CARD_BG }}
-    >
-      <div className="w-full" style={{ maxWidth: 340 }}>{bar}</div>
-    </div>
-  )
+  return <div className="feedback-in w-full">{bar}</div>
 }

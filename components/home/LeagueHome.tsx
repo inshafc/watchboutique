@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import { logActivity } from '@/lib/activityLog'
 import BusyButton from '@/components/ui/BusyButton'
 
@@ -119,10 +118,10 @@ export default function LeagueHome() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [focus, setFocus]       = useState<'user' | 'pass' | null>(null)
+  // Stays true through the success path too — the component unmounts on
+  // navigation, so the button holds "Signing in…" until the route changes and
+  // the destination's loading.tsx skeleton takes over.
   const [loading, setLoading]   = useState(false)
-  // Held true from a successful sign-in until the dashboard actually paints.
-  // Never reset on the success path — the component unmounts on navigation.
-  const [handingOff, setHandingOff] = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const router = useRouter()
 
@@ -135,15 +134,12 @@ export default function LeagueHome() {
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: username, password })
 
     if (signInError) {
-      // Back to the form with the error shown and every flag reset.
+      // Back to the form with the error shown and state reset.
       setError('Invalid email or password.')
       setLoading(false)
-      setHandingOff(false)
       void logActivity({ actionType: 'login_failed', entityLabel: username })
       return
     }
-
-    setHandingOff(true)
 
     const { data: { user } } = await supabase.auth.getUser()
     const { data: profile } = await supabase
@@ -156,14 +152,6 @@ export default function LeagueHome() {
     const userRole = profile?.role ?? 'viewer'
     router.push(userRole === 'super_admin' ? '/dashboard' : '/dashboard/inventory')
     router.refresh()
-  }
-
-  // On a successful sign-in the form is replaced outright — the destination is
-  // an uncached server component, so without this the user would sit on the
-  // login screen for the whole dashboard load with nothing but a disabled
-  // button. delayMs=0 because we already know this leg is slow.
-  if (handingOff) {
-    return <LongTaskProgress active fullScreen delayMs={0} />
   }
 
   return (
