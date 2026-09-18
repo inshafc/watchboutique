@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Wishlist } from '@/types'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
@@ -109,12 +110,13 @@ export default function WishlistSection({
             <input type="text" value={form.notes} onChange={field('notes')} placeholder="Prefers black dial, full set…" className={inp} />
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit" disabled={loading}
-              className="bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-black transition-colors disabled:opacity-50"
+            <BusyButton
+              type="submit" pending={loading}
+              pendingLabel="Adding…"
+              className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-black transition-colors disabled:opacity-50"
             >
-              {loading ? 'Adding…' : 'Add to Wishlist'}
-            </button>
+              Add to Wishlist
+            </BusyButton>
             <button type="button" onClick={() => setShowForm(false)} className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
               Cancel
             </button>

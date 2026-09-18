@@ -16,6 +16,7 @@ import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
 import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp      = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 const lbl      = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
@@ -521,13 +522,14 @@ export default function InvoiceEditorClient({
     : null
 
   const saveBtn = (
-    <button
+    <BusyButton
       onClick={handleSave}
-      disabled={saving}
+      pending={saving}
+      pendingLabel="Saving…"
       className="w-full bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
     >
-      {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Invoice'}
-    </button>
+      {saved ? '✓ Saved' : 'Save Invoice'}
+    </BusyButton>
   )
 
   const handleDownload = () => {
@@ -605,14 +607,15 @@ export default function InvoiceEditorClient({
                 </>
               )}
               <DraftSaveIndicator status={draft.saveStatus} />
-              <button
+              <BusyButton
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
-                className="text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                pending={saving}
+                pendingLabel="Saving…"
+                className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
               >
-                {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
-              </button>
+                {saved ? '✓ Saved' : 'Save'}
+              </BusyButton>
             </div>
           </div>
           {savedOnce && (
@@ -1188,14 +1191,15 @@ export default function InvoiceEditorClient({
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Add to Sourced Orders?</h3>
             <p className="text-sm text-gray-500 mb-6">Would you like to track this watch in Sourced Orders until it arrives in stock?</p>
             <div className="flex flex-col gap-2">
-              <button
+              <BusyButton
                 type="button"
                 onClick={handleAddToSourcedOrders}
-                disabled={sourcingAdding}
-                className="w-full bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                pending={sourcingAdding}
+                pendingLabel="Adding…"
+                className="w-full inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
               >
-                {sourcingAdding ? 'Adding…' : 'Yes, Add to Sourced Orders'}
-              </button>
+                Yes, Add to Sourced Orders
+              </BusyButton>
               <button
                 type="button"
                 onClick={() => setSourcingPromptOpen(false)}
@@ -1345,14 +1349,16 @@ export default function InvoiceEditorClient({
               >
                 Cancel
               </button>
-              <button
+              <BusyButton
                 type="button"
                 onClick={handleCreateNewClient}
-                disabled={newClientSaving || !newClientForm.name.trim()}
-                className="flex-1 py-2.5 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                pending={newClientSaving}
+                disabled={!newClientForm.name.trim()}
+                pendingLabel="Saving…"
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
               >
-                {newClientSaving ? 'Saving…' : 'Save Client'}
-              </button>
+                Save Client
+              </BusyButton>
             </div>
           </div>
         </div>

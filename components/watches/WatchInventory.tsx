@@ -17,6 +17,7 @@ import { getDisplayPrice } from '@/lib/watch-price'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 import { INK, LIME, GREEN, AMBER, AMBER_BG, BLUE, RED, INK_45, INK_60, INK_08, CARD_BG, RADII, CONTROL_HEIGHT_LG } from '@/lib/design-tokens'
+import BusyButton from '@/components/ui/BusyButton'
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -1885,13 +1886,14 @@ export default function WatchInventory({
                   This permanently deletes the {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale record' : 'sale records'} — it can&apos;t be undone.
                 </p>
                 <div className="space-y-2">
-                  <button
+                  <BusyButton
                     onClick={handleBulkAvailableRemoveSale}
-                    disabled={bulkAvailableActing}
-                    className="w-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+                    pending={bulkAvailableActing}
+                    pendingLabel="Voiding…"
+                    className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
                   >
-                    {bulkAvailableActing ? 'Voiding…' : 'Yes, void the sale' + (bulkAvailableDialog.watchesWithDeals.length === 1 ? '' : 's')}
-                  </button>
+                    {'Yes, void the sale' + (bulkAvailableDialog.watchesWithDeals.length === 1 ? '' : 's')}
+                  </BusyButton>
                   <button
                     onClick={() => setConfirmingBulkVoid(false)}
                     disabled={bulkAvailableActing}

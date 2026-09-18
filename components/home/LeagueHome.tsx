@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import { logActivity } from '@/lib/activityLog'
+import BusyButton from '@/components/ui/BusyButton'
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const INK   = '#14140f'
@@ -319,17 +320,19 @@ export default function LeagueHome() {
               <span className="text-center" style={{ fontSize: 12.5, color: RED }}>{error}</span>
             )}
 
-            <button
+            <BusyButton
               type="submit"
-              disabled={loading}
+              pending={loading}
+              pendingLabel="Signing in…"
+              spinnerColor="#fff"
               className="flex items-center justify-center gap-2.5 whitespace-nowrap border-0 font-sans cursor-pointer transition-colors disabled:opacity-50"
               style={{ height: 54, borderRadius: 999, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              Sign in
               {!loading && (
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"><path d="M6.5 3.5 11 8l-4.5 4.5" /></svg>
               )}
-            </button>
+            </BusyButton>
 
             <span className="text-center" style={{ fontSize: 12, color: 'rgba(20,20,15,.4)' }}>Not a member? Registration for Season 5 opens 1 October.</span>
           </form>

@@ -62,16 +62,19 @@ export default function BusyButton({
       ? successLabel
       : children
 
+  // Deliberately layout-neutral: no flex/gap/opacity of its own. Every call
+  // site already carries its own `flex items-center gap-*` and disabled styling,
+  // and imposing a second set here would shift spacing on ~30 buttons.
   return (
     <button
       {...rest}
       disabled={disabled || pending}
       aria-busy={pending}
-      className={`inline-flex items-center justify-center gap-2 disabled:opacity-50 ${className}`}
+      className={className}
       style={style}
     >
       {showSpinner && <Spinner size={14} color={spinnerColor ?? 'currentColor'} />}
-      <span>{label}</span>
+      {label}
     </button>
   )
 }

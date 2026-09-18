@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
 import { INK, INK_45, INK_08, GOLD, GREEN, RED, RADII } from '@/lib/design-tokens'
+import BusyButton from '@/components/ui/BusyButton'
 
 function num(s: string) { return parseFloat(s.replace(/,/g, '')) }
 
@@ -85,15 +86,18 @@ export default function SetSalePriceControl({
       {error && <span className="text-[11.5px]" style={{ color: RED }}>{error}</span>}
 
       <div className="flex items-center gap-2">
-        <button
+        <BusyButton
           type="button"
-          disabled={busy || (value.trim() !== '' && validation != null)}
+          pending={busy}
+          disabled={value.trim() !== '' && validation != null}
+          pendingLabel="Saving…"
+          spinnerColor="#fff"
           onClick={() => save(value.trim() ? parsed : null)}
-          className="transition-opacity disabled:opacity-40"
+          className="inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
           style={{ height: 32, padding: '0 14px', borderRadius: 999, border: 0, background: GREEN, color: '#fff', fontSize: 12, fontWeight: 600 }}
         >
-          {busy ? 'Saving…' : 'Save'}
-        </button>
+          Save
+        </BusyButton>
         <button
           type="button"
           disabled={busy}

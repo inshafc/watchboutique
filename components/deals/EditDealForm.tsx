@@ -12,6 +12,7 @@ import CurrencyInput from '@/components/ui/CurrencyInput'
 import DealSuccessModal from '@/components/deals/DealSuccessModal'
 import CurrencyAndRateFields from '@/components/deals/CurrencyAndRateFields'
 import WatchInvestorSplit from '@/components/deals/WatchInvestorSplit'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp  = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl  = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -692,14 +693,15 @@ export default function EditDealForm({
                     {ti.add_to_inventory && <p className="text-emerald-600">Added to inventory</p>}
                   </div>
                 </div>
-                <button
+                <BusyButton
                   type="button"
                   onClick={() => deleteTradeIn(ti.id)}
-                  disabled={deletingTi === ti.id}
-                  className="shrink-0 text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                  pending={deletingTi === ti.id}
+                  pendingLabel=""
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
                 >
-                  {deletingTi === ti.id ? '…' : 'Remove'}
-                </button>
+                  Remove
+                </BusyButton>
               </div>
             ))}
 
@@ -768,9 +770,9 @@ export default function EditDealForm({
 
       {/* ── Actions ──────────────────────────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <button type="submit" disabled={loading} className="bg-sidebar text-white text-[13px] font-medium px-6 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          {loading ? 'Saving…' : 'Save Changes'}
-        </button>
+        <BusyButton type="submit" pending={loading} pendingLabel="Saving…" className="inline-flex items-center justify-center gap-2 bg-sidebar text-white text-[13px] font-medium px-6 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          Save Changes
+        </BusyButton>
         <Link href={`/dashboard/deals/${deal.id}`} className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
           Cancel
         </Link>

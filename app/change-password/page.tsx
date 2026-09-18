@@ -4,6 +4,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useState } from 'react'
 import { logActivity } from '@/lib/activityLog'
 import PaddleIcon from '@/components/ui/PaddleIcon'
+import BusyButton from '@/components/ui/BusyButton'
 
 export default function ChangePasswordPage() {
   const [password, setPassword] = useState('')
@@ -108,14 +109,16 @@ export default function ChangePasswordPage() {
             Min 8 characters · at least one uppercase · one number · one symbol
           </p>
           {error && <p style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center' }}>{error}</p>}
-          <button
+          <BusyButton
             type="button"
             onClick={handleSubmit}
-            disabled={loading}
+            pending={loading}
+            pendingLabel="Setting password…"
+            className="inline-flex items-center justify-center gap-2"
             style={{ backgroundColor: loading ? '#333' : '#ffffff', color: loading ? '#666' : '#0a0a0a', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '14px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px' }}
           >
-            {loading ? 'Setting password...' : 'Set Password'}
-          </button>
+            Set Password
+          </BusyButton>
         </div>
         <p style={{ color: '#333', fontSize: '10px', letterSpacing: '0.3em', textAlign: 'center', textTransform: 'uppercase', marginTop: '48px' }}>INTERNAL SYSTEM</p>
       </div>

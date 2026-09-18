@@ -18,6 +18,7 @@ import { useIdleLock } from '@/lib/hooks/useIdleLock'
 import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp  = 'w-full bg-card border border-border text-text-primary rounded-lg px-3.5 py-2.5 text-[13px] placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-gold focus:border-gold transition-all'
 const lbl  = 'block text-[11px] font-medium text-text-secondary uppercase tracking-[0.08em] mb-1.5'
@@ -885,9 +886,9 @@ export default function AddDealForm({
 
       {/* ── Actions ──────────────────────────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <button type="submit" disabled={loading} className="bg-sidebar text-white text-[13px] font-medium px-6 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          {loading ? 'Saving…' : 'Create Sale'}
-        </button>
+        <BusyButton type="submit" pending={loading} pendingLabel="Saving…" className="inline-flex items-center justify-center gap-2 bg-sidebar text-white text-[13px] font-medium px-6 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          Create Sale
+        </BusyButton>
         <Link href="/dashboard/deals" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
           Cancel
         </Link>

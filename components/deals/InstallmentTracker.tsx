@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { INK, INK_45, GREEN, RED, AMBER, AMBER_BG } from '@/lib/design-tokens'
 import type { Installment, InstallmentStatus } from '@/types'
+import BusyButton from '@/components/ui/BusyButton'
 
 function formatLKR(n: number) {
   return 'LKR ' + n.toLocaleString('en-LK')
@@ -146,23 +147,25 @@ export default function InstallmentTracker({
                 </div>
                 <div className="shrink-0">
                   {inst.status !== 'Paid' ? (
-                    <button
+                    <BusyButton
                       onClick={() => markPaid(inst.id)}
-                      disabled={marking === inst.id}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                      pending={marking === inst.id}
+                      pendingLabel=""
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
                       style={{ color: GREEN, background: 'rgba(31,111,67,.1)' }}
                     >
-                      {marking === inst.id ? '…' : 'Mark paid'}
-                    </button>
+                      Mark paid
+                    </BusyButton>
                   ) : (
-                    <button
+                    <BusyButton
                       onClick={() => markUnpaid(inst.id)}
-                      disabled={marking === inst.id}
-                      className="text-xs transition-colors disabled:opacity-50"
+                      pending={marking === inst.id}
+                      pendingLabel=""
+                      className="inline-flex items-center gap-1.5 text-xs transition-colors disabled:opacity-50"
                       style={{ color: INK_45 }}
                     >
-                      {marking === inst.id ? '…' : 'Undo'}
-                    </button>
+                      Undo
+                    </BusyButton>
                   )}
                 </div>
               </div>
@@ -200,14 +203,15 @@ export default function InstallmentTracker({
             style={inpStyle}
           />
           <div className="flex gap-2">
-            <button
+            <BusyButton
               onClick={addInstallment}
-              disabled={saving}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              pending={saving}
+              pendingLabel="Saving…"
+              className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
               style={{ background: INK, color: '#fff' }}
             >
-              {saving ? 'Saving…' : 'Add'}
-            </button>
+              Add
+            </BusyButton>
             <button
               onClick={() => setShowForm(false)}
               className="text-xs transition-colors"

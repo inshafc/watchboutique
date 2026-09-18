@@ -12,6 +12,7 @@ import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import { displayCondition } from '@/lib/watch-condition'
+import BusyButton from '@/components/ui/BusyButton'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -581,15 +582,17 @@ export default function EditWatchForm({
         </div>
       )}
       <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
-        <button
+        <BusyButton
           type="button"
           onClick={handlePublish}
-          disabled={loading || !!brandError}
+          pending={loading}
+          disabled={!!brandError}
+          pendingLabel="Saving…"
           className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-5 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          {loading ? 'Saving…' : 'Publish'}
-        </button>
+          Publish
+        </BusyButton>
         <button
           type="button"
           onClick={handleSaveDraft}

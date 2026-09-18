@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BusyButton from '@/components/ui/BusyButton'
 
 export default function ProfileEditModal({
   initialName,
@@ -92,14 +93,16 @@ export default function ProfileEditModal({
           >
             Cancel
           </button>
-          <button
+          <BusyButton
             onClick={handleSave}
-            disabled={saving || !name.trim()}
-            className="flex-1 h-9 rounded-xl text-[13px] font-semibold text-white transition-colors disabled:opacity-50"
+            pending={saving}
+            disabled={!name.trim()}
+            pendingLabel="Saving…"
+            className="flex-1 inline-flex items-center justify-center gap-2 h-9 rounded-xl text-[13px] font-semibold text-white transition-colors disabled:opacity-50"
             style={{ backgroundColor: '#C9A84C' }}
           >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+            Save
+          </BusyButton>
         </div>
       </div>
     </div>
