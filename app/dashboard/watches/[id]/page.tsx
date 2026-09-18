@@ -7,12 +7,14 @@ import { createClient } from '@/lib/supabase/server'
 import WatchStatusButtons from '@/components/watches/WatchStatusButtons'
 import WatchDetailActions from '@/components/watches/WatchDetailActions'
 import DeletedWatchActions from '@/components/watches/DeletedWatchActions'
+import PriceDisplay from '@/components/watches/PriceDisplay'
+import SetSalePriceControl from '@/components/watches/SetSalePriceControl'
 import { avatarColor, getInitials } from '@/lib/client-utils'
 import { getInvestorDisplayNames } from '@/lib/investor-names'
 import { isTwbInvestor } from '@/lib/investor-stats'
 import { displayCondition } from '@/lib/watch-condition'
 import { dealSalePriceLKR } from '@/lib/deal-currency'
-import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, GOLD, RADII, CONTROL_HEIGHT_LG, CARD_PADDING } from '@/lib/design-tokens'
+import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, RADII, CONTROL_HEIGHT_LG, CARD_PADDING } from '@/lib/design-tokens'
 import type { WatchWithInvestors } from '@/types'
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
@@ -147,6 +149,15 @@ export default async function WatchDetailPage({ params }: { params: { id: string
   const expectedMarginLKR = watch.selling_price != null ? watch.selling_price - cost : null
   const expectedMarginPct = expectedMarginLKR != null && cost > 0 ? Math.round((expectedMarginLKR / cost) * 100) : null
 
+  // Who set the Sale Price. profiles SELECT is restricted to a user's own row
+  // (super_admin excepted), so this goes through the SECURITY DEFINER helper
+  // rather than a join, which would come back NULL for most roles.
+  let discountSetBy: string | null = null
+  if (watch.discount_price != null && watch.discount_price_updated_by) {
+    const { data: nameData } = await supabase.rpc('get_profile_display_name', { p_id: watch.discount_price_updated_by })
+    discountSetBy = (nameData as string | null) ?? null
+  }
+
   const statusStyle = STATUS_STYLE[watch.watch_status ?? watch.status] ?? STATUS_STYLE.Sold
 
   const stageColors: Record<string, string> = {
@@ -268,7 +279,14 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(20,20,15,.4)' }}>Selling price</span>
-              <span className="whitespace-nowrap tabular-nums" style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.03em', color: GOLD }}>{formatLKR(watch.selling_price)}</span>
+              <PriceDisplay watch={watch} variant="detail" />
+              {watch.discount_price != null && watch.discount_price_updated_at && (
+                <span className="text-[11.5px]" style={{ color: INK_45 }}>
+                  Sale Price set by {discountSetBy ?? 'a team member'} on{' '}
+                  {new Date(watch.discount_price_updated_at).toLocaleDateString('en-LK', { dateStyle: 'medium' })}
+                </span>
+              )}
+              {!isDeleted && <SetSalePriceControl watchId={watch.id} sellingPrice={watch.selling_price} discountPrice={watch.discount_price ?? null} />}
             </div>
             {watch.status === 'Sold' && (
               <div className="flex flex-col gap-1">

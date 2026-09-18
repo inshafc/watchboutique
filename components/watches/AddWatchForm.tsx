@@ -8,13 +8,14 @@ import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
 import { useIdleLock } from '@/lib/hooks/useIdleLock'
 import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
-import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, AMBER, BLUE, RADII, CARD_PADDING } from '@/lib/design-tokens'
+import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, AMBER, BLUE, GOLD, RADII, CARD_PADDING } from '@/lib/design-tokens'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -190,6 +191,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     date_acquired:  new Date().toISOString().split('T')[0],
     status:         'Available' as WatchStatus,
     selling_price:  '',
+    discount_price: '',
     comments:       '',
   })
 
@@ -265,6 +267,15 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     return { amount, pct: (amount / p) * 100 }
   }, [form.purchase_cost, form.selling_price])
 
+  // Sale Price — optional, display-only. Mirrors the watches_discount_price_check
+  // constraint; never touches margin, investor splits or anything downstream.
+  const sellingNum  = form.selling_price  ? num(form.selling_price)  : null
+  const discountNum = form.discount_price ? num(form.discount_price) : null
+  const discountError = form.discount_price ? validateDiscountPrice(discountNum, sellingNum) : null
+  const discountPct = discountNum != null && discountError == null && sellingNum != null
+    ? discountPercent(sellingNum, discountNum)
+    : null
+
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
     const supabase = createClient()
@@ -277,6 +288,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     if (form.inventory_type === 'consign' && !form.consignee_name.trim()) { setError('Consignee name is required for a consigned watch.'); return }
     if (!investorsValid) { setError('Investor percentages must total exactly 100%.'); return }
     if (brandError) { setError('Please fix the brand error before saving.'); return }
+    if (discountError) { setError(discountError); return }
 
     setLoading(true)
     setError(null)
@@ -318,6 +330,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           status:         form.status,
           watch_status:   form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
+          discount_price: form.discount_price ? num(form.discount_price) : null,
           comments:       form.comments.trim()       || null,
           photos:         [],
           brand_id:       resolvedBrandId,
@@ -530,6 +543,17 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           </Field>
           <Field label="Selling price">
             <CurrencyInput value={form.selling_price} onChange={v => setForm(f => ({ ...f, selling_price: v }))} />
+          </Field>
+          <div />
+          <Field label={<span className="flex items-center gap-2">Sale price <span className="text-[10px] font-medium normal-case tracking-normal" style={{ color: LABEL_INK }}>optional</span></span>}>
+            <CurrencyInput value={form.discount_price} onChange={v => setForm(f => ({ ...f, discount_price: v }))} />
+            {discountError ? (
+              <p className="text-[11.5px] mt-1.5" style={{ color: RED }}>{discountError}</p>
+            ) : discountPct != null ? (
+              <p className="text-[11.5px] font-semibold mt-1.5" style={{ color: GOLD }}>{discountPct}% off</p>
+            ) : (
+              <p className="text-[11.5px] mt-1.5" style={{ color: LABEL_INK }}>Leave empty if this watch is not on sale.</p>
+            )}
           </Field>
         </div>
 

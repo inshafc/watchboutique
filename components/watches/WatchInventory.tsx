@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation'
 import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
+import PriceDisplay from '@/components/watches/PriceDisplay'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import { displayCondition } from '@/lib/watch-condition'
+import { getDisplayPrice } from '@/lib/watch-price'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 import { INK, LIME, GREEN, AMBER, AMBER_BG, BLUE, RED, INK_45, INK_60, INK_08, CARD_BG, RADII, CONTROL_HEIGHT_LG } from '@/lib/design-tokens'
@@ -228,6 +230,8 @@ export default function WatchInventory({
   const [watches,         setWatches]         = useState(initial)
   const [statusFilter,    setStatusFilter]    = useState<StatusFilter>('Available')
   const [conditionFilter, setConditionFilter] = useState<ConditionFilter>('All')
+  // Off by default, so the inventory page opens exactly as it did before.
+  const [onSaleOnly,      setOnSaleOnly]      = useState(false)
   const [brandIds,        setBrandIds]        = useState<string[]>([])
   const [search,          setSearch]          = useState('')
   const [sort,            setSort]            = useState<SortOption>('last_added')
@@ -338,7 +342,7 @@ export default function WatchInventory({
 
   // ── Derived state ─────────────────────────────────────────
 
-  const activeFilterCount = brandIds.length + (conditionFilter !== 'All' ? 1 : 0)
+  const activeFilterCount = brandIds.length + (conditionFilter !== 'All' ? 1 : 0) + (onSaleOnly ? 1 : 0)
 
   const suggestions = useMemo(() => {
     if (!search.trim() || search.length < 2) return []
@@ -391,9 +395,13 @@ export default function WatchInventory({
       list = list.filter(w => displayCondition(w.condition) === conditionFilter)
     }
 
+    if (onSaleOnly) list = list.filter(w => getDisplayPrice(w).original != null)
+
     switch (sort) {
-      case 'sell_desc':    return [...list].sort((a, b) => (b.selling_price ?? 0) - (a.selling_price ?? 0))
-      case 'sell_asc':     return [...list].sort((a, b) => (a.selling_price ?? 0) - (b.selling_price ?? 0))
+      // Price sorts run on the price the user actually reads first — the Sale
+      // Price when one is set, otherwise the listed price.
+      case 'sell_desc':    return [...list].sort((a, b) => (getDisplayPrice(b).current ?? 0) - (getDisplayPrice(a).current ?? 0))
+      case 'sell_asc':     return [...list].sort((a, b) => (getDisplayPrice(a).current ?? 0) - (getDisplayPrice(b).current ?? 0))
       case 'buy_desc':     return [...list].sort((a, b) => (b.purchase_cost ?? 0) - (a.purchase_cost ?? 0))
       case 'name_asc':     return [...list].sort((a, b) => a.watch_name.localeCompare(b.watch_name))
       case 'name_desc':    return [...list].sort((a, b) => b.watch_name.localeCompare(a.watch_name))
@@ -405,7 +413,7 @@ export default function WatchInventory({
         return [...ordered, ...unordered]
       }
     }
-  }, [watches, search, brandIds, statusFilter, conditionFilter, sort])
+  }, [watches, search, brandIds, statusFilter, conditionFilter, onSaleOnly, sort])
 
   function countByStatus(f: StatusFilter) {
     if (f === 'Deleted') return deletedWatches?.length ?? 0
@@ -413,18 +421,21 @@ export default function WatchInventory({
     if (f === 'Drafts') {
       let list = watches.filter(w => w.is_draft && w.watch_status !== 'sourced')
       if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
+      if (onSaleOnly) list = list.filter(w => getDisplayPrice(w).original != null)
       return list.length
     }
     if (f === 'Consigned') {
       let list = watches.filter(w => w.inventory_type === 'consign' && w.status !== 'Sold' && !w.is_draft && w.watch_status !== 'sourced')
       if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
       if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
+      if (onSaleOnly) list = list.filter(w => getDisplayPrice(w).original != null)
       return list.length
     }
     let list = watches.filter(w => w.watch_status !== 'sourced')
     list = f === 'All' ? list : list.filter(w => !w.is_draft)
     if (brandIds.length > 0) list = list.filter(w => w.brand_id && brandIds.includes(w.brand_id))
     if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
+    if (onSaleOnly) list = list.filter(w => getDisplayPrice(w).original != null)
     return f === 'All' ? list.length : list.filter(w => w.status === f).length
   }
 
@@ -445,13 +456,14 @@ export default function WatchInventory({
       if (statusFilter !== 'All') list = list.filter(w => w.status === statusFilter)
     }
     if (conditionFilter !== 'All') list = list.filter(w => displayCondition(w.condition) === conditionFilter)
+    if (onSaleOnly) list = list.filter(w => getDisplayPrice(w).original != null)
     const map = new Map<string, number>()
     for (const w of list) {
       if (!w.brand_id) continue
       map.set(w.brand_id, (map.get(w.brand_id) ?? 0) + 1)
     }
     return map
-  }, [watches, statusFilter, conditionFilter])
+  }, [watches, statusFilter, conditionFilter, onSaleOnly])
 
   const totalSellingValue = useMemo(
     () => watches.filter(w => !w.is_draft && w.watch_status !== 'sourced').reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
@@ -1183,6 +1195,17 @@ export default function WatchInventory({
             )}
           </div>
 
+          {/* On Sale — toggle pill. Composes with brand / condition / status /
+              search / sort; off by default so the page opens unchanged. */}
+          <button
+            onClick={() => { setOnSaleOnly(v => !v); setOpenMenu(null) }}
+            className="flex items-center gap-2.5 whitespace-nowrap transition-colors"
+            style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, border: `1px solid ${onSaleOnly ? INK : INK_08}`, background: onSaleOnly ? INK : '#fff', color: onSaleOnly ? '#fff' : INK, fontSize: 13.5, fontWeight: 600 }}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: onSaleOnly ? 'rgba(255,255,255,.5)' : INK_45 }}>Price</span>
+            <span>On Sale</span>
+          </button>
+
           {/* Sort */}
           <div className="relative" data-filter-menu>
             <button
@@ -1210,9 +1233,9 @@ export default function WatchInventory({
             )}
           </div>
 
-          {(brandIds.length > 0 || conditionFilter !== 'All') && (
+          {(brandIds.length > 0 || conditionFilter !== 'All' || onSaleOnly) && (
             <button
-              onClick={() => { setBrandIds([]); setConditionFilter('All'); setOpenMenu(null) }}
+              onClick={() => { setBrandIds([]); setConditionFilter('All'); setOnSaleOnly(false); setOpenMenu(null) }}
               className="border-0 cursor-pointer"
               style={{ height: 44, padding: '0 16px', borderRadius: RADII.pill, background: 'transparent', fontSize: 13, fontWeight: 600, color: GREEN }}
             >
@@ -1584,11 +1607,7 @@ export default function WatchInventory({
                           <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_60 }}>{w.watch_status ?? w.status}</span>
                           <span className="ml-auto"><ConditionBadge condition={w.condition} /></span>
                         </div>
-                        {w.selling_price != null && (
-                          <span className="tabular-nums whitespace-nowrap" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-.02em', color: '#8a6f2e' }}>
-                            {formatLKR(w.selling_price)}
-                          </span>
-                        )}
+                        {w.selling_price != null && <PriceDisplay watch={w} variant="tile" />}
                       </div>
                     </div>
                   </div>
@@ -1634,7 +1653,7 @@ export default function WatchInventory({
                       <div className="mt-2"><StatusBadge status={w.watch_status ?? w.status} /></div>
                     </div>
                     <div className="shrink-0 text-right pt-0.5">
-                      <p className="font-bold tabular-nums" style={{ fontSize: 15, color: '#8a6f2e' }}>{formatLKR(w.selling_price)}</p>
+                      <PriceDisplay watch={w} variant="mobileList" />
                     </div>
                   </div>
                 )
@@ -1721,7 +1740,7 @@ export default function WatchInventory({
                       )}
                     </div>
                     <div className="text-right whitespace-nowrap" style={{ fontSize: 13, color: 'rgba(20,20,15,.5)', fontVariantNumeric: 'tabular-nums' }}>{formatLKR(w.purchase_cost)}</div>
-                    <div className="text-right whitespace-nowrap" style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.02em', color: INK, fontVariantNumeric: 'tabular-nums' }}>{formatLKR(w.selling_price)}</div>
+                    <div className="flex justify-end"><PriceDisplay watch={w} variant="table" /></div>
 
                     {/* Row hover actions — overlay so the 7-column grid above matches the design 1:1 */}
                     {!bulkMode && (
