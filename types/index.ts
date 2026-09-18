@@ -57,6 +57,12 @@ export interface Watch {
   inventory_type?: InventoryType | null
   consignee_name?: string | null
   sold_price?:     number | null
+  // "Sale Price" in the UI — an optional discounted price. DISPLAY ONLY:
+  // never feeds sold_price, profit, investor payouts, deals or invoices.
+  // Read it through getDisplayPrice() in lib/watch-price.ts, never directly.
+  discount_price?:            number | null
+  discount_price_updated_by?: string | null
+  discount_price_updated_at?: string | null
 }
 
 export interface WatchWithBrand extends Watch {

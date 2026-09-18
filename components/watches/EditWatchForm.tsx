@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
+import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import { displayCondition } from '@/lib/watch-condition'
@@ -88,6 +89,7 @@ export default function EditWatchForm({
     purchase_cost:  watch.purchase_cost  != null ? String(watch.purchase_cost) : '',
     status:         watch.status         as WatchStatus,
     selling_price:  watch.selling_price  != null ? String(watch.selling_price) : '',
+    discount_price: watch.discount_price != null ? String(watch.discount_price) : '',
     comments:       watch.comments       ?? '',
   })
 
@@ -126,6 +128,15 @@ export default function EditWatchForm({
     ? true
     : investors.length > 0 && investors.every(i => i.investor_name.trim()) && Math.abs(totalPct - 100) < 0.01
 
+  // Sale Price — optional, display-only. Mirrors the watches_discount_price_check
+  // constraint; never touches margin, investor splits or anything downstream.
+  const sellingNum  = form.selling_price  ? num(form.selling_price)  : null
+  const discountNum = form.discount_price ? num(form.discount_price) : null
+  const discountError = form.discount_price ? validateDiscountPrice(discountNum, sellingNum) : null
+  const discountPct = discountNum != null && discountError == null && sellingNum != null
+    ? discountPercent(sellingNum, discountNum)
+    : null
+
   async function checkBrandDuplicate(name: string) {
     if (!name.trim()) { setBrandError(null); return }
     const supabase = createClient()
@@ -134,6 +145,14 @@ export default function EditWatchForm({
   }
 
   async function performSave(isDraft: boolean) {
+    // Lowering the selling price to at-or-below an existing Sale Price blocks
+    // the save outright — the Sale Price is never silently cleared.
+    if (discountNum != null && sellingNum != null && sellingNum <= discountNum) {
+      setError(`Selling price must be higher than the Sale Price of LKR ${discountNum.toLocaleString('en-LK')}. Raise the selling price, or clear the Sale Price first.`)
+      return
+    }
+    if (discountError) { setError(discountError); return }
+
     setLoading(true)
     setError(null)
 
@@ -190,6 +209,7 @@ export default function EditWatchForm({
           status:         form.status,
           watch_status:   form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
+          discount_price: form.discount_price ? num(form.discount_price) : null,
           comments:       form.comments.trim()       || null,
           photos,
           brand_id:       resolvedBrandId,
@@ -496,6 +516,17 @@ export default function EditWatchForm({
           <div>
             <label className={lbl}>Selling Price</label>
             <CurrencyInput value={form.selling_price} onChange={v => setForm(f => ({ ...f, selling_price: v }))} />
+          </div>
+          <div>
+            <label className={lbl}>Sale Price <span className="normal-case tracking-normal text-text-muted">(optional)</span></label>
+            <CurrencyInput value={form.discount_price} onChange={v => setForm(f => ({ ...f, discount_price: v }))} />
+            {discountError ? (
+              <p className="text-[11.5px] mt-1.5 text-red-600">{discountError}</p>
+            ) : discountPct != null ? (
+              <p className="text-[11.5px] font-semibold mt-1.5 text-gold">{discountPct}% off</p>
+            ) : (
+              <p className="text-[11px] text-gray-400 mt-1">Clear this field to remove the sale.</p>
+            )}
           </div>
         </div>
       </div>
