@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/ToastProvider'
 import { logActivity } from '@/lib/activityLog'
@@ -15,10 +16,11 @@ import { useIdleLock } from '@/lib/hooks/useIdleLock'
 import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
-import type { InvoiceWithItems, InvoiceType, InvoiceStatus, SavedBank, SalesManager } from '@/types'
+import type { InvoiceWithItems, InvoiceType, SavedBank, SalesManager } from '@/types'
 import BusyButton from '@/components/ui/BusyButton'
 
 const inp      = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
+const inpLocked = 'w-full bg-gray-50 border border-gray-100 text-gray-500 rounded-xl px-3.5 py-2.5 text-sm'
 const lbl      = 'block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5'
 const card     = 'bg-white border border-gray-100 rounded-2xl p-5'
 const cardHead = 'text-xs font-semibold text-gray-400 uppercase tracking-wider'
@@ -26,6 +28,14 @@ const cardHead = 'text-xs font-semibold text-gray-400 uppercase tracking-wider'
 const CURRENCIES  = ['LKR', 'USD', 'AED', 'AUD'] as const
 const PAY_METHODS = ['Cash', 'Bank Transfer', 'Cash + Bank', 'Installment']
 const CONDITIONS  = ['Unworn', 'Pre-Owned']
+
+const STATUS_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
+  draft:           { label: 'Draft',           bg: '#f3f4f6', fg: '#6b7280' },
+  issued:          { label: 'Issued',          bg: 'rgba(63,95,138,.12)', fg: '#3f5f8a' },
+  partially_paid:  { label: 'Partially Paid',  bg: 'rgba(181,118,26,.14)', fg: '#b5761a' },
+  paid:            { label: 'Paid',             bg: 'rgba(31,111,67,.12)', fg: '#1f6f43' },
+  cancelled:       { label: 'Cancelled',        bg: '#f3f4f6', fg: '#6b7280' },
+}
 
 function fmtAmt(amount: number, currency: string): string {
   const opts: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
@@ -36,18 +46,9 @@ function fmtAmt(amount: number, currency: string): string {
   return currency + ' ' + amount.toLocaleString('en-US', opts)
 }
 
-interface LineItemJson {
-  watch_id?:     string | null
-  watch_name:    string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  set_details?:  string | null
-  photo_url:     string | null
-  amount:        number | null
-  amount_paid?:  number | null
-  sort_order:    number
+function fmtDate(d: string): string {
+  try { return new Date(d + 'T00:00:00').toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: 'numeric' }) }
+  catch { return d }
 }
 
 interface WatchForInvoice {
@@ -67,6 +68,7 @@ interface ClientForInvoice {
   name:         string
   phone:        string | null
   address:      string | null
+  email?:       string | null
   club_twb:     boolean
   avatar_color: string | null
 }
@@ -74,14 +76,13 @@ interface ClientForInvoice {
 interface LineItem {
   _key:          string
   watch_id:      string
-  watch_name:    string
+  description:   string
   reference:     string
   serial_number: string
   year:          string
   condition:     string
   set_details:   string
   photo_url:     string
-  amount_paid:   string
   amount:        string
 }
 
@@ -89,14 +90,13 @@ function emptyItem(): LineItem {
   return {
     _key:          Math.random().toString(36).slice(2),
     watch_id:      '',
-    watch_name:    '',
+    description:   '',
     reference:     '',
     serial_number: '',
     year:          '',
     condition:     '',
     set_details:   '',
     photo_url:     '',
-    amount_paid:   '',
     amount:        '',
   }
 }
@@ -133,7 +133,6 @@ export default function InvoiceEditorClient({
   salesManagers = [],
   banks = [],
   watches = [],
-  lineItemsJson = null,
   clients = [],
   logoUrl = null,
 }: {
@@ -141,16 +140,16 @@ export default function InvoiceEditorClient({
   salesManagers?:  SalesManager[]
   banks?:          SavedBank[]
   watches?:        WatchForInvoice[]
-  lineItemsJson?:  LineItemJson[] | null
   clients?:        ClientForInvoice[]
   logoUrl?:        string | null
 }) {
   const { profile, setInactivityLogoutSuspended } = useAuth()
   const isViewer = profile?.role === 'viewer'
+  const router = useRouter()
 
-  const [savedOnce, setSavedOnce] = useState(
-    invoice.invoice_items.length > 0 || invoice.status !== 'draft'
-  )
+  const isDraft = invoice.status === 'draft'
+
+  const [savedOnce, setSavedOnce] = useState(invoice.invoice_items.length > 0 || !isDraft)
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
     const fv = (invoice as unknown as Record<string, unknown>).field_visibility as Record<string, boolean> | null ?? {}
@@ -170,18 +169,17 @@ export default function InvoiceEditorClient({
     exchange_rate:        invoice.exchange_rate?.toString() ?? '',
     type:                 invoice.type                   as InvoiceType,
     client_id:            invoice.client_id              ?? '',
-    client_name:          invoice.client_name            ?? '',
-    client_address:       invoice.client_address         ?? '',
-    client_phone:         invoice.client_phone           ?? '',
+    bill_to_name:         invoice.bill_to_name            ?? '',
+    bill_to_address:      invoice.bill_to_address         ?? '',
+    bill_to_phone:        invoice.bill_to_phone           ?? '',
+    bill_to_email:        invoice.bill_to_email           ?? '',
     sales_manager:        invoice.sales_manager          ?? '',
     payment_method:       invoice.payment_method         ?? '',
     bank_id:              invoice.bank_id                ?? '',
     show_bank_details:    invoice.show_bank_details      ?? false,
-    status:               invoice.status                 as InvoiceStatus,
-    advance_paid:         invoice.advance_paid?.toString()  ?? '',
-    amount_paid:          invoice.amount_paid?.toString()   ?? '',
+    discount:             invoice.discount?.toString()      ?? '',
     notes:                invoice.notes                     ?? '',
-    terms_and_conditions: ((invoice as unknown as Record<string, unknown>).terms_and_conditions as string) ?? '',
+    terms_and_conditions: invoice.terms_and_conditions       ?? '',
   })
 
   const [items, setItems] = useState<LineItem[]>(() => {
@@ -190,42 +188,21 @@ export default function InvoiceEditorClient({
         .sort((a, b) => a.sort_order - b.sort_order)
         .map(it => ({
           _key:          it.id,
-          watch_id:      '',
-          watch_name:    it.watch_name    ?? '',
-          reference:     it.reference     ?? '',
-          serial_number: it.serial_number ?? '',
-          year:          it.year          ?? '',
-          condition:     it.condition     ?? '',
-          set_details:   '',
-          photo_url:     it.photo_url     ?? '',
-          amount_paid:   it.amount?.toString() ?? '',
-          amount:        it.amount?.toString() ?? '',
-        }))
-    }
-    if (lineItemsJson && lineItemsJson.length > 0) {
-      return [...lineItemsJson]
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map(it => ({
-          _key:          Math.random().toString(36).slice(2),
-          watch_id:      it.watch_id      ?? '',
-          watch_name:    it.watch_name    ?? '',
+          watch_id:      it.watch_id ?? '',
+          description:   it.description   ?? '',
           reference:     it.reference     ?? '',
           serial_number: it.serial_number ?? '',
           year:          it.year          ?? '',
           condition:     it.condition     ?? '',
           set_details:   it.set_details   ?? '',
           photo_url:     it.photo_url     ?? '',
-          amount_paid:   (it.amount_paid ?? it.amount)?.toString() ?? '',
-          amount:        it.amount?.toString() ?? '',
+          amount:        it.line_total?.toString() ?? '',
         }))
     }
     return [emptyItem()]
   })
 
-  // ── Draft autosave + idle lock ──────────────────────────────
-  // The drafts table is one row per user per module (not per invoice), so
-  // stamp which invoice this draft belongs to and ignore/discard it if it
-  // turns out to be for a different invoice than the one currently open.
+  // ── Draft autosave + idle lock (draft invoices only) ────────────────────
   const draftState = useMemo(() => ({
     invoiceId: invoice.id, form, items, fieldVisibility,
   }), [invoice.id, form, items, fieldVisibility])
@@ -263,6 +240,17 @@ export default function InvoiceEditorClient({
   const [sourcingAdding,     setSourcingAdding]     = useState(false)
   const toast = useToast()
   const sourcingPromptedRef = useRef(false)
+
+  // ── Issue / payments / credit note ───────────────────────────────────────
+  const [issueConfirmOpen,  setIssueConfirmOpen]  = useState(false)
+  const [issuing,           setIssuing]           = useState(false)
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false)
+  const [recordingPayment,  setRecordingPayment]  = useState(false)
+  const [creatingCreditNote, setCreatingCreditNote] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '', currency: invoice.currency ?? 'LKR', exchange_rate: invoice.exchange_rate?.toString() ?? '1',
+    method: '', reference: '', paid_at: new Date().toISOString().split('T')[0], notes: '',
+  })
 
   // Client dropdown
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
@@ -328,7 +316,7 @@ export default function InvoiceEditorClient({
     setItems(prev => prev.map((it, i) => i === idx ? {
       ...it,
       watch_id:      w.id,
-      watch_name:    w.watch_name,
+      description:   w.watch_name,
       reference:     w.reference     ?? '',
       serial_number: w.serial_number ?? '',
       year,
@@ -356,10 +344,11 @@ export default function InvoiceEditorClient({
   function selectClient(c: ClientForInvoice | null) {
     setForm(prev => ({
       ...prev,
-      client_id:      c?.id      ?? '',
-      client_name:    c?.name    ?? '',
-      client_phone:   c?.phone   ?? '',
-      client_address: c?.address ?? '',
+      client_id:       c?.id      ?? '',
+      bill_to_name:    c?.name    ?? '',
+      bill_to_phone:   c?.phone   ?? '',
+      bill_to_address: c?.address ?? '',
+      bill_to_email:   c?.email   ?? '',
     }))
     setClientDropdownOpen(false)
     setClientSearch('')
@@ -402,20 +391,7 @@ export default function InvoiceEditorClient({
     setError(null)
     const supabase = createClient()
 
-    const validItems = items.filter(it => it.watch_name.trim())
-    const lineItemsPayload: LineItemJson[] = validItems.map((it, i) => ({
-      watch_id:      it.watch_id.trim()     || null,
-      watch_name:    it.watch_name.trim(),
-      reference:     it.reference.trim()     || null,
-      serial_number: it.serial_number.trim() || null,
-      year:          it.year.trim()           || null,
-      condition:     it.condition             || null,
-      set_details:   it.set_details.trim()   || null,
-      photo_url:     it.photo_url.trim()      || null,
-      amount:        num(it.amount),
-      amount_paid:   null,
-      sort_order:    i,
-    }))
+    const validItems = items.filter(it => it.description.trim())
 
     const { error: invErr } = await supabase
       .from('invoices')
@@ -424,46 +400,49 @@ export default function InvoiceEditorClient({
         currency:             form.currency,
         exchange_rate:        num(form.exchange_rate),
         type:                 form.type,
-        client_name:          form.client_name.trim()    || null,
-        client_address:       form.client_address.trim() || null,
-        client_phone:         form.client_phone.trim()   || null,
+        bill_to_name:         form.bill_to_name.trim()    || null,
+        bill_to_address:      form.bill_to_address.trim() || null,
+        bill_to_phone:        form.bill_to_phone.trim()   || null,
+        bill_to_email:        form.bill_to_email.trim()   || null,
+        client_id:            form.client_id   || null,
         sales_manager:        form.sales_manager.trim()  || null,
         payment_method:       form.payment_method        || null,
         bank_id:              showBankPicker && form.bank_id ? form.bank_id : null,
         show_bank_details:    form.show_bank_details,
         show_signatures:      fieldVisibility.signatures,
-        status:               form.status,
-        advance_paid:         form.type === 'sourcing' ? num(form.advance_paid) : null,
+        discount:             num(form.discount) ?? 0,
         notes:                form.notes.trim()                 || null,
         terms_and_conditions: form.terms_and_conditions.trim() || null,
         field_visibility:     fieldVisibility,
-        line_items:           lineItemsPayload,
-        client_id:            form.client_id   || null,
-        amount_paid:          num(form.amount_paid) ?? null,
       })
       .eq('id', invoice.id)
 
     if (invErr) { setError(invErr.message); setSaving(false); return }
 
-    // Also keep invoice_items table in sync for backward compatibility
+    // Line items are relational now — replace the set on every save, same
+    // delete+reinsert pattern this editor already used for the old mirror
+    // table. RLS only allows this while the invoice is still 'draft'.
     await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
     if (validItems.length > 0) {
       await supabase.from('invoice_items').insert(
         validItems.map((it, i) => ({
           invoice_id:    invoice.id,
-          watch_name:    it.watch_name.trim(),
+          watch_id:      it.watch_id || null,
+          description:   it.description.trim(),
           reference:     it.reference.trim()     || null,
           serial_number: it.serial_number.trim() || null,
           year:          it.year.trim()           || null,
           condition:     it.condition             || null,
           photo_url:     it.photo_url.trim()      || null,
-          amount:        num(it.amount),
+          quantity:      1,
+          unit_price:    num(it.amount),
+          line_total:    num(it.amount),
           sort_order:    i,
         }))
       )
     }
 
-    void logActivity({ actionType: 'invoice_updated', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number })
+    void logActivity({ actionType: 'invoice_updated', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })
     await draft.clearDraft()
     setSaving(false)
     setSaved(true)
@@ -473,17 +452,18 @@ export default function InvoiceEditorClient({
       sourcingPromptedRef.current = true
       setSourcingPromptOpen(true)
     }
-  }, [form, items, invoice.id, showBankPicker, fieldVisibility, draft])
+    router.refresh()
+  }, [form, items, invoice.id, invoice.invoice_number, showBankPicker, fieldVisibility, draft, router])
 
   const handleAddToSourcedOrders = useCallback(async () => {
     setSourcingAdding(true)
     const supabase = createClient()
-    const firstItem = items.find(it => it.watch_name.trim())
+    const firstItem = items.find(it => it.description.trim())
     const parseAmt = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
     const year = firstItem?.year.trim()
     const dateOnCard = year && /^\d{4}$/.test(year) ? `${year}-01-01` : null
     const { data: watchData } = await supabase.from('watches').insert({
-      watch_name:    firstItem?.watch_name.trim() || 'Unknown',
+      watch_name:    firstItem?.description.trim() || 'Unknown',
       reference:     firstItem?.reference.trim()     || null,
       serial_number: firstItem?.serial_number.trim() || null,
       date_on_card:  dateOnCard,
@@ -504,22 +484,71 @@ export default function InvoiceEditorClient({
     toast.success('Watch added to sourced inventory')
   }, [invoice.id, items, toast])
 
+  const handleIssue = useCallback(async () => {
+    setIssuing(true)
+    const supabase = createClient()
+    const { data, error: issueErr } = await supabase.rpc('issue_invoice', { p_invoice_id: invoice.id })
+    setIssuing(false)
+    if (issueErr) { toast.error(issueErr.message); return }
+    setIssueConfirmOpen(false)
+    void logActivity({ actionType: 'invoice_issued', entityType: 'invoice', entityId: invoice.id, entityLabel: data as string })
+    toast.success(`Issued as ${data}`)
+    router.refresh()
+  }, [invoice.id, router, toast])
+
+  const handleRecordPayment = useCallback(async () => {
+    setRecordingPayment(true)
+    const supabase = createClient()
+    const { error: payErr } = await supabase.rpc('record_invoice_payment', {
+      p_invoice_id:    invoice.id,
+      p_amount:        num(paymentForm.amount),
+      p_currency:      paymentForm.currency,
+      p_exchange_rate: num(paymentForm.exchange_rate) ?? 1,
+      p_method:        paymentForm.method || null,
+      p_reference:     paymentForm.reference || null,
+      p_paid_at:       paymentForm.paid_at,
+      p_notes:         paymentForm.notes || null,
+    })
+    setRecordingPayment(false)
+    if (payErr) { toast.error(payErr.message); return }
+    setRecordPaymentOpen(false)
+    void logActivity({ actionType: 'invoice_payment_recorded', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? '' })
+    toast.success('Payment recorded')
+    router.refresh()
+  }, [invoice.id, invoice.invoice_number, paymentForm, router, toast])
+
+  const handleCreateCreditNote = useCallback(async () => {
+    setCreatingCreditNote(true)
+    const supabase = createClient()
+    const { data, error: cnErr } = await supabase.rpc('create_credit_note', { p_related_invoice_id: invoice.id })
+    setCreatingCreditNote(false)
+    if (cnErr) { toast.error(cnErr.message); return }
+    void logActivity({ actionType: 'credit_note_created', entityType: 'invoice', entityId: data as string, entityLabel: `Credit note for ${invoice.invoice_number ?? invoice.id}` })
+    router.push(`/dashboard/invoices/${data}/edit`)
+  }, [invoice.id, invoice.invoice_number, router, toast])
+
   const previewItems = items.map(it => ({
-    watch_name:    it.watch_name,
+    description:   it.description,
     reference:     it.reference     || null,
     serial_number: it.serial_number || null,
     year:          it.year          || null,
     condition:     it.condition     || null,
     photo_url:     it.photo_url     || null,
-    amount:        num(it.amount),
+    quantity:      1,
+    line_total:    num(it.amount),
   }))
 
   const invoiceSubtotal = items.reduce((s, it) => s + (num(it.amount) ?? 0), 0)
-  const invoiceAmtPaid  = num(form.amount_paid)
+  const invoiceDiscount = num(form.discount) ?? 0
+  const invoiceTotal    = invoiceSubtotal - invoiceDiscount
+
+  const payments  = invoice.invoice_payments ?? []
+  const paidTotal = payments.filter(p => p.currency === form.currency).reduce((s, p) => s + p.amount, 0)
+  const balanceDue = Math.max(0, (invoice.total ?? invoiceTotal) - paidTotal)
 
   const previewBank = showBankPicker && form.show_bank_details && selectedBank
     ? { bank_name: selectedBank.bank_name, account_name: selectedBank.account_name, account_number: selectedBank.account_number, branch: selectedBank.branch, swift_code: selectedBank.swift_code, address: selectedBank.address }
-    : null
+    : (invoice.bank_snapshot ?? null)
 
   const saveBtn = (
     <BusyButton
@@ -535,19 +564,20 @@ export default function InvoiceEditorClient({
   const handleDownload = () => {
     const html = generateInvoiceHTML({
       invoiceNumber:      invoice.invoice_number,
+      docType:            invoice.doc_type,
       date:               form.date,
       currency:           form.currency,
       type:               form.type,
-      status:             form.status,
-      clientName:         form.client_name    || null,
-      clientPhone:        form.client_phone   || null,
-      clientAddress:      form.client_address || null,
+      status:             invoice.status,
+      billToName:         form.bill_to_name    || null,
+      billToPhone:        form.bill_to_phone   || null,
+      billToAddress:      form.bill_to_address || null,
       salesManager:       form.sales_manager  || null,
       paymentMethod:      form.payment_method || null,
       showBankDetails:    form.show_bank_details,
       bank:               previewBank,
-      advancePaid:        form.type === 'sourcing' ? num(form.advance_paid) : null,
-      amountPaid:         invoiceAmtPaid,
+      discount:           invoiceDiscount,
+      paidTotal:          isDraft ? null : paidTotal,
       notes:              form.notes              || null,
       termsAndConditions: form.terms_and_conditions || null,
       logoUrl:            logoUrl,
@@ -564,7 +594,7 @@ export default function InvoiceEditorClient({
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url  = URL.createObjectURL(blob)
     window.open(url, '_blank')
-    void logActivity({ actionType: 'invoice_downloaded', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number })
+    void logActivity({ actionType: 'invoice_downloaded', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })
   }
 
   return (
@@ -582,7 +612,10 @@ export default function InvoiceEditorClient({
                 Invoices
               </Link>
               <span className="text-gray-200">/</span>
-              <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number}</span>
+              <span className="text-sm font-semibold text-gray-900">{invoice.invoice_number ?? 'Draft'}</span>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: STATUS_LABEL[invoice.status].bg, color: STATUS_LABEL[invoice.status].fg }}>
+                {STATUS_LABEL[invoice.status].label}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               {savedOnce && (
@@ -590,7 +623,7 @@ export default function InvoiceEditorClient({
                   <Link
                     href={`/dashboard/invoices/${invoice.id}/print`}
                     target="_blank"
-                    onClick={() => void logActivity({ actionType: 'invoice_printed', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number })}
+                    onClick={() => void logActivity({ actionType: 'invoice_printed', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })}
                     className="hidden lg:flex text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors items-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
@@ -606,16 +639,28 @@ export default function InvoiceEditorClient({
                   </button>
                 </>
               )}
-              <DraftSaveIndicator status={draft.saveStatus} />
-              <BusyButton
-                type="button"
-                onClick={handleSave}
-                pending={saving}
-                pendingLabel="Saving…"
-                className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {saved ? '✓ Saved' : 'Save'}
-              </BusyButton>
+              {isDraft && <DraftSaveIndicator status={draft.saveStatus} />}
+              {!isViewer && isDraft && (
+                <BusyButton
+                  type="button"
+                  onClick={handleSave}
+                  pending={saving}
+                  pendingLabel="Saving…"
+                  className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {saved ? '✓ Saved' : 'Save'}
+                </BusyButton>
+              )}
+              {!isViewer && isDraft && (
+                <button
+                  type="button"
+                  onClick={() => setIssueConfirmOpen(true)}
+                  disabled={!items.some(it => it.description.trim())}
+                  className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 px-4 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                >
+                  Issue
+                </button>
+              )}
             </div>
           </div>
           {savedOnce && (
@@ -623,7 +668,7 @@ export default function InvoiceEditorClient({
               <Link
                 href={`/dashboard/invoices/${invoice.id}/print`}
                 target="_blank"
-                onClick={() => void logActivity({ actionType: 'invoice_printed', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number })}
+                onClick={() => void logActivity({ actionType: 'invoice_printed', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })}
                 className="flex-1 text-sm text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
@@ -641,7 +686,7 @@ export default function InvoiceEditorClient({
           )}
         </div>
 
-        {draft.status === 'prompt' && !isStaleDraft && (
+        {isDraft && draft.status === 'prompt' && !isStaleDraft && (
           <div className="mx-6 mt-4">
             <DraftBanner
               updatedAt={draft.pendingDraftUpdatedAt}
@@ -655,42 +700,55 @@ export default function InvoiceEditorClient({
           <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">{error}</div>
         )}
 
+        {!isDraft && (
+          <div className="mx-6 mt-4 bg-gray-50 border border-gray-200 text-gray-600 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+            <LockIcon />
+            This {invoice.doc_type === 'credit_note' ? 'credit note' : 'invoice'} has been issued and is read-only. Only payments can be recorded against it.
+          </div>
+        )}
+
         <div className="p-6 space-y-4">
 
           {/* ── Invoice Info ──────────────────────────────── */}
           <div className={card}>
-            <p className={cardHead + ' mb-4'}>Invoice</p>
+            <p className={cardHead + ' mb-4'}>{invoice.doc_type === 'credit_note' ? 'Credit Note' : invoice.doc_type === 'proforma' ? 'Proforma Invoice' : 'Invoice'}</p>
             <div className="space-y-4">
               <div>
                 <label className={lbl}>Invoice Number</label>
                 <div className="w-full bg-gray-50 border border-gray-100 text-gray-500 rounded-xl px-3.5 py-2.5 text-sm font-mono select-all">
-                  {invoice.invoice_number}
+                  {invoice.invoice_number ?? 'Assigned when issued'}
                 </div>
               </div>
               <div>
                 <label className={lbl}>Type</label>
-                <select value={form.type} onChange={f('type')} className={inp}>
-                  <option value="sale">Sale</option>
-                  <option value="general">General</option>
-                  <option value="sourcing">Sourcing</option>
-                </select>
+                {isDraft ? (
+                  <select value={form.type} onChange={f('type')} className={inp}>
+                    <option value="sale">Sale</option>
+                    <option value="general">General</option>
+                    <option value="sourcing">Sourcing</option>
+                  </select>
+                ) : (
+                  <div className={inpLocked}>{form.type}</div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lbl}>Date</label>
-                  <input type="date" value={form.date} onChange={f('date')} className={inp} />
+                  {isDraft ? <input type="date" value={form.date} onChange={f('date')} className={inp} /> : <div className={inpLocked}>{fmtDate(form.date)}</div>}
                 </div>
                 <div>
                   <label className={lbl}>Currency</label>
-                  <select value={form.currency} onChange={f('currency')} className={inp}>
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  {isDraft ? (
+                    <select value={form.currency} onChange={f('currency')} className={inp}>
+                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  ) : <div className={inpLocked}>{form.currency}</div>}
                 </div>
               </div>
               {form.currency !== 'LKR' && (
                 <div>
                   <label className={lbl}>Exchange Rate (1 {form.currency} = LKR)</label>
-                  <input type="number" value={form.exchange_rate} onChange={f('exchange_rate')} placeholder="e.g. 320" className={inp} />
+                  {isDraft ? <input type="number" value={form.exchange_rate} onChange={f('exchange_rate')} placeholder="e.g. 320" className={inp} /> : <div className={inpLocked}>{form.exchange_rate || '—'}</div>}
                 </div>
               )}
             </div>
@@ -701,124 +759,121 @@ export default function InvoiceEditorClient({
             <p className={cardHead + ' mb-4'}>Billing Details</p>
             <div className="space-y-3">
               {/* Client selector */}
-              <div ref={clientDropdownRef} className="relative">
-                <label className={lbl}>Client</label>
-                <button
-                  type="button"
-                  onClick={() => setClientDropdownOpen(o => !o)}
-                  className="w-full flex items-center gap-2.5 bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-left hover:border-gray-400 transition-colors"
-                >
-                  {selectedClient ? (
-                    <>
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${avatarColor(selectedClient.name, selectedClient.avatar_color)}`}>
-                        {getInitials(selectedClient.name)}
+              {isDraft && (
+                <div ref={clientDropdownRef} className="relative">
+                  <label className={lbl}>Client</label>
+                  <button
+                    type="button"
+                    onClick={() => setClientDropdownOpen(o => !o)}
+                    className="w-full flex items-center gap-2.5 bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-left hover:border-gray-400 transition-colors"
+                  >
+                    {selectedClient ? (
+                      <>
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${avatarColor(selectedClient.name, selectedClient.avatar_color)}`}>
+                          {getInitials(selectedClient.name)}
+                        </div>
+                        <span className="flex-1 font-medium text-gray-900 truncate">{selectedClient.name}</span>
+                        {selectedClient.club_twb && (
+                          <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">Club TWB</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="flex-1 text-gray-400">Select a client…</span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {clientDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden">
+                      <div className="p-2 border-b border-gray-100">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={clientSearch}
+                          onChange={e => setClientSearch(e.target.value)}
+                          placeholder="Search clients…"
+                          className="w-full text-sm px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                        />
                       </div>
-                      <span className="flex-1 font-medium text-gray-900 truncate">{selectedClient.name}</span>
-                      {selectedClient.club_twb && (
-                        <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">Club TWB</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="flex-1 text-gray-400">Select a client…</span>
-                  )}
-                  <svg className="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {clientDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden">
-                    <div className="p-2 border-b border-gray-100">
-                      <input
-                        autoFocus
-                        type="text"
-                        value={clientSearch}
-                        onChange={e => setClientSearch(e.target.value)}
-                        placeholder="Search clients…"
-                        className="w-full text-sm px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 transition-colors"
-                      />
-                    </div>
-                    <div className="max-h-52 overflow-y-auto">
-                      {filteredClients.length === 0 && (
-                        <p className="text-sm text-gray-400 px-3 py-2.5">No clients found</p>
-                      )}
-                      {filteredClients.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => selectClient(c)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
-                        >
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
-                            {getInitials(c.name)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
-                              {c.club_twb && <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5 shrink-0">Club TWB</span>}
+                      <div className="max-h-52 overflow-y-auto">
+                        {filteredClients.length === 0 && (
+                          <p className="text-sm text-gray-400 px-3 py-2.5">No clients found</p>
+                        )}
+                        {filteredClients.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectClient(c)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(c.name, c.avatar_color)}`}>
+                              {getInitials(c.name)}
                             </div>
-                            {c.phone && <p className="text-xs text-gray-400 truncate">{c.phone}</p>}
-                          </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium text-gray-900 truncate">{c.name}</span>
+                                {c.club_twb && <span className="text-[9px] font-bold bg-violet-100 text-violet-700 rounded px-1.5 py-0.5 shrink-0">Club TWB</span>}
+                              </div>
+                              {c.phone && <p className="text-xs text-gray-400 truncate">{c.phone}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => { setClientDropdownOpen(false); setNewClientOpen(true) }}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M8 3v10M3 8h10" strokeLinecap="round"/>
+                          </svg>
+                          New client
                         </button>
-                      ))}
+                      </div>
                     </div>
-                    <div className="border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => { setClientDropdownOpen(false); setNewClientOpen(true) }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M8 3v10M3 8h10" strokeLinecap="round"/>
-                        </svg>
-                        New client
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               <div>
-                <label className={lbl}>Client Name</label>
-                {form.type === 'sale' ? (
-                  <div className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5 text-sm">
-                    <span className="flex-1 text-gray-700 truncate">{form.client_name || <span className="text-gray-300">—</span>}</span>
-                    <LockIcon />
-                  </div>
-                ) : (
-                  <input type="text" value={form.client_name} onChange={f('client_name')} placeholder="Client name" className={inp} />
-                )}
+                <label className={lbl}>Bill To — Name</label>
+                {isDraft
+                  ? <input type="text" value={form.bill_to_name} onChange={f('bill_to_name')} placeholder="Client name" className={inp} />
+                  : <div className={inpLocked}>{form.bill_to_name || '—'}</div>}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={lbl} style={{ marginBottom: 0 }}>Phone</span>
-                  <button type="button" onClick={() => toggleVisibility('phone')} aria-label={fieldVisibility.phone ? 'Hide phone from invoice' : 'Show phone on invoice'} title={fieldVisibility.phone ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.phone ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                    {fieldVisibility.phone ? <EyeIcon /> : <EyeOffIcon />}
-                  </button>
+                  {isDraft && (
+                    <button type="button" onClick={() => toggleVisibility('phone')} aria-label={fieldVisibility.phone ? 'Hide phone from invoice' : 'Show phone on invoice'} title={fieldVisibility.phone ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.phone ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                      {fieldVisibility.phone ? <EyeIcon /> : <EyeOffIcon />}
+                    </button>
+                  )}
                 </div>
-                {form.type === 'sale' ? (
-                  <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.phone ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
-                    <span className="flex-1 truncate">{form.client_phone || '—'}</span>
-                    <LockIcon />
-                  </div>
-                ) : (
-                  <input type="text" value={form.client_phone} onChange={f('client_phone')} placeholder="Phone number" className={`${inp} ${!fieldVisibility.phone ? 'opacity-50' : ''}`} />
-                )}
+                {isDraft
+                  ? <input type="text" value={form.bill_to_phone} onChange={f('bill_to_phone')} placeholder="Phone number" className={`${inp} ${!fieldVisibility.phone ? 'opacity-50' : ''}`} />
+                  : <div className={inpLocked}>{form.bill_to_phone || '—'}</div>}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={lbl} style={{ marginBottom: 0 }}>Address</span>
-                  <button type="button" onClick={() => toggleVisibility('address')} aria-label={fieldVisibility.address ? 'Hide address from invoice' : 'Show address on invoice'} title={fieldVisibility.address ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.address ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                    {fieldVisibility.address ? <EyeIcon /> : <EyeOffIcon />}
-                  </button>
+                  {isDraft && (
+                    <button type="button" onClick={() => toggleVisibility('address')} aria-label={fieldVisibility.address ? 'Hide address from invoice' : 'Show address on invoice'} title={fieldVisibility.address ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.address ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                      {fieldVisibility.address ? <EyeIcon /> : <EyeOffIcon />}
+                    </button>
+                  )}
                 </div>
-                {form.type === 'sale' ? (
-                  <div className={`flex items-center gap-2 w-full border rounded-xl px-3.5 py-2.5 text-sm transition-opacity ${fieldVisibility.address ? 'bg-gray-50 border-gray-100 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-300 opacity-50'}`}>
-                    <span className="flex-1 truncate">{form.client_address || '—'}</span>
-                    <LockIcon />
-                  </div>
-                ) : (
-                  <input type="text" value={form.client_address} onChange={f('client_address')} placeholder="Address" className={`${inp} ${!fieldVisibility.address ? 'opacity-50' : ''}`} />
-                )}
+                {isDraft
+                  ? <input type="text" value={form.bill_to_address} onChange={f('bill_to_address')} placeholder="Address" className={`${inp} ${!fieldVisibility.address ? 'opacity-50' : ''}`} />
+                  : <div className={inpLocked}>{form.bill_to_address || '—'}</div>}
+              </div>
+              <div>
+                <label className={lbl}>Email</label>
+                {isDraft
+                  ? <input type="email" value={form.bill_to_email} onChange={f('bill_to_email')} placeholder="client@example.com" className={inp} />
+                  : <div className={inpLocked}>{form.bill_to_email || '—'}</div>}
               </div>
             </div>
           </div>
@@ -829,17 +884,21 @@ export default function InvoiceEditorClient({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className={lbl} style={{ marginBottom: 0 }}>Sales Manager</span>
-                <button type="button" onClick={() => toggleVisibility('sales_manager')} aria-label={fieldVisibility.sales_manager ? 'Hide sales manager from invoice' : 'Show sales manager on invoice'} title={fieldVisibility.sales_manager ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.sales_manager ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                  {fieldVisibility.sales_manager ? <EyeIcon /> : <EyeOffIcon />}
-                </button>
-              </div>
-              <select value={form.sales_manager} onChange={f('sales_manager')} className={inp}>
-                <option value="">— Select —</option>
-                {salesManagers.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
-                {form.sales_manager && !salesManagers.some(sm => sm.name === form.sales_manager) && (
-                  <option value={form.sales_manager}>{form.sales_manager}</option>
+                {isDraft && (
+                  <button type="button" onClick={() => toggleVisibility('sales_manager')} aria-label={fieldVisibility.sales_manager ? 'Hide sales manager from invoice' : 'Show sales manager on invoice'} title={fieldVisibility.sales_manager ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.sales_manager ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                    {fieldVisibility.sales_manager ? <EyeIcon /> : <EyeOffIcon />}
+                  </button>
                 )}
-              </select>
+              </div>
+              {isDraft ? (
+                <select value={form.sales_manager} onChange={f('sales_manager')} className={inp}>
+                  <option value="">— Select —</option>
+                  {salesManagers.map(sm => <option key={sm.id} value={sm.name}>{sm.name}</option>)}
+                  {form.sales_manager && !salesManagers.some(sm => sm.name === form.sales_manager) && (
+                    <option value={form.sales_manager}>{form.sales_manager}</option>
+                  )}
+                </select>
+              ) : <div className={inpLocked}>{form.sales_manager || '—'}</div>}
             </div>
           </div>
 
@@ -851,7 +910,7 @@ export default function InvoiceEditorClient({
                 <div key={item._key} className="border border-gray-100 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-500">Item {idx + 1}</p>
-                    {items.length > 1 && (
+                    {isDraft && items.length > 1 && (
                       <button
                         type="button"
                         aria-label="Remove item"
@@ -863,8 +922,8 @@ export default function InvoiceEditorClient({
                     )}
                   </div>
 
-                  {/* Watch selector — Sale invoices only */}
-                  {form.type === 'sale' && watches.length > 0 && (
+                  {/* Watch selector — Sale invoices only, draft only */}
+                  {isDraft && form.type === 'sale' && watches.length > 0 && (
                     <div>
                       <label className={lbl}>Select Watch</label>
                       <select
@@ -889,13 +948,15 @@ export default function InvoiceEditorClient({
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={item.photo_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100" />
-                          <button
-                            type="button"
-                            aria-label="Remove photo"
-                            onClick={() => updateItem(idx, 'photo_url', '')}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
-                            title="Remove photo"
-                          >×</button>
+                          {isDraft && (
+                            <button
+                              type="button"
+                              aria-label="Remove photo"
+                              onClick={() => updateItem(idx, 'photo_url', '')}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs leading-none transition-colors"
+                              title="Remove photo"
+                            >×</button>
+                          )}
                         </>
                       ) : (
                         <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center">
@@ -905,54 +966,69 @@ export default function InvoiceEditorClient({
                         </div>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoDialogIdx(idx)}
-                      className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors"
-                    >
-                      {item.photo_url ? 'Replace' : 'Add Photo'}
-                    </button>
+                    {isDraft && (
+                      <button
+                        type="button"
+                        onClick={() => setPhotoDialogIdx(idx)}
+                        className="text-xs text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors"
+                      >
+                        {item.photo_url ? 'Replace' : 'Add Photo'}
+                      </button>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={lbl}>Watch Name *</label>
-                      <input type="text" value={item.watch_name} onChange={e => updateItem(idx, 'watch_name', e.target.value)} placeholder="Rolex Submariner" className={inp} />
+                  {isDraft ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={lbl}>Description *</label>
+                          <input type="text" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Rolex Submariner" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Reference</label>
+                          <input type="text" value={item.reference} onChange={e => updateItem(idx, 'reference', e.target.value)} placeholder="126610LN" className={inp} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className={lbl}>Serial No.</label>
+                          <input type="text" value={item.serial_number} onChange={e => updateItem(idx, 'serial_number', e.target.value)} className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Year</label>
+                          <input type="text" value={item.year} onChange={e => updateItem(idx, 'year', e.target.value)} maxLength={4} placeholder="2023" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Condition</label>
+                          <select value={item.condition} onChange={e => updateItem(idx, 'condition', e.target.value)} className={inp}>
+                            <option value="">—</option>
+                            {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className={lbl}>Set Details</label>
+                        <input type="text" value={item.set_details} onChange={e => updateItem(idx, 'set_details', e.target.value)} placeholder="Box, papers, etc." className={inp} />
+                      </div>
+                      <div>
+                        <label className={lbl}>Amount</label>
+                        <input type="text" value={item.amount} onChange={e => updateItem(idx, 'amount', e.target.value)} placeholder="0" className={inp} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><span className="text-gray-400">Description: </span><span className="font-medium text-gray-800">{item.description || '—'}</span></div>
+                      <div><span className="text-gray-400">Reference: </span><span className="text-gray-700">{item.reference || '—'}</span></div>
+                      <div><span className="text-gray-400">Serial: </span><span className="text-gray-700">{item.serial_number || '—'}</span></div>
+                      <div><span className="text-gray-400">Year: </span><span className="text-gray-700">{item.year || '—'}</span></div>
+                      <div><span className="text-gray-400">Condition: </span><span className="text-gray-700">{item.condition || '—'}</span></div>
+                      <div><span className="text-gray-400">Amount: </span><span className="font-semibold text-gray-900">{fmtAmt(num(item.amount) ?? 0, form.currency)}</span></div>
                     </div>
-                    <div>
-                      <label className={lbl}>Reference</label>
-                      <input type="text" value={item.reference} onChange={e => updateItem(idx, 'reference', e.target.value)} placeholder="126610LN" className={inp} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className={lbl}>Serial No.</label>
-                      <input type="text" value={item.serial_number} onChange={e => updateItem(idx, 'serial_number', e.target.value)} className={inp} />
-                    </div>
-                    <div>
-                      <label className={lbl}>Year</label>
-                      <input type="text" value={item.year} onChange={e => updateItem(idx, 'year', e.target.value)} maxLength={4} placeholder="2023" className={inp} />
-                    </div>
-                    <div>
-                      <label className={lbl}>Condition</label>
-                      <select value={item.condition} onChange={e => updateItem(idx, 'condition', e.target.value)} className={inp}>
-                        <option value="">—</option>
-                        {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className={lbl}>Set Details</label>
-                    <input type="text" value={item.set_details} onChange={e => updateItem(idx, 'set_details', e.target.value)} placeholder="Box, papers, etc." className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Amount</label>
-                    <input type="text" value={item.amount} onChange={e => updateItem(idx, 'amount', e.target.value)} placeholder="0" className={inp} />
-                  </div>
+                  )}
                 </div>
               ))}
 
-              {items.length < 3 && (
+              {isDraft && items.length < 3 && (
                 <button
                   type="button"
                   onClick={() => setItems(prev => [...prev, emptyItem()])}
@@ -962,65 +1038,80 @@ export default function InvoiceEditorClient({
                   Add Line Item
                 </button>
               )}
-              {items.length >= 3 && (
+              {isDraft && items.length >= 3 && (
                 <p className="text-xs text-gray-300">Maximum 3 line items</p>
               )}
             </div>
           </div>
 
           {/* ── Payment Summary ──────────────────────────── */}
-          {items.some(it => it.watch_name.trim()) && (() => {
-            const amtPaid   = num(form.amount_paid)
-            const balance   = amtPaid != null && amtPaid < invoiceSubtotal ? invoiceSubtotal - amtPaid : 0
-            const paidFull  = amtPaid != null && invoiceSubtotal > 0 && amtPaid >= invoiceSubtotal
-            return (
-              <div className={card}>
-                <p className={cardHead + ' mb-4'}>Payment Summary</p>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className={cardHead}>Subtotal</span>
-                    <span className="text-sm font-medium text-gray-700 tabular-nums">{fmtAmt(invoiceSubtotal, form.currency)}</span>
-                  </div>
-                  {form.type === 'sourcing' && (
-                    <div>
-                      <label className={lbl}>Advance Paid</label>
-                      <input type="text" value={form.advance_paid} onChange={f('advance_paid')} placeholder="0" className={inp} />
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center bg-gray-900 text-white rounded-xl px-4 py-3">
-                    <span className="text-xs font-bold uppercase tracking-widest">Total</span>
-                    <span className="text-base font-bold tabular-nums">{fmtAmt(invoiceSubtotal, form.currency)}</span>
-                  </div>
-                  {!isViewer && (
-                    <>
-                      <div>
-                        <label className={lbl}>Amount Paid</label>
-                        <input
-                          type="text"
-                          value={form.amount_paid}
-                          onChange={f('amount_paid')}
-                          placeholder={fmtAmt(invoiceSubtotal, form.currency)}
-                          className={inp}
-                        />
-                        <p className="text-[11px] text-gray-400 mt-1">Leave blank if paid in full</p>
-                      </div>
-                      {balance > 0 && (
-                        <div className="flex justify-between items-center px-1 pt-1 border-t border-red-100">
-                          <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Balance Due</span>
-                          <span className="text-sm font-bold text-red-600 tabular-nums">{fmtAmt(balance, form.currency)}</span>
-                        </div>
-                      )}
-                      {paidFull && (
-                        <div className="flex justify-center pt-1">
-                          <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-3 py-1">✓ Paid in Full</span>
-                        </div>
-                      )}
-                    </>
-                  )}
+          {items.some(it => it.description.trim()) && (
+            <div className={card}>
+              <p className={cardHead + ' mb-4'}>Payment Summary</p>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className={cardHead}>Subtotal</span>
+                  <span className="text-sm font-medium text-gray-700 tabular-nums">{fmtAmt(invoiceSubtotal, form.currency)}</span>
                 </div>
+                <div>
+                  <label className={lbl}>Discount</label>
+                  {isDraft
+                    ? <input type="text" value={form.discount} onChange={f('discount')} placeholder="0" className={inp} />
+                    : invoiceDiscount > 0 && <div className={inpLocked}>{fmtAmt(invoiceDiscount, form.currency)}</div>}
+                </div>
+                <div className="flex justify-between items-center bg-gray-900 text-white rounded-xl px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-widest">Total</span>
+                  <span className="text-base font-bold tabular-nums">{fmtAmt(invoiceTotal, form.currency)}</span>
+                </div>
+
+                {!isDraft && (
+                  <>
+                    {payments.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {payments.map(p => (
+                          <div key={p.id} className="flex justify-between items-center text-xs text-gray-500">
+                            <span>{fmtDate(p.paid_at)} · {p.method || 'Payment'}{p.reference ? ` · ${p.reference}` : ''}</span>
+                            <span className="font-semibold text-gray-700 tabular-nums">{fmtAmt(p.amount, p.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {balanceDue > 0 && (
+                      <div className="flex justify-between items-center px-1 pt-1 border-t border-red-100">
+                        <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Balance Due</span>
+                        <span className="text-sm font-bold text-red-600 tabular-nums">{fmtAmt(balanceDue, form.currency)}</span>
+                      </div>
+                    )}
+                    {invoice.status === 'paid' && (
+                      <div className="flex justify-center pt-1">
+                        <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-3 py-1">✓ Paid in Full</span>
+                      </div>
+                    )}
+                    {!isViewer && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
+                      <button
+                        type="button"
+                        onClick={() => { setPaymentForm(p => ({ ...p, amount: '', currency: form.currency })); setRecordPaymentOpen(true) }}
+                        className="w-full bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-black transition-colors mt-1"
+                      >
+                        Record Payment
+                      </button>
+                    )}
+                    {!isViewer && invoice.doc_type !== 'credit_note' && (invoice.status === 'issued' || invoice.status === 'partially_paid' || invoice.status === 'paid') && (
+                      <BusyButton
+                        type="button"
+                        onClick={handleCreateCreditNote}
+                        pending={creatingCreditNote}
+                        pendingLabel="Creating…"
+                        className="w-full bg-white text-gray-700 border border-gray-200 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                      >
+                        Create Credit Note
+                      </BusyButton>
+                    )}
+                  </>
+                )}
               </div>
-            )
-          })()}
+            </div>
+          )}
 
           {/* ── Payment ───────────────────────────────────── */}
           <div className={card}>
@@ -1029,23 +1120,20 @@ export default function InvoiceEditorClient({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lbl}>Method</label>
-                  <select value={form.payment_method} onChange={f('payment_method')} className={inp}>
-                    <option value="">— Select —</option>
-                    {PAY_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  {isDraft ? (
+                    <select value={form.payment_method} onChange={f('payment_method')} className={inp}>
+                      <option value="">— Select —</option>
+                      {PAY_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  ) : <div className={inpLocked}>{form.payment_method || '—'}</div>}
                 </div>
                 <div>
                   <label className={lbl}>Status</label>
-                  <select value={form.status} onChange={f('status')} className={inp}>
-                    <option value="draft">Draft</option>
-                    <option value="advance_paid">Advance Paid</option>
-                    <option value="paid_in_full">Paid in Full</option>
-                    <option value="overdue">Overdue</option>
-                  </select>
+                  <div className={inpLocked}>{STATUS_LABEL[invoice.status].label}</div>
                 </div>
               </div>
 
-              {showBankPicker && banks.length > 0 && (
+              {isDraft && showBankPicker && banks.length > 0 && (
                 <div>
                   <label className={lbl}>Bank</label>
                   <select value={form.bank_id} onChange={f('bank_id')} className={inp}>
@@ -1057,7 +1145,7 @@ export default function InvoiceEditorClient({
                 </div>
               )}
 
-              {showBankPicker && (
+              {isDraft && showBankPicker && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">Show bank details on invoice</span>
                   <button
@@ -1076,31 +1164,41 @@ export default function InvoiceEditorClient({
           <div className={card}>
             <div className="flex items-center justify-between mb-4">
               <p className={cardHead}>Notes</p>
-              <button type="button" onClick={() => toggleVisibility('notes')} aria-label={fieldVisibility.notes ? 'Hide notes from invoice' : 'Show notes on invoice'} title={fieldVisibility.notes ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.notes ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                {fieldVisibility.notes ? <EyeIcon /> : <EyeOffIcon />}
-              </button>
+              {isDraft && (
+                <button type="button" onClick={() => toggleVisibility('notes')} aria-label={fieldVisibility.notes ? 'Hide notes from invoice' : 'Show notes on invoice'} title={fieldVisibility.notes ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.notes ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  {fieldVisibility.notes ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              )}
             </div>
-            <textarea value={form.notes} onChange={f('notes')} rows={3} placeholder="Optional notes…" className={inp} />
+            {isDraft
+              ? <textarea value={form.notes} onChange={f('notes')} rows={3} placeholder="Optional notes…" className={inp} />
+              : <p className="text-sm text-gray-600 whitespace-pre-wrap">{form.notes || '—'}</p>}
           </div>
 
           {/* ── Terms & Conditions ───────────────────────── */}
           <div className={card}>
             <div className="flex items-center justify-between mb-4">
               <p className={cardHead}>Terms &amp; Conditions</p>
-              <button type="button" onClick={() => toggleVisibility('terms')} aria-label={fieldVisibility.terms ? 'Hide terms from invoice' : 'Show terms on invoice'} title={fieldVisibility.terms ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.terms ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                {fieldVisibility.terms ? <EyeIcon /> : <EyeOffIcon />}
-              </button>
+              {isDraft && (
+                <button type="button" onClick={() => toggleVisibility('terms')} aria-label={fieldVisibility.terms ? 'Hide terms from invoice' : 'Show terms on invoice'} title={fieldVisibility.terms ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.terms ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  {fieldVisibility.terms ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              )}
             </div>
-            <textarea value={form.terms_and_conditions} onChange={f('terms_and_conditions')} rows={4} placeholder="e.g. All sales are final. No returns accepted…" className={inp} />
+            {isDraft
+              ? <textarea value={form.terms_and_conditions} onChange={f('terms_and_conditions')} rows={4} placeholder="e.g. All sales are final. No returns accepted…" className={inp} />
+              : <p className="text-sm text-gray-600 whitespace-pre-wrap">{form.terms_and_conditions || '—'}</p>}
           </div>
 
           {/* ── Signatures ───────────────────────────────── */}
           <div className={card}>
             <div className="flex items-center justify-between">
               <p className={cardHead}>Signatures</p>
-              <button type="button" onClick={() => toggleVisibility('signatures')} aria-label={fieldVisibility.signatures ? 'Hide signatures from invoice' : 'Show signatures on invoice'} title={fieldVisibility.signatures ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.signatures ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
-                {fieldVisibility.signatures ? <EyeIcon /> : <EyeOffIcon />}
-              </button>
+              {isDraft && (
+                <button type="button" onClick={() => toggleVisibility('signatures')} aria-label={fieldVisibility.signatures ? 'Hide signatures from invoice' : 'Show signatures on invoice'} title={fieldVisibility.signatures ? 'Hide from invoice' : 'Show on invoice'} className={`transition-colors ${fieldVisibility.signatures ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 hover:text-gray-500'}`}>
+                  {fieldVisibility.signatures ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              )}
             </div>
             {fieldVisibility.signatures && (
               <p className="text-xs text-gray-400 mt-2">Authorised By / Customer Signature lines will appear on the invoice.</p>
@@ -1108,9 +1206,11 @@ export default function InvoiceEditorClient({
           </div>
 
           {/* ── Save ──────────────────────────────────────── */}
-          <div className="pt-2 pb-8">
-            {saveBtn}
-          </div>
+          {!isViewer && isDraft && (
+            <div className="pt-2 pb-8">
+              {saveBtn}
+            </div>
+          )}
 
         </div>
       </div>
@@ -1123,20 +1223,20 @@ export default function InvoiceEditorClient({
           <div className="shadow-2xl" style={{ zoom: 0.55, borderRadius: '2px', overflow: 'hidden' }}>
             <InvoicePrintLayout
               invoiceNumber={invoice.invoice_number}
+              docType={invoice.doc_type}
               date={form.date}
               currency={form.currency}
-              exchangeRate={num(form.exchange_rate)}
               type={form.type}
-              status={form.status}
-              clientName={form.client_name     || null}
-              clientAddress={form.client_address || null}
-              clientPhone={form.client_phone   || null}
+              status={invoice.status}
+              billToName={form.bill_to_name     || null}
+              billToAddress={form.bill_to_address || null}
+              billToPhone={form.bill_to_phone   || null}
               salesManager={form.sales_manager || null}
               paymentMethod={form.payment_method || null}
               showBankDetails={form.show_bank_details}
               showSignatures={fieldVisibility.signatures}
-              advancePaid={num(form.advance_paid)}
-              amountPaid={invoiceAmtPaid}
+              discount={invoiceDiscount}
+              paidTotal={isDraft ? null : paidTotal}
               notes={form.notes || null}
               termsAndConditions={form.terms_and_conditions || null}
               items={previewItems}
@@ -1153,20 +1253,20 @@ export default function InvoiceEditorClient({
             <div style={{ transform: 'scale(0.45)', transformOrigin: 'top left', width: `${100 / 0.45}%`, position: 'absolute', top: 0, left: 0 }}>
               <InvoicePrintLayout
                 invoiceNumber={invoice.invoice_number}
+                docType={invoice.doc_type}
                 date={form.date}
                 currency={form.currency}
-                exchangeRate={num(form.exchange_rate)}
                 type={form.type}
-                status={form.status}
-                clientName={form.client_name     || null}
-                clientAddress={form.client_address || null}
-                clientPhone={form.client_phone   || null}
+                status={invoice.status}
+                billToName={form.bill_to_name     || null}
+                billToAddress={form.bill_to_address || null}
+                billToPhone={form.bill_to_phone   || null}
                 salesManager={form.sales_manager || null}
                 paymentMethod={form.payment_method || null}
                 showBankDetails={form.show_bank_details}
                 showSignatures={fieldVisibility.signatures}
-                advancePaid={num(form.advance_paid)}
-                amountPaid={invoiceAmtPaid}
+                discount={invoiceDiscount}
+                paidTotal={isDraft ? null : paidTotal}
                 notes={form.notes || null}
                 termsAndConditions={form.terms_and_conditions || null}
                 items={previewItems}
@@ -1178,6 +1278,93 @@ export default function InvoiceEditorClient({
           </div>
         </div>
       </div>
+
+      {/* ── ISSUE CONFIRMATION DIALOG ────────────────────── */}
+      {issueConfirmOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" role="dialog" aria-modal="true" aria-label="Issue invoice">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Issue this {invoice.doc_type === 'credit_note' ? 'credit note' : 'invoice'}?</h3>
+            <p className="text-sm text-gray-500 mb-6">It will be assigned a permanent invoice number and locked — the invoice and its line items can no longer be edited. Only payments can be recorded against it afterwards.</p>
+            <div className="flex flex-col gap-2">
+              <BusyButton
+                type="button"
+                onClick={handleIssue}
+                pending={issuing}
+                pendingLabel="Issuing…"
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-emerald-800 transition-colors disabled:opacity-50"
+              >
+                Yes, Issue
+              </BusyButton>
+              <button type="button" onClick={() => setIssueConfirmOpen(false)} className="w-full text-sm text-gray-500 hover:text-gray-900 py-2.5 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RECORD PAYMENT DIALOG ────────────────────────── */}
+      {recordPaymentOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" role="dialog" aria-modal="true" aria-label="Record payment">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Record Payment</h3>
+            <div className="space-y-3">
+              <div>
+                <label className={lbl}>Amount</label>
+                <input type="text" autoFocus value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder={`Balance due: ${fmtAmt(balanceDue, form.currency)}`} className={inp} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lbl}>Currency</label>
+                  <select value={paymentForm.currency} onChange={e => setPaymentForm(p => ({ ...p, currency: e.target.value }))} className={inp}>
+                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Date Paid</label>
+                  <input type="date" value={paymentForm.paid_at} onChange={e => setPaymentForm(p => ({ ...p, paid_at: e.target.value }))} className={inp} />
+                </div>
+              </div>
+              {paymentForm.currency !== 'LKR' && (
+                <div>
+                  <label className={lbl}>Exchange Rate (1 {paymentForm.currency} = LKR)</label>
+                  <input type="number" value={paymentForm.exchange_rate} onChange={e => setPaymentForm(p => ({ ...p, exchange_rate: e.target.value }))} className={inp} />
+                </div>
+              )}
+              <div>
+                <label className={lbl}>Method</label>
+                <select value={paymentForm.method} onChange={e => setPaymentForm(p => ({ ...p, method: e.target.value }))} className={inp}>
+                  <option value="">— Select —</option>
+                  {PAY_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={lbl}>Reference</label>
+                <input type="text" value={paymentForm.reference} onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))} placeholder="Transaction / slip reference" className={inp} />
+              </div>
+              <div>
+                <label className={lbl}>Notes</label>
+                <textarea value={paymentForm.notes} onChange={e => setPaymentForm(p => ({ ...p, notes: e.target.value }))} rows={2} className={inp} />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button type="button" onClick={() => setRecordPaymentOpen(false)} disabled={recordingPayment} className="flex-1 py-2.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-xl transition-colors">
+                Cancel
+              </button>
+              <BusyButton
+                type="button"
+                onClick={handleRecordPayment}
+                pending={recordingPayment}
+                disabled={!num(paymentForm.amount) || (num(paymentForm.amount) ?? 0) <= 0}
+                pendingLabel="Saving…"
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+              >
+                Record Payment
+              </BusyButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SOURCING PROMPT DIALOG ───────────────────────── */}
       {sourcingPromptOpen && (

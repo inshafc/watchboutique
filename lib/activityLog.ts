@@ -9,6 +9,7 @@ export type ActionType =
   | 'client_created' | 'client_updated' | 'client_deleted'
   | 'invoice_created' | 'invoice_updated' | 'invoice_deleted'
   | 'invoice_downloaded' | 'invoice_printed'
+  | 'invoice_issued' | 'invoice_payment_recorded' | 'credit_note_created'
   | 'watch_shared' | 'settings_updated'
 
 const HIGH_SEVERITY: ActionType[] = [
@@ -16,7 +17,7 @@ const HIGH_SEVERITY: ActionType[] = [
   'password_reset_self', 'password_reset_by_admin',
   'role_changed', 'user_deactivated', 'user_activated', 'user_created',
   'watch_deleted', 'sale_deleted', 'client_deleted', 'invoice_deleted',
-  'invoice_downloaded', 'invoice_printed', 'watch_shared',
+  'invoice_downloaded', 'invoice_printed', 'watch_shared', 'invoice_issued',
 ]
 
 export async function logActivity(params: {

@@ -7,6 +7,14 @@ import { useToast } from '@/components/ui/ToastProvider'
 import { logActivity } from '@/lib/activityLog'
 import type { InvoiceWithItems, InvoiceStatus, InvoiceType } from '@/types'
 
+function invoiceOutstanding(inv: InvoiceWithItems, subtotal: number): number {
+  if (inv.status === 'draft' || inv.status === 'cancelled') return 0
+  const paid = (inv.invoice_payments ?? [])
+    .filter(p => p.currency === inv.currency)
+    .reduce((s, p) => s + p.amount, 0)
+  return Math.max(0, (inv.total ?? subtotal) - paid)
+}
+
 // ── Palette (matches the League Home / Inventory / Invoicing design) ────────
 const INK    = '#14140f'
 const GREEN  = '#1f6f43'
@@ -23,7 +31,7 @@ const INK_60 = 'rgba(20,20,15,.6)'
 const INK_08 = 'rgba(20,20,15,.08)'
 const CARD_BG = '#f2f1ed'
 
-type Tab      = 'All' | 'General' | 'Sale' | 'Advance Paid' | 'Completed' | 'Overdue' | 'Deleted'
+type Tab      = 'All' | 'General' | 'Sale' | 'Issued' | 'Partially Paid' | 'Paid' | 'Deleted'
 type SortKey  = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
 type ViewMode = 'list' | 'grid3' | 'grid4'
 type MenuKey  = 'type' | 'client' | 'sort' | null
@@ -35,20 +43,21 @@ const TYPE_STYLE: Record<InvoiceType, { bg: string; fg: string; label: string }>
 }
 
 const STATUS_STYLE: Record<InvoiceStatus, { label: string; fg: string }> = {
-  paid_in_full: { label: 'Paid in Full', fg: GREEN },
-  advance_paid: { label: 'Advance Paid', fg: AMBER },
-  draft:        { label: 'Draft',        fg: INK_42 },
-  overdue:      { label: 'Overdue',      fg: RED },
+  paid:            { label: 'Paid',            fg: GREEN },
+  partially_paid:  { label: 'Partially Paid',  fg: AMBER },
+  issued:          { label: 'Issued',          fg: BLUE },
+  draft:           { label: 'Draft',           fg: INK_42 },
+  cancelled:       { label: 'Cancelled',        fg: RED },
 }
 
 const TABS: { key: Tab; tone: string }[] = [
-  { key: 'All',           tone: INK },
-  { key: 'General',       tone: INK_60 },
-  { key: 'Sale',          tone: BLUE },
-  { key: 'Advance Paid',  tone: AMBER },
-  { key: 'Completed',     tone: GREEN },
-  { key: 'Overdue',       tone: RED },
-  { key: 'Deleted',       tone: INK_35 },
+  { key: 'All',            tone: INK },
+  { key: 'General',        tone: INK_60 },
+  { key: 'Sale',           tone: BLUE },
+  { key: 'Issued',         tone: BLUE },
+  { key: 'Partially Paid', tone: AMBER },
+  { key: 'Paid',           tone: GREEN },
+  { key: 'Deleted',        tone: INK_35 },
 ]
 
 const TYPES: (InvoiceType | 'all')[] = ['all', 'sale', 'general', 'sourcing']
@@ -79,16 +88,11 @@ function fmtDate(d: string) {
 }
 
 function getWatchName(inv: InvoiceWithItems): string | null {
-  const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ watch_name?: string }> | null
-  if (lineItems && lineItems.length > 0 && lineItems[0].watch_name) return lineItems[0].watch_name
-  if (inv.invoice_items && inv.invoice_items.length > 0) return inv.invoice_items[0].watch_name
-  return null
+  return inv.invoice_items?.[0]?.description ?? null
 }
 
 function getSubtotal(inv: InvoiceWithItems): number {
-  const lineItems = (inv as unknown as Record<string, unknown>).line_items as Array<{ amount?: number | null }> | null
-  if (lineItems && lineItems.length > 0) return lineItems.reduce((s, it) => s + (it.amount ?? 0), 0)
-  return (inv.invoice_items ?? []).reduce((s, it) => s + (it.amount ?? 0), 0)
+  return (inv.invoice_items ?? []).reduce((s, it) => s + (it.line_total ?? 0), 0)
 }
 
 // LKR-equivalent, for mixing currencies in the aggregate totals row.
@@ -148,7 +152,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
   // ── Derived data ────────────────────────────────────────────
 
   const clientNames = useMemo(
-    () => Array.from(new Set(invoices.map(i => i.client_name).filter((v): v is string => Boolean(v)))),
+    () => Array.from(new Set(invoices.map(i => i.bill_to_name).filter((v): v is string => Boolean(v)))),
     [invoices]
   )
 
@@ -157,21 +161,21 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
     if (!!inv.deleted_at) return false
     if (forTab === 'General' || forTab === 'Sale') {
       if (inv.type !== forTab.toLowerCase()) return false
-    } else if (forTab === 'Advance Paid') {
-      if (inv.status !== 'advance_paid') return false
-    } else if (forTab === 'Completed') {
-      if (inv.status !== 'paid_in_full') return false
-    } else if (forTab === 'Overdue') {
-      if (inv.status !== 'overdue') return false
+    } else if (forTab === 'Issued') {
+      if (inv.status !== 'issued') return false
+    } else if (forTab === 'Partially Paid') {
+      if (inv.status !== 'partially_paid') return false
+    } else if (forTab === 'Paid') {
+      if (inv.status !== 'paid') return false
     }
     if (type !== 'all' && inv.type !== type) return false
-    if (client !== 'all' && inv.client_name !== client) return false
+    if (client !== 'all' && inv.bill_to_name !== client) return false
     if (search.trim()) {
       const q = search.toLowerCase()
       const watch = getWatchName(inv) ?? ''
       if (
-        !inv.invoice_number.toLowerCase().includes(q) &&
-        !(inv.client_name ?? '').toLowerCase().includes(q) &&
+        !(inv.invoice_number ?? '').toLowerCase().includes(q) &&
+        !(inv.bill_to_name ?? '').toLowerCase().includes(q) &&
         !watch.toLowerCase().includes(q)
       ) return false
     }
@@ -179,7 +183,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
   }
 
   const counts = useMemo(() => {
-    const c: Record<Tab, number> = { All: 0, General: 0, Sale: 0, 'Advance Paid': 0, Completed: 0, Overdue: 0, Deleted: 0 }
+    const c: Record<Tab, number> = { All: 0, General: 0, Sale: 0, Issued: 0, 'Partially Paid': 0, Paid: 0, Deleted: 0 }
     for (const t of TABS) c[t.key] = invoices.filter(inv => matchesTabAndFilters(inv, t.key)).length
     return c
   }, [invoices, type, client, search]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -199,7 +203,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
 
   const invoicedTotal = useMemo(() => rows.reduce((s, r) => s + toLKR(r, getSubtotal(r)), 0), [rows])
   const outstandingTotal = useMemo(
-    () => rows.reduce((s, r) => s + toLKR(r, Math.max(0, getSubtotal(r) - (r.amount_paid ?? 0))), 0),
+    () => rows.reduce((s, r) => s + toLKR(r, invoiceOutstanding(r, getSubtotal(r))), 0),
     [rows]
   )
 
@@ -248,7 +252,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
     const snapshot = invoices.filter(i => ids.includes(i.id))
     await createClient().from('invoices').update({ deleted_at: deletedAt }).in('id', ids)
     for (const inv of snapshot) {
-      void logActivity({ actionType: 'invoice_deleted', entityType: 'invoice', entityId: inv.id, entityLabel: inv.invoice_number })
+      void logActivity({ actionType: 'invoice_deleted', entityType: 'invoice', entityId: inv.id, entityLabel: inv.invoice_number ?? 'Draft' })
     }
     setInvoices(prev => prev.map(i => ids.includes(i.id) ? { ...i, deleted_at: deletedAt } : i))
     exitSelectMode()
@@ -483,7 +487,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
             const st     = STATUS_STYLE[inv.status] ?? STATUS_STYLE.draft
             const watch  = getWatchName(inv)
             const amount = getSubtotal(inv)
-            const has    = !!inv.client_name
+            const has    = !!inv.bill_to_name
             const checked = selectedIds.has(inv.id)
 
             const RowInner = (
@@ -509,7 +513,7 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                     <InvoiceIcon />
                   </span>
                   <span className="flex flex-col gap-0.5 min-w-0">
-                    <span className="tabular-nums whitespace-nowrap" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em' }}>{inv.invoice_number}</span>
+                    <span className="tabular-nums whitespace-nowrap" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em' }}>{inv.invoice_number ?? 'Draft'}</span>
                     <span className="truncate" style={{ fontSize: 12.5, color: watch ? INK_60 : INK_30 }}>{watch ?? '—'}</span>
                   </span>
                 </div>
@@ -517,10 +521,10 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                 <div className="flex items-center gap-2.5 min-w-0 pr-3.5">
                   {has && (
                     <span className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 32, height: 32, background: AVATARS[idx % AVATARS.length], fontSize: 11, fontWeight: 600 }}>
-                      {initials(inv.client_name!)}
+                      {initials(inv.bill_to_name!)}
                     </span>
                   )}
-                  <span className="truncate" style={{ fontSize: 14.5, fontWeight: 500, color: has ? INK : INK_30 }}>{inv.client_name ?? '—'}</span>
+                  <span className="truncate" style={{ fontSize: 14.5, fontWeight: 500, color: has ? INK : INK_30 }}>{inv.bill_to_name ?? '—'}</span>
                 </div>
                 <div>
                   <span className="rounded-full whitespace-nowrap" style={{ fontSize: 11, fontWeight: 600, padding: '5px 11px', background: ty.bg, color: ty.fg }}>{ty.label}</span>
@@ -574,8 +578,8 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5 min-w-0">
-                  <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{inv.invoice_number}</span>
-                  <span className="truncate" style={{ fontSize: 14.5, color: inv.client_name ? INK : INK_30 }}>{inv.client_name ?? '—'}</span>
+                  <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{inv.invoice_number ?? 'Draft'}</span>
+                  <span className="truncate" style={{ fontSize: 14.5, color: inv.bill_to_name ? INK : INK_30 }}>{inv.bill_to_name ?? '—'}</span>
                   <span className="truncate" style={{ fontSize: 13, color: watch ? INK_60 : INK_30 }}>{watch ?? '—'}</span>
                 </div>
                 <div className="flex items-baseline gap-3 mt-auto pt-3.5" style={{ borderTop: `1px solid ${INK_08}` }}>

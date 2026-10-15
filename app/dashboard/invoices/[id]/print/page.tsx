@@ -4,19 +4,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import InvoicePrintLayout from '@/components/invoices/InvoicePrintLayout'
 import PrintAutoTrigger from '@/components/invoices/PrintAutoTrigger'
-import type { Invoice, InvoiceItem } from '@/types'
-
-interface LineItemJson {
-  watch_name:    string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  photo_url:     string | null
-  amount:        number | null
-  amount_paid?:  number | null
-  sort_order:    number
-}
+import type { Invoice, InvoiceItem, InvoicePayment } from '@/types'
 
 function PrintControls({ invoiceId, pdfTitle }: { invoiceId: string; pdfTitle: string }) {
   return (
@@ -75,16 +63,16 @@ export default async function InvoicePrintPage({
 
   const inv = invData as Invoice
 
-  // Primary source: line_items JSONB on the invoice row
-  const rawLineItems = (invData as Record<string, unknown>).line_items
-  const lineItemsJson = rawLineItems as LineItemJson[] | null
-
-  const [itemsRes, logoRes] = await Promise.all([
+  const [itemsRes, paymentsRes, logoRes] = await Promise.all([
     supabase
       .from('invoice_items')
       .select('*')
       .eq('invoice_id', params.id)
-      .order('created_at', { ascending: true }),
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('invoice_payments')
+      .select('*')
+      .eq('invoice_id', params.id),
     supabase
       .from('app_settings')
       .select('value')
@@ -92,49 +80,34 @@ export default async function InvoicePrintPage({
       .maybeSingle(),
   ])
 
-  let bank: { bank_name: string; account_name: string | null; account_number: string | null; branch: string | null; swift_code: string | null; address: string | null } | null = null
-  if (inv.show_bank_details && inv.bank_id) {
+  const items = ((itemsRes.data ?? []) as InvoiceItem[])
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map(it => ({
+      description:   it.description,
+      reference:     it.reference,
+      serial_number: it.serial_number,
+      year:          it.year,
+      condition:     it.condition,
+      photo_url:     it.photo_url,
+      quantity:      it.quantity ?? 1,
+      line_total:    it.line_total,
+    }))
+
+  const payments = (paymentsRes.data ?? []) as InvoicePayment[]
+  const paidTotal = inv.status === 'draft'
+    ? null
+    : payments.filter(p => p.currency === inv.currency).reduce((s, p) => s + p.amount, 0)
+
+  // bank_snapshot is frozen at issue; while still a draft, bank_id is a live
+  // pointer the editor lets the enterer change — resolve it live here too.
+  let bank = inv.bank_snapshot ?? null
+  if (!bank && inv.show_bank_details && inv.bank_id) {
     const { data } = await supabase
       .from('saved_banks')
       .select('bank_name, account_name, account_number, branch, swift_code, address')
       .eq('id', inv.bank_id)
       .single()
     bank = data ?? null
-  }
-
-  // Prefer line_items JSONB; fall back to invoice_items table
-  let items: {
-    watch_name: string; reference: string | null; serial_number: string | null;
-    year: string | null; condition: string | null; photo_url: string | null;
-    amount: number | null; amount_paid: number | null;
-  }[]
-
-  if (lineItemsJson && lineItemsJson.length > 0) {
-    items = [...lineItemsJson]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map(it => ({
-        watch_name:    it.watch_name,
-        reference:     it.reference,
-        serial_number: it.serial_number,
-        year:          it.year,
-        condition:     it.condition,
-        photo_url:     it.photo_url,
-        amount:        it.amount,
-        amount_paid:   it.amount_paid ?? it.amount,
-      }))
-  } else {
-    items = ((itemsRes.data ?? []) as InvoiceItem[])
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map(it => ({
-        watch_name:    it.watch_name,
-        reference:     it.reference,
-        serial_number: it.serial_number,
-        year:          it.year,
-        condition:     it.condition,
-        photo_url:     it.photo_url,
-        amount:        it.amount,
-        amount_paid:   (it as InvoiceItem & { amount_paid?: number | null }).amount_paid ?? it.amount,
-      }))
   }
 
   const logoUrl = logoRes.data?.value ?? null
@@ -145,7 +118,7 @@ export default async function InvoicePrintPage({
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const yy = String(d.getFullYear()).slice(2)
-  const pdfTitle = `${inv.invoice_number}-${dd}-${mm}-${yy}`
+  const pdfTitle = `${inv.invoice_number ?? 'DRAFT'}-${dd}-${mm}-${yy}`
 
   const autoDownload = searchParams.auto === '1'
 
@@ -157,22 +130,22 @@ export default async function InvoicePrintPage({
       <div className="mx-auto max-w-[210mm] print:max-w-full bg-white shadow-sm print:shadow-none">
         <InvoicePrintLayout
           invoiceNumber={inv.invoice_number}
+          docType={inv.doc_type}
           date={inv.date}
           currency={inv.currency}
-          exchangeRate={inv.exchange_rate}
           type={inv.type}
           status={inv.status}
-          clientName={inv.client_name}
-          clientAddress={inv.client_address}
-          clientPhone={inv.client_phone}
+          billToName={inv.bill_to_name}
+          billToAddress={inv.bill_to_address}
+          billToPhone={inv.bill_to_phone}
           salesManager={inv.sales_manager}
           paymentMethod={inv.payment_method}
           showBankDetails={inv.show_bank_details}
           showSignatures={inv.show_signatures}
-          advancePaid={inv.advance_paid}
-          amountPaid={inv.amount_paid}
+          discount={inv.discount}
+          paidTotal={paidTotal}
           notes={inv.notes}
-          termsAndConditions={(inv as unknown as Record<string, unknown>).terms_and_conditions as string ?? null}
+          termsAndConditions={inv.terms_and_conditions}
           items={items}
           bank={bank}
           logoUrl={logoUrl}

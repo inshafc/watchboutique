@@ -283,12 +283,19 @@ export interface DealWithRelations extends Deal {
 }
 
 // ── Invoices ─────────────────────────────────────────────────
+//
+// `type` (business purpose) and `doc_type` (document kind) are two
+// different axes — see supabase/sprint23.sql. `status` is derived
+// server-side from invoice_payments by record_invoice_payment(); never
+// set it directly from the client once an invoice is issued.
 
 export type InvoiceType   = 'sale' | 'general' | 'sourcing'
-export type InvoiceStatus = 'draft' | 'advance_paid' | 'paid_in_full' | 'overdue'
+export type InvoiceDocType = 'proforma' | 'invoice' | 'credit_note'
+export type InvoiceStatus = 'draft' | 'issued' | 'partially_paid' | 'paid' | 'cancelled'
 
-export const INVOICE_TYPES:    InvoiceType[]   = ['sale', 'general', 'sourcing']
-export const INVOICE_STATUSES: InvoiceStatus[] = ['draft', 'advance_paid', 'paid_in_full', 'overdue']
+export const INVOICE_TYPES:     InvoiceType[]    = ['sale', 'general', 'sourcing']
+export const INVOICE_DOC_TYPES: InvoiceDocType[] = ['proforma', 'invoice', 'credit_note']
+export const INVOICE_STATUSES:  InvoiceStatus[]  = ['draft', 'issued', 'partially_paid', 'paid', 'cancelled']
 
 export interface SavedBank {
   id:             string
@@ -302,55 +309,85 @@ export interface SavedBank {
   created_at:     string
 }
 
+export interface BankSnapshot {
+  bank_name:      string
+  account_name:   string | null
+  account_number: string | null
+  branch:         string | null
+  swift_code:     string | null
+  address:        string | null
+}
+
 export interface Invoice {
-  id:                string
-  invoice_number:    string
-  type:              InvoiceType
-  status:            InvoiceStatus
-  client_id:         string | null
-  client_name:       string | null
-  client_address:    string | null
-  client_phone:      string | null
-  deal_id:           string | null
-  date:              string
-  currency:          string
-  exchange_rate:     number | null
-  sales_manager:     string | null
-  payment_method:    string | null
-  bank_id:           string | null
-  show_bank_details: boolean
-  show_signatures:   boolean
-  advance_paid:      number | null
-  amount_paid:       number | null
-  notes:             string | null
-  deleted_at?:       string | null
-  created_at:        string
+  id:                  string
+  invoice_number:      string | null  // null until issue_invoice() assigns one
+  type:                InvoiceType
+  doc_type:            InvoiceDocType
+  status:               InvoiceStatus
+  client_id:           string | null
+  bill_to_name:        string | null
+  bill_to_address:     string | null
+  bill_to_phone:       string | null
+  bill_to_email:       string | null
+  deal_id:             string | null
+  date:                string
+  currency:            string
+  exchange_rate:       number | null
+  subtotal:            number | null
+  discount:            number | null
+  total:               number | null
+  total_lkr:           number | null
+  sales_manager:       string | null
+  payment_method:      string | null
+  bank_id:             string | null
+  bank_snapshot:       BankSnapshot | null
+  show_bank_details:   boolean
+  show_signatures:     boolean
+  related_invoice_id:  string | null
+  terms_and_conditions: string | null
+  notes:               string | null
+  issued_at:           string | null
+  issued_by:           string | null
+  deleted_at?:         string | null
+  created_at:          string
 }
 
 export interface InvoiceItem {
   id:            string
   invoice_id:    string
   watch_id:      string | null
-  watch_name:    string
+  description:   string
   reference:     string | null
   serial_number: string | null
   year:          string | null
   condition:     string | null
+  set_details?:  string | null
   photo_url:     string | null
-  amount:        number | null
+  quantity:      number
+  unit_price:    number | null
+  line_total:    number | null
   sort_order:    number
   created_at:    string
 }
 
+export interface InvoicePayment {
+  id:            string
+  invoice_id:    string
+  amount:        number
+  currency:      string
+  exchange_rate: number
+  amount_lkr:    number
+  method:        string | null
+  reference:     string | null
+  paid_at:       string
+  recorded_by:   string | null
+  notes:         string | null
+  created_at:    string
+}
+
 export interface InvoiceWithItems extends Invoice {
-  invoice_items: InvoiceItem[]
-  saved_banks?: {
-    bank_name:      string
-    account_name:   string | null
-    account_number: string | null
-    branch:         string | null
-    swift_code:     string | null
-  } | null
+  invoice_items:     InvoiceItem[]
+  invoice_payments?: InvoicePayment[]
 }
 
 // ── Sourced Orders ───────────────────────────────────────────

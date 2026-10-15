@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import InvoiceEditorClient from '@/components/invoices/InvoiceEditorClient'
-import type { Invoice, InvoiceItem, InvoiceWithItems, SavedBank, SalesManager } from '@/types'
+import type { Invoice, InvoiceItem, InvoicePayment, InvoiceWithItems, SavedBank, SalesManager } from '@/types'
 
 export default async function InvoiceEditPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
@@ -19,12 +19,17 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
 
   const inv = invData as Invoice
 
-  const [itemsRes, banksRes, smRes, watchesRes, clientsRes, logoRes] = await Promise.all([
+  const [itemsRes, paymentsRes, banksRes, smRes, watchesRes, clientsRes, logoRes] = await Promise.all([
     supabase
       .from('invoice_items')
       .select('*')
       .eq('invoice_id', params.id)
-      .order('created_at', { ascending: true }),
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('invoice_payments')
+      .select('*')
+      .eq('invoice_id', params.id)
+      .order('paid_at', { ascending: true }),
     supabase
       .from('saved_banks')
       .select('*')
@@ -41,7 +46,7 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .order('watch_name'),
     supabase
       .from('clients')
-      .select('id, name, phone, address, club_twb, avatar_color')
+      .select('id, name, phone, address, email, club_twb, avatar_color')
       .is('deleted_at', null)
       .order('name'),
     supabase
@@ -51,34 +56,17 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       .maybeSingle(),
   ])
 
-  let linkedBank: InvoiceWithItems['saved_banks'] = null
-  if (inv.bank_id) {
-    const { data } = await supabase
-      .from('saved_banks')
-      .select('bank_name, account_name, account_number, branch, swift_code')
-      .eq('id', inv.bank_id)
-      .single()
-    linkedBank = data ?? null
-  }
-
   const invoice: InvoiceWithItems = {
     ...inv,
-    invoice_items: (itemsRes.data ?? []) as InvoiceItem[],
-    saved_banks:   linkedBank,
+    invoice_items:    (itemsRes.data    ?? []) as InvoiceItem[],
+    invoice_payments: (paymentsRes.data ?? []) as InvoicePayment[],
   }
-
-  // line_items JSONB column on invoices — primary source of truth for line items
-  const lineItemsJson = (invData as Record<string, unknown>).line_items as Array<{
-    watch_name: string; reference: string | null; serial_number: string | null;
-    year: string | null; condition: string | null; photo_url: string | null;
-    amount: number | null; amount_paid?: number | null; sort_order: number;
-  }> | null
 
   const banks         = (banksRes.data    ?? []) as SavedBank[]
   const salesManagers = (smRes.data       ?? []) as SalesManager[]
   const logoUrl       = logoRes.data?.value ?? null
   const clients       = (clientsRes.data  ?? []) as {
-    id: string; name: string; phone: string | null; address: string | null; club_twb: boolean; avatar_color: string | null
+    id: string; name: string; phone: string | null; address: string | null; email: string | null; club_twb: boolean; avatar_color: string | null
   }[]
   const watches       = (watchesRes.data  ?? []) as {
     id:            string
@@ -99,7 +87,6 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
       salesManagers={salesManagers}
       watches={watches}
       clients={clients}
-      lineItemsJson={lineItemsJson}
       logoUrl={logoUrl}
     />
   )
