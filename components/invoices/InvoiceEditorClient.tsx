@@ -774,9 +774,15 @@ export default function InvoiceEditorClient({
             </a>
           </div>
 
-          <button type="button" onClick={() => setJustIssued(false)} className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors">
-            View invoice →
-          </button>
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/dashboard/invoices" className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors">
+              ← Back to Invoicing
+            </Link>
+            <span className="text-gray-200">|</span>
+            <button type="button" onClick={() => setJustIssued(false)} className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors">
+              View invoice →
+            </button>
+          </div>
         </div>
       </div>
     )

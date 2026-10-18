@@ -492,10 +492,10 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
 
             const RowInner = (
               <div
-                className="grid items-center gap-2 md:gap-0 group transition-shadow"
+                className="grid items-center gap-2 group transition-shadow"
                 style={{
                   gridTemplateColumns: `${selectMode ? '28px ' : ''}minmax(300px,2.4fr) 116px minmax(190px,1.2fr) 118px 160px 132px`,
-                  padding: '15px 22px', background: '#fff', borderRadius: 20,
+                  padding: '15px 20px', background: '#fff', borderRadius: 20,
                   border: `1px solid ${INK_08}`, boxShadow: '0 1px 2px rgba(20,20,15,.05)',
                 }}
               >

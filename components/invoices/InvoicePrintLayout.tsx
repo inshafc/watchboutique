@@ -170,6 +170,17 @@ export default function InvoicePrintLayout({
         @media print {
           @page { size: A4 portrait; margin: 0; }
           body  { margin: 0; }
+          /* Without this, Chrome/Safari strip every background-color on
+             print by default — the black ITEM header, the black TOTAL
+             bar, and the status dot all render as blank/invisible instead
+             of what's on screen. generateInvoiceHTML.ts (the standalone
+             downloadable file) already had this; this on-screen print
+             route (what "Print / Save PDF" actually uses) didn't. */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
         }
       `}</style>
 
