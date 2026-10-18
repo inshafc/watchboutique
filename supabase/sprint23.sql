@@ -1,8 +1,37 @@
 -- Sprint 23: Invoicing data-layer rebuild
 -- Run in the Supabase SQL editor, top to bottom, in one sitting.
 --
--- CONTEXT — resolves 4 conflicts between the requested schema and what's
--- actually live (see the audit given alongside this file):
+-- REVISED after a failed first run against the live database surfaced that
+-- it had already drifted from this repo's sprint*.sql history in ways that
+-- made the original version of this file actively unsafe to run:
+--   - invoice_items already had description/set_details/quantity columns
+--     (not watch_name, as sprint10.sql claims) but ZERO rows — every real
+--     invoice's line items live only in invoices.line_items (jsonb), which
+--     the app apparently never actually mirrored into invoice_items despite
+--     the "backward compatibility" write path in the old editor code.
+--   - invoices.subtotal/total already exist but are STALE — some real rows
+--     show 0 despite non-empty line_items. They cannot be trusted as a
+--     backfill source; everything here derives from line_items instead.
+--   - app_settings and activity_log don't exist at all, despite
+--     sprint10b.sql / sprint20.sql in this repo claiming to create them.
+--     activity_log is unrelated to invoicing and out of scope here — every
+--     logActivity() call in the app is silently failing today regardless of
+--     this migration, and continues to after it. app_settings IS a real
+--     dependency of issue_invoice() below, so it's created here.
+--   - invoices/invoice_items RLS was already enabled, under policy names
+--     "role_access_invoices" / "role_access_invoice_items" (not the
+--     "authenticated_all_*" names sprint18.sql / close-public-rls-gap.sql
+--     describe), already restricted to enterer/super_admin — but with no
+--     read access for viewer, and no draft-only restriction on enterer.
+--     Those exact policies are dropped below; leaving them in place would
+--     silently defeat the new "read-only after issue" rule, since
+--     permissive RLS policies are OR'd together.
+--   - profiles.role has a 4th live value, 'inventory_clerk', not in any
+--     tracked file. Treated as read-only on invoices here (same as
+--     viewer) — least-privilege default; tell me if it should be more.
+--
+-- CONTEXT — resolves 4 conflicts between the originally requested schema
+-- and what's actually live:
 --   1. There is no `sales` table — the real transaction entity is `deals`.
 --      invoices.deal_id already exists and is kept; no sale_id is added.
 --   2. `invoices.type` ('sale' | 'general' | 'sourcing') is a BUSINESS-type
@@ -23,8 +52,29 @@
 -- STAGE 1 — SCHEMA
 -- ════════════════════════════════════════════════════════════════════════
 
+-- ── app_settings — missing live despite sprint10b.sql; issue_invoice()
+--    below reads invoice_number_prefix from it, so it must exist first ───
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        text PRIMARY KEY,
+  value      text,
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "read_app_settings" ON app_settings;
+CREATE POLICY "read_app_settings" ON app_settings
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "write_app_settings" ON app_settings;
+CREATE POLICY "write_app_settings" ON app_settings
+  FOR ALL TO authenticated
+  USING (get_my_role() IN ('super_admin', 'enterer'))
+  WITH CHECK (get_my_role() IN ('super_admin', 'enterer'));
+
 -- ── invoices: rename client_* → bill_to_*, add doc_type + snapshot/lock
---    columns ──────────────────────────────────────────────────────────────
+--    columns. subtotal/total already exist live — not re-added ───────────
 
 DO $$
 BEGIN
@@ -55,32 +105,39 @@ ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_doc_type_check;
 ALTER TABLE invoices ADD CONSTRAINT invoices_doc_type_check
   CHECK (doc_type IN ('proforma', 'invoice', 'credit_note'));
 
--- terms_and_conditions (sprint11b.sql) already covers the "terms" field
+-- terms_and_conditions (already live) already covers the "terms" field
 -- asked for — no duplicate column added.
 
 -- ── invoices: new status enum (draft | issued | partially_paid | paid |
 --    cancelled), replacing draft | advance_paid | paid_in_full | overdue ──
--- Backfilled in Stage 2 BEFORE the constraint below is applied, so existing
--- rows never violate it.
+-- Backfilled in Stage 2 BEFORE the constraint below is applied.
 
--- ── invoice_items: relational line items — add the columns the JSONB
---    mirror never had, keep reference/serial_number/photo_url/sort_order
---    as-is (sound, reused), rename watch_name → description, amount →
---    line_total, add watch_id FK, quantity, unit_price ────────────────────
+-- ── invoice_items: relational line items. Live already has description/
+--    set_details/quantity (NOT watch_name → description as assumed) but
+--    is empty — real data backfills from invoices.line_items in Stage 2.
+--    Only rename watch_name→description / amount→line_total if the TARGET
+--    name doesn't already exist, so this is safe on both the drifted live
+--    schema and a schema that still matches sprint10.sql ─────────────────
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'watch_name') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'watch_name')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'description') THEN
     ALTER TABLE invoice_items RENAME COLUMN watch_name TO description;
   END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'amount') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'amount')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoice_items' AND column_name = 'line_total') THEN
     ALTER TABLE invoice_items RENAME COLUMN amount TO line_total;
   END IF;
 END $$;
 
 ALTER TABLE invoice_items
-  ADD COLUMN IF NOT EXISTS quantity   int DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS unit_price decimal(14,2);
+  ADD COLUMN IF NOT EXISTS description text,
+  ADD COLUMN IF NOT EXISTS set_details text,
+  ADD COLUMN IF NOT EXISTS quantity    int DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS unit_price  decimal(14,2),
+  ADD COLUMN IF NOT EXISTS line_total  decimal(14,2),
+  ADD COLUMN IF NOT EXISTS sort_order  int NOT NULL DEFAULT 0;
 
 ALTER TABLE invoice_items DROP CONSTRAINT IF EXISTS invoice_items_watch_id_fkey;
 ALTER TABLE invoice_items ADD CONSTRAINT invoice_items_watch_id_fkey
@@ -140,10 +197,41 @@ ALTER TABLE invoices ADD CONSTRAINT invoices_status_check
 
 UPDATE invoices SET issued_at = created_at WHERE issued_at IS NULL AND status <> 'draft';
 
--- ── subtotal / total / total_lkr: derive from invoice_items.line_total
---    (now populated below) per invoice, for every already-numbered row ──
+-- ── invoice_items: populate from invoices.line_items (jsonb) — the one
+--    real source of per-invoice line data on this database. Guarded by
+--    NOT EXISTS so it's safe to re-run and never duplicates rows for an
+--    invoice that already has them (whether from this backfill or from
+--    normal app use after the migration). watch_id is re-validated
+--    against watches so a stale/deleted reference in old JSONB can never
+--    abort the whole backfill with an FK violation ───────────────────────
 
-UPDATE invoice_items SET unit_price = line_total WHERE unit_price IS NULL;
+INSERT INTO invoice_items (
+  invoice_id, watch_id, description, reference, serial_number, year,
+  condition, set_details, photo_url, quantity, unit_price, line_total, sort_order
+)
+SELECT
+  i.id,
+  (SELECT w.id FROM watches w WHERE w.id = NULLIF(elem->>'watch_id', '')::uuid),
+  COALESCE(NULLIF(elem->>'watch_name', ''), NULLIF(elem->>'description', ''), 'Item'),
+  NULLIF(elem->>'reference', ''),
+  NULLIF(elem->>'serial_number', ''),
+  NULLIF(elem->>'year', ''),
+  NULLIF(elem->>'condition', ''),
+  NULLIF(elem->>'set_details', ''),
+  NULLIF(elem->>'photo_url', ''),
+  COALESCE((elem->>'quantity')::int, 1),
+  (elem->>'amount')::numeric,
+  (elem->>'amount')::numeric,
+  COALESCE((elem->>'sort_order')::int, (ord - 1)::int)
+FROM invoices i
+CROSS JOIN LATERAL jsonb_array_elements(COALESCE(i.line_items, '[]'::jsonb)) WITH ORDINALITY AS t(elem, ord)
+WHERE NOT EXISTS (SELECT 1 FROM invoice_items ii WHERE ii.invoice_id = i.id);
+
+-- ── subtotal / total / total_lkr: recomputed from the invoice_items just
+--    backfilled above (equivalently, from line_items — same numbers).
+--    invoices.subtotal/total already existed live but were found stale
+--    (some rows showed 0 despite non-empty line_items), so every row is
+--    recomputed here rather than only filling in NULLs ───────────────────
 
 WITH sums AS (
   SELECT invoice_id, COALESCE(SUM(line_total), 0) AS s
@@ -156,10 +244,14 @@ SET subtotal  = COALESCE(sums.s, 0),
     total_lkr = (COALESCE(sums.s, 0) - COALESCE(i.discount, 0))
                 * CASE WHEN i.currency = 'LKR' THEN 1 ELSE COALESCE(i.exchange_rate, 1) END
 FROM sums
-WHERE i.id = sums.invoice_id AND i.subtotal IS NULL;
+WHERE i.id = sums.invoice_id;
 
+-- Catches every invoice with zero line items. Checked against total_lkr
+-- (a brand-new column, so NULL really does mean "not yet backfilled"),
+-- not subtotal — subtotal can be a pre-existing 0 from before this
+-- migration ran, which would wrongly skip the row if checked instead.
 UPDATE invoices SET subtotal = 0, total = 0, total_lkr = 0
-WHERE subtotal IS NULL;
+WHERE total_lkr IS NULL;
 
 -- ── bank_snapshot: freeze whatever saved_banks row each invoice currently
 --    points to, since bank_id used to be a live reference ────────────────
@@ -254,6 +346,7 @@ BEGIN
   END IF;
 
   SELECT COALESCE(value, 'TWB') INTO v_prefix FROM app_settings WHERE key = 'invoice_number_prefix';
+  v_prefix := COALESCE(v_prefix, 'TWB');
   IF v_doc_type = 'credit_note' THEN
     v_prefix := v_prefix || '-CN';
   END IF;
@@ -394,16 +487,24 @@ GRANT EXECUTE ON FUNCTION create_credit_note(uuid) TO authenticated;
 -- enterer: create drafts; edit only while draft (issuing/payments go through
 --   the SECURITY DEFINER functions above, which bypass this restriction);
 --   never update/delete a payment once recorded (append-only ledger).
--- viewer: read-only. Purchase cost is never selected on invoice screens in
---   the app (it lives on watches.purchase_cost), so no column-level rule is
---   needed for that — enforced by the queries, same as it is today.
+-- viewer, inventory_clerk: read-only. Purchase cost is never selected on
+--   invoice screens in the app (it lives on watches.purchase_cost), so no
+--   column-level rule is needed for that — enforced by the queries.
 
 ALTER TABLE invoices        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_payments ENABLE ROW LEVEL SECURITY;
 
+-- Drop every policy name this table has carried: the "authenticated_all_*"
+-- names sprint18.sql / close-public-rls-gap.sql describe, AND the
+-- "role_access_*" names actually found live (neither matches what the
+-- tracked history says should be there — see the note at the top of this
+-- file). Leaving either in place would silently bypass the draft-only
+-- write restriction below, since permissive RLS policies are OR'd.
 DROP POLICY IF EXISTS "authenticated_all_invoices"      ON invoices;
 DROP POLICY IF EXISTS "authenticated_all_invoice_items" ON invoice_items;
+DROP POLICY IF EXISTS "role_access_invoices"            ON invoices;
+DROP POLICY IF EXISTS "role_access_invoice_items"       ON invoice_items;
 
 DROP POLICY IF EXISTS "super_admin_all_invoices" ON invoices;
 CREATE POLICY "super_admin_all_invoices" ON invoices
@@ -411,7 +512,7 @@ CREATE POLICY "super_admin_all_invoices" ON invoices
 
 DROP POLICY IF EXISTS "viewer_read_invoices" ON invoices;
 CREATE POLICY "viewer_read_invoices" ON invoices
-  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer'));
+  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer', 'inventory_clerk'));
 
 DROP POLICY IF EXISTS "enterer_insert_invoices" ON invoices;
 CREATE POLICY "enterer_insert_invoices" ON invoices
@@ -429,7 +530,7 @@ CREATE POLICY "super_admin_all_invoice_items" ON invoice_items
 
 DROP POLICY IF EXISTS "viewer_read_invoice_items" ON invoice_items;
 CREATE POLICY "viewer_read_invoice_items" ON invoice_items
-  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer'));
+  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer', 'inventory_clerk'));
 
 DROP POLICY IF EXISTS "enterer_write_draft_invoice_items" ON invoice_items;
 CREATE POLICY "enterer_write_draft_invoice_items" ON invoice_items
@@ -443,7 +544,7 @@ CREATE POLICY "super_admin_all_invoice_payments" ON invoice_payments
 
 DROP POLICY IF EXISTS "read_invoice_payments" ON invoice_payments;
 CREATE POLICY "read_invoice_payments" ON invoice_payments
-  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer'));
+  FOR SELECT TO authenticated USING (get_my_role() IN ('viewer', 'enterer', 'inventory_clerk'));
 
 DROP POLICY IF EXISTS "enterer_insert_invoice_payments" ON invoice_payments;
 CREATE POLICY "enterer_insert_invoice_payments" ON invoice_payments
@@ -455,24 +556,35 @@ CREATE POLICY "enterer_insert_invoice_payments" ON invoice_payments
 -- bypass RLS) can read or increment it.
 
 -- ── activity_log.action_type: widen the CHECK (sprint20.sql) to allow the
---    3 new action types the UI logs for issuing/payments/credit notes ────
+--    3 new action types the UI logs for issuing/payments/credit notes.
+--    Guarded — activity_log does not exist live right now (see note at the
+--    top of this file); this becomes a safe no-op until it does ─────────
 
-ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_action_type_check;
-ALTER TABLE activity_log ADD CONSTRAINT activity_log_action_type_check CHECK (action_type IN (
-  'login', 'logout', 'login_failed',
-  'password_reset_self', 'password_reset_by_admin',
-  'role_changed', 'user_deactivated', 'user_activated', 'user_created',
-  'watch_created', 'watch_updated', 'watch_deleted', 'watch_duplicated',
-  'sale_created', 'sale_updated', 'sale_deleted',
-  'client_created', 'client_updated', 'client_deleted',
-  'invoice_created', 'invoice_updated', 'invoice_deleted',
-  'invoice_downloaded', 'invoice_printed',
-  'invoice_issued', 'invoice_payment_recorded', 'credit_note_created',
-  'watch_shared', 'settings_updated'
-));
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'activity_log') THEN
+    ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_action_type_check;
+    ALTER TABLE activity_log ADD CONSTRAINT activity_log_action_type_check CHECK (action_type IN (
+      'login', 'logout', 'login_failed',
+      'password_reset_self', 'password_reset_by_admin',
+      'role_changed', 'user_deactivated', 'user_activated', 'user_created',
+      'watch_created', 'watch_updated', 'watch_deleted', 'watch_duplicated',
+      'sale_created', 'sale_updated', 'sale_deleted',
+      'client_created', 'client_updated', 'client_deleted',
+      'invoice_created', 'invoice_updated', 'invoice_deleted',
+      'invoice_downloaded', 'invoice_printed',
+      'invoice_issued', 'invoice_payment_recorded', 'credit_note_created',
+      'watch_shared', 'settings_updated'
+    ));
+  END IF;
+END $$;
 
 -- ── Verify afterward ───────────────────────────────────────────────────
 -- select id, invoice_number, doc_type, status, total, total_lkr, issued_at
 -- from invoices order by created_at desc limit 20;
 --
 -- select prefix, year, last_number from invoice_counters order by 1, 2;
+--
+-- select i.invoice_number, count(ii.id) as items, i.subtotal, i.total
+-- from invoices i left join invoice_items ii on ii.invoice_id = i.id
+-- group by i.id order by i.created_at desc limit 20;
