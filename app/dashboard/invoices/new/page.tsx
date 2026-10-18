@@ -116,6 +116,7 @@ export default async function NewInvoicePage({
       serial_number: w.serial_number   ?? null,
       year:          watchYear,
       condition:     w.condition       ?? null,
+      set_details:   w.set_details     ?? null,
       photo_url:     w.photos?.[0]     ?? null,
       quantity:      1,
       unit_price:    deal?.sale_price  ?? null,

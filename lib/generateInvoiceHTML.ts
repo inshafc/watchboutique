@@ -1,17 +1,19 @@
-import type { InvoiceDocType } from '@/types'
+import type { InvoiceDocType, InvoiceItemFieldVisibility } from '@/types'
 
 const TWB_LOGO_URL =
   'https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/The%20Watch%20Boutique%20Sri%20Lanka%20Logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby9UaGUgV2F0Y2ggQm91dGlxdWUgU3JpIExhbmthIExvZ28ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MTQ2MTQ0OSwiZXhwIjo3Mzk3NDYxNDQ5fQ.KCxDWOYjqZXZ-IFdYvW3I5EFlzA7Y-GTnZGUxITzLo8'
 
 export interface InvoiceHTMLItem {
-  description:   string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  photo_url:     string | null
-  quantity:      number
-  line_total:    number | null
+  description:      string
+  reference:        string | null
+  serial_number:    string | null
+  year:             string | null
+  condition:        string | null
+  set_details:      string | null
+  photo_url:        string | null
+  quantity:         number
+  line_total:       number | null
+  field_visibility?: InvoiceItemFieldVisibility
 }
 
 export interface InvoiceHTMLBank {
@@ -142,11 +144,13 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
       ? `<img src="${esc(item.photo_url)}" alt="" style="width:48px;height:48px;border-radius:6px;object-fit:cover;margin-right:12px;vertical-align:middle;flex-shrink:0;">`
       : `<div style="width:48px;height:48px;border-radius:6px;background:#f3f4f6;margin-right:12px;flex-shrink:0;"></div>`
 
+    const fv = item.field_visibility
     const details = [
-      item.reference     ? `Ref: ${esc(item.reference)}`       : '',
-      item.serial_number ? `SN: ${esc(item.serial_number)}`    : '',
-      item.year          ? `Year: ${esc(item.year)}`           : '',
-      item.condition     ? `Cond: ${esc(item.condition)}`      : '',
+      item.reference     && (fv?.reference     ?? true) ? `Ref: ${esc(item.reference)}`         : '',
+      item.serial_number && (fv?.serial_number ?? true) ? `SN: ${esc(item.serial_number)}`       : '',
+      item.year          && (fv?.year          ?? true) ? `Year: ${esc(item.year)}`              : '',
+      item.condition                                     ? `Cond: ${esc(item.condition)}`         : '',
+      item.set_details   && (fv?.set_details   ?? true) ? `Set: ${esc(item.set_details)}`         : '',
     ].filter(Boolean).join(' &nbsp;·&nbsp; ')
 
     return `<tr>

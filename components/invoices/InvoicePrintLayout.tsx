@@ -1,17 +1,19 @@
-import type { InvoiceType, InvoiceStatus, InvoiceDocType } from '@/types'
+import type { InvoiceType, InvoiceStatus, InvoiceDocType, InvoiceItemFieldVisibility } from '@/types'
 
 const TWB_LOGO_URL =
   'https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/The%20Watch%20Boutique%20Sri%20Lanka%20Logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby9UaGUgV2F0Y2ggQm91dGlxdWUgU3JpIExhbmthIExvZ28ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MTQ2MTQ0OSwiZXhwIjo3Mzk3NDYxNDQ5fQ.KCxDWOYjqZXZ-IFdYvW3I5EFlzA7Y-GTnZGUxITzLo8'
 
 export interface PrintItem {
-  description:   string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  photo_url:     string | null
-  quantity:      number
-  line_total:    number | null
+  description:      string
+  reference:        string | null
+  serial_number:    string | null
+  year:             string | null
+  condition:        string | null
+  set_details:      string | null
+  photo_url:        string | null
+  quantity:         number
+  line_total:       number | null
+  field_visibility?: InvoiceItemFieldVisibility
 }
 
 export interface PrintBank {
@@ -310,10 +312,11 @@ export default function InvoicePrintLayout({
                           {item.description || '—'}
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '3px' }}>
-                          {item.reference     && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Ref: {item.reference}</span>}
-                          {item.serial_number && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>SN: {item.serial_number}</span>}
-                          {item.year          && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Year: {item.year}</span>}
+                          {item.reference     && (item.field_visibility?.reference     ?? true) && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Ref: {item.reference}</span>}
+                          {item.serial_number && (item.field_visibility?.serial_number ?? true) && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>SN: {item.serial_number}</span>}
+                          {item.year          && (item.field_visibility?.year          ?? true) && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Year: {item.year}</span>}
                           {item.condition     && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Condition: {item.condition}</span>}
+                          {item.set_details   && (item.field_visibility?.set_details   ?? true) && <span style={{ fontFamily: poppins, fontSize: '11px', fontWeight: 400, color: '#9ca3af' }}>Set: {item.set_details}</span>}
                         </div>
                       </div>
                     </div>

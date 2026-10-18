@@ -88,9 +88,11 @@ export default async function InvoicePrintPage({
       serial_number: it.serial_number,
       year:          it.year,
       condition:     it.condition,
+      set_details:   it.set_details,
       photo_url:     it.photo_url,
       quantity:      it.quantity ?? 1,
       line_total:    it.line_total,
+      field_visibility: it.field_visibility,
     }))
 
   const payments = (paymentsRes.data ?? []) as InvoicePayment[]

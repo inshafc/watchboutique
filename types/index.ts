@@ -352,22 +352,30 @@ export interface Invoice {
   created_at:          string
 }
 
+export interface InvoiceItemFieldVisibility {
+  reference:     boolean
+  serial_number: boolean
+  year:          boolean
+  set_details:   boolean
+}
+
 export interface InvoiceItem {
-  id:            string
-  invoice_id:    string
-  watch_id:      string | null
-  description:   string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  set_details?:  string | null
-  photo_url:     string | null
-  quantity:      number
-  unit_price:    number | null
-  line_total:    number | null
-  sort_order:    number
-  created_at:    string
+  id:               string
+  invoice_id:       string
+  watch_id:         string | null
+  description:      string
+  reference:        string | null
+  serial_number:    string | null
+  year:             string | null
+  condition:        string | null
+  set_details:      string | null
+  photo_url:        string | null
+  quantity:         number
+  unit_price:       number | null
+  line_total:       number | null
+  sort_order:       number
+  field_visibility: InvoiceItemFieldVisibility
+  created_at:       string
 }
 
 export interface InvoicePayment {
