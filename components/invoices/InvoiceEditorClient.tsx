@@ -53,6 +53,15 @@ function fmtDate(d: string): string {
   catch { return d }
 }
 
+// wa.me needs digits only, with country code and no leading 0 — local
+// numbers on file are usually either already in that form or start with a
+// Sri Lankan trunk '0', which gets swapped for '94'.
+function normalizePhoneForWhatsApp(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.startsWith('0') ? '94' + digits.slice(1) : digits
+}
+
 interface WatchForInvoice {
   id:            string
   watch_name:    string
@@ -336,6 +345,8 @@ export default function InvoiceEditorClient({
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false)
   const [recordingPayment,  setRecordingPayment]  = useState(false)
   const [creatingCreditNote, setCreatingCreditNote] = useState(false)
+  const [justIssued,       setJustIssued]         = useState(false)
+  const [issuedNumber,     setIssuedNumber]       = useState<string | null>(null)
   const [paymentForm, setPaymentForm] = useState({
     amount: '', currency: invoice.currency ?? 'LKR', exchange_rate: invoice.exchange_rate?.toString() ?? '1',
     method: '', reference: '', paid_at: new Date().toISOString().split('T')[0], notes: '',
@@ -604,6 +615,8 @@ export default function InvoiceEditorClient({
     setIssueConfirmOpen(false)
     void logActivity({ actionType: 'invoice_issued', entityType: 'invoice', entityId: invoice.id, entityLabel: data as string })
     toast.success(`Issued as ${data}`)
+    setIssuedNumber(data as string)
+    setJustIssued(true)
     router.refresh()
   }, [invoice.id, initialPaymentAmount, form.currency, form.exchange_rate, form.payment_method, router, toast])
 
@@ -718,6 +731,55 @@ export default function InvoiceEditorClient({
     document.body.removeChild(a)
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     void logActivity({ actionType: 'invoice_downloaded', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })
+  }
+
+  // ── Just issued: a one-time "here's your invoice" screen with the share
+  //    actions, before dropping into the normal locked view ───────────────
+  if (justIssued) {
+    const finalNumber = issuedNumber ?? invoice.invoice_number ?? 'Invoice'
+    const waPhone = normalizePhoneForWhatsApp(form.bill_to_phone)
+    const waText  = encodeURIComponent(`Hi${form.bill_to_name ? ' ' + form.bill_to_name : ''}, here is your invoice ${finalNumber} from The Watch Boutique.`)
+    const waHref  = waPhone ? `https://wa.me/${waPhone}?text=${waText}` : `https://api.whatsapp.com/send?text=${waText}`
+    const mailSubject = encodeURIComponent(`Invoice ${finalNumber} — The Watch Boutique`)
+    const mailBody     = encodeURIComponent(`Hi${form.bill_to_name ? ' ' + form.bill_to_name : ''},\n\nPlease find your invoice ${finalNumber} attached.\n\nThank you,\nThe Watch Boutique`)
+    const mailHref = `mailto:${form.bill_to_email || ''}?subject=${mailSubject}&body=${mailBody}`
+
+    const actionBtn = 'flex flex-col items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-5 text-sm font-semibold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors'
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#f0f0f0' }}>
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7" viewBox="0 0 16 16" fill="currentColor"><path d="M13.485 1.431a1.473 1.473 0 0 1 2.104 2.062l-7.84 9.801a1.473 1.473 0 0 1-2.12.04L.431 8.138a1.473 1.473 0 0 1 2.084-2.083l4.111 4.112 6.82-8.69a.486.486 0 0 1 .04-.046z"/></svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Invoice Issued</h2>
+          <p className="text-sm text-gray-500 mb-6 font-mono">{finalNumber}</p>
+
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button type="button" onClick={handleDownload} className={actionBtn}>
+              <svg className="w-5 h-5" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+              Download
+            </button>
+            <a href={mailHref} className={actionBtn}>
+              <svg className="w-5 h-5" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/></svg>
+              Email
+            </a>
+            <Link href={`/dashboard/invoices/${invoice.id}/print?auto=1`} target="_blank" className={actionBtn}>
+              <svg className="w-5 h-5" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/><path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/></svg>
+              Save as PDF
+            </Link>
+            <a href={waHref} target="_blank" rel="noopener noreferrer" className={actionBtn}>
+              <svg className="w-5 h-5" viewBox="0 0 16 16" fill="currentColor"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.355-.919l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.591-6.593 6.591zm3.615-4.934c-.198-.1-1.17-.577-1.352-.642-.182-.065-.315-.1-.447.099-.133.198-.513.642-.627.775-.114.133-.232.146-.43.05-.198-.1-.836-.308-1.592-.985-.588-.525-.985-1.175-1.1-1.374-.114-.198-.012-.303.088-.403.09-.09.198-.232.298-.35.1-.114.133-.198.198-.33.065-.133.034-.247-.017-.347-.05-.1-.447-1.077-.613-1.474-.161-.388-.325-.335-.447-.34-.114-.007-.247-.009-.38-.009-.133 0-.347.05-.53.247-.182.198-.695.68-.695 1.657 0 .978.712 1.924.81 2.058.1.133 1.4 2.136 3.394 2.996.475.205.843.327 1.13.419.475.15.908.129 1.25.078.38-.057 1.17-.478 1.335-.94.165-.461.165-.857.115-.94-.05-.08-.182-.133-.38-.233z"/></svg>
+              WhatsApp
+            </a>
+          </div>
+
+          <button type="button" onClick={() => setJustIssued(false)} className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors">
+            View invoice →
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
