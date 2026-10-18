@@ -706,7 +706,17 @@ export default function InvoiceEditorClient({
     })
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url  = URL.createObjectURL(blob)
-    window.open(url, '_blank')
+    // A real download via a temporary <a download> click, not
+    // window.open(blobURL) — the latter gets silently popup-blocked in
+    // some browsers/contexts, which is why Download used to open a blank
+    // tab instead of producing anything.
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${invoice.invoice_number ?? 'draft-invoice'}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
     void logActivity({ actionType: 'invoice_downloaded', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })
   }
 
