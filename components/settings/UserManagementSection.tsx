@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
 import type { UserRole } from '@/lib/auth'
+import BusyButton from '@/components/ui/BusyButton'
 
 interface UserRow {
   id:               string
@@ -146,13 +147,14 @@ function InviteModal({
           >
             Cancel
           </button>
-          <button
+          <BusyButton
             onClick={handleCreate}
-            disabled={saving}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-50 transition-colors"
+            pending={saving}
+            pendingLabel="Creating…"
+            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-50 transition-colors"
           >
-            {saving ? 'Creating…' : 'Create User'}
-          </button>
+            Create User
+          </BusyButton>
         </div>
       </div>
     </div>
@@ -265,13 +267,14 @@ function ResetPasswordModal({
             {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
             <div className="flex gap-2">
               <button onClick={() => setStep('input')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Back</button>
-              <button
+              <BusyButton
                 onClick={handleReset}
-                disabled={saving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-50 transition-colors"
+                pending={saving}
+                pendingLabel="Resetting…"
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-black disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Resetting…' : 'Confirm Reset'}
-              </button>
+                Confirm Reset
+              </BusyButton>
             </div>
           </>
         )}
@@ -423,17 +426,18 @@ export default function UserManagementSection() {
                             </button>
                           )}
                           {!isSelf && (
-                            <button
+                            <BusyButton
                               onClick={() => handleToggleStatus(u.id, !u.is_active)}
-                              disabled={toggling === u.id}
-                              className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 ${
+                              pending={toggling === u.id}
+                              pendingLabel=""
+                              className={`inline-flex items-center justify-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 ${
                                 u.is_active
                                   ? 'text-red-500 hover:bg-red-50'
                                   : 'text-green-600 hover:bg-green-50'
                               }`}
                             >
-                              {toggling === u.id ? '…' : u.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
+                              {u.is_active ? 'Deactivate' : 'Activate'}
+                            </BusyButton>
                           )}
                         </div>
                       </td>

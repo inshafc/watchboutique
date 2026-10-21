@@ -2,12 +2,13 @@ export const revalidate = 60
 
 import { createClient } from '@/lib/supabase/server'
 import nextDynamic from 'next/dynamic'
+import { DashboardSkeleton } from '@/components/ui/skeletons'
 import { getInvestorStats } from '@/lib/investor-stats'
 import type { DealRow, Target } from '@/lib/analytics'
 
 const DashboardOverview = nextDynamic(
   () => import('@/components/dashboard/DashboardOverview'),
-  { ssr: false, loading: () => <div className="flex-1 bg-gray-50 animate-pulse" /> }
+  { ssr: false, loading: () => <div className="p-4 md:p-7"><DashboardSkeleton message /></div> }
 )
 
 export default async function DashboardPage() {

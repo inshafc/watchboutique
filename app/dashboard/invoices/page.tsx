@@ -9,7 +9,7 @@ export default async function InvoicesPage() {
 
   const { data } = await supabase
     .from('invoices')
-    .select('*, invoice_items(*)')
+    .select('*, invoice_items(*), invoice_payments(*)')
     .order('created_at', { ascending: false })
 
   const invoices = (data ?? []) as InvoiceWithItems[]

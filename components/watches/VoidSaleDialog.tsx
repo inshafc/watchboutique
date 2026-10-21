@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import BusyButton from '@/components/ui/BusyButton'
 
 export default function VoidSaleDialog({
   acting,
@@ -67,14 +68,15 @@ export default function VoidSaleDialog({
             <p className="text-sm text-gray-500 mb-6">This permanently deletes the sale record — it can&apos;t be undone.</p>
 
             <div className="space-y-2">
-              <button
+              <BusyButton
                 type="button"
                 onClick={onVoidSale}
-                disabled={acting}
-                className="w-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+                pending={acting}
+                pendingLabel="Voiding…"
+                className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
               >
-                {acting ? 'Voiding…' : 'Yes, void the sale'}
-              </button>
+                Yes, void the sale
+              </BusyButton>
               <button
                 type="button"
                 onClick={() => setConfirmingVoid(false)}

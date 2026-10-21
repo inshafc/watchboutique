@@ -7,6 +7,8 @@ import LazyImage from '@/components/ui/LazyImage'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
 import PriceDisplay from '@/components/watches/PriceDisplay'
+import LongTaskProgress from '@/components/ui/LongTaskProgress'
+import { useToast } from '@/components/ui/ToastProvider'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/context/AuthContext'
 import { logActivity } from '@/lib/activityLog'
@@ -15,6 +17,7 @@ import { getDisplayPrice } from '@/lib/watch-price'
 import type { WatchWithBrand, WatchStatus, Brand } from '@/types'
 import { WATCH_STATUSES } from '@/types'
 import { INK, LIME, GREEN, AMBER, AMBER_BG, BLUE, RED, INK_45, INK_60, INK_08, CARD_BG, RADII, CONTROL_HEIGHT_LG } from '@/lib/design-tokens'
+import BusyButton from '@/components/ui/BusyButton'
 
 // ── Icons ────────────────────────────────────────────────────
 
@@ -275,13 +278,13 @@ export default function WatchInventory({
   const [bulkAvailableActing, setBulkAvailableActing] = useState(false)
   const [confirmingBulkVoid, setConfirmingBulkVoid] = useState(false)
 
-  // Undo
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [undoState,   setUndoState]   = useState<{ message: string; restore: () => Promise<void> } | null>(null)
+  // Bulk duplicate and bulk mark-available loop per watch with awaits inside,
+  // so both are LONG and scale with the selection. Determinate — we know the
+  // count up front.
+  const [bulkTask, setBulkTask] = useState<{ label: string; done: number; total: number } | null>(null)
 
-  // Toast
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const toastApi = useToast()
+
 
   // Inline confirm for permanent delete
   const [confirmDeleteId,  setConfirmDeleteId]  = useState<string | null>(null)
@@ -518,31 +521,14 @@ export default function WatchInventory({
 
   // ── Undo ──────────────────────────────────────────────────
 
+  // Both now delegate to the shared, stacked toast system — the local
+  // fixed-position copies these used to render could overlap each other.
   function showToast(message: string) {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    setToast(message)
-    toastTimerRef.current = setTimeout(() => {
-      setToast(null)
-      toastTimerRef.current = null
-    }, 2200)
+    toastApi.success(message)
   }
 
   function showUndo(message: string, restore: () => Promise<void>) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    setUndoState({ message, restore })
-    undoTimerRef.current = setTimeout(() => {
-      setUndoState(null)
-      undoTimerRef.current = null
-    }, 6000)
-  }
-
-  async function handleUndo() {
-    if (!undoState) return
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-    undoTimerRef.current = null
-    const restore = undoState.restore
-    setUndoState(null)
-    await restore()
+    toastApi.undo(message, restore)
   }
 
   // ── Deleted watches ───────────────────────────────────────
@@ -695,6 +681,7 @@ export default function WatchInventory({
     const supabase = createClient()
     const selected = watches.filter(w => selectedIds.has(w.id))
     const newWatches: WatchWithBrand[] = []
+    setBulkTask({ label: 'Duplicating watches…', done: 0, total: selected.length })
 
     for (const w of selected) {
       const { data: newWatch } = await supabase
@@ -736,9 +723,11 @@ export default function WatchInventory({
           investors.map(i => ({ watch_id: newWatch.id, investor_name: i.investor_name, percentage: i.percentage }))
         )
       }
+      setBulkTask(t => t && { ...t, done: t.done + 1 })
     }
 
     if (newWatches.length > 0) setWatches(v => [...newWatches, ...v])
+    setBulkTask(null)
     exitBulkMode()
   }
 
@@ -778,6 +767,7 @@ export default function WatchInventory({
     const supabase = createClient()
     const ids = Array.from(selectedIds)
     const selected = watches.filter(w => ids.includes(w.id))
+    setBulkTask({ label: 'Marking available…', done: 0, total: selected.length })
 
     // Non-sold watches: update directly
     const nonSold = selected.filter(w => (w.watch_status ?? w.status) !== 'Sold')
@@ -790,6 +780,7 @@ export default function WatchInventory({
     // Sold watches: check each for a linked active deal
     const soldWatches = selected.filter(w => (w.watch_status ?? w.status) === 'Sold')
     if (soldWatches.length === 0) {
+      setBulkTask(null)
       exitBulkMode()
       return
     }
@@ -798,6 +789,7 @@ export default function WatchInventory({
     // can't run, so skip sold watches entirely rather than risk silently
     // detaching a real sale.
     if (isClerk) {
+      setBulkTask(null)
       exitBulkMode()
       showToast(`${soldWatches.length} sold ${soldWatches.length === 1 ? 'watch was' : 'watches were'} skipped — changing a sold watch requires sales access`)
       return
@@ -819,6 +811,7 @@ export default function WatchInventory({
       } else {
         soldWithoutDeal.push(w)
       }
+      setBulkTask(t => t && { ...t, done: t.done + 1 })
     }
 
     // Sold watches without a linked deal: update directly
@@ -828,6 +821,7 @@ export default function WatchInventory({
       setWatches(v => v.map(w => noDealsIds.includes(w.id) ? { ...w, status: 'Available' as WatchStatus, watch_status: 'Available' } : w))
     }
 
+    setBulkTask(null)
     if (watchesWithDeals.length > 0) {
       // Show dialog — don't exit bulk mode yet
       setConfirmingBulkVoid(false)
@@ -1892,13 +1886,14 @@ export default function WatchInventory({
                   This permanently deletes the {bulkAvailableDialog.watchesWithDeals.length === 1 ? 'sale record' : 'sale records'} — it can&apos;t be undone.
                 </p>
                 <div className="space-y-2">
-                  <button
+                  <BusyButton
                     onClick={handleBulkAvailableRemoveSale}
-                    disabled={bulkAvailableActing}
-                    className="w-full text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+                    pending={bulkAvailableActing}
+                    pendingLabel="Voiding…"
+                    className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
                   >
-                    {bulkAvailableActing ? 'Voiding…' : 'Yes, void the sale' + (bulkAvailableDialog.watchesWithDeals.length === 1 ? '' : 's')}
-                  </button>
+                    {'Yes, void the sale' + (bulkAvailableDialog.watchesWithDeals.length === 1 ? '' : 's')}
+                  </BusyButton>
                   <button
                     onClick={() => setConfirmingBulkVoid(false)}
                     disabled={bulkAvailableActing}
@@ -1918,35 +1913,16 @@ export default function WatchInventory({
         document.body
       )}
 
-      {/* ── Share toast ───────────────────────────────────────── */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none" style={{ background: INK }}>
-          {toast}
-        </div>
-      )}
-
-      {/* ── Undo toast ────────────────────────────────────────── */}
-      {undoState && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 text-white px-4 py-2.5 rounded-2xl shadow-2xl ring-1 ring-white/10 select-none" style={{ background: INK }}>
-          <span className="text-sm">{undoState.message}</span>
-          <button
-            onClick={handleUndo}
-            className="text-sm font-semibold transition-colors"
-            style={{ color: LIME }}
-          >
-            Undo
-          </button>
-          <button
-            onClick={() => {
-              if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
-              undoTimerRef.current = null
-              setUndoState(null)
-            }}
-            className="text-white/40 hover:text-white/80 transition-colors ml-1"
-          >
-            <XSmallIcon />
-          </button>
-        </div>
+      {/* Bulk duplicate / mark-available loop per watch — LONG and determinate.
+          Fixed-position sibling, portaled clear of the list. */}
+      {bulkTask && createPortal(
+        <div
+          className="fixed z-[210] bg-white"
+          style={{ left: '50%', transform: 'translateX(-50%)', bottom: 96, width: 'min(92vw, 360px)', padding: '14px 18px', borderRadius: RADII.md, border: `1px solid ${INK_08}`, boxShadow: '0 10px 30px rgba(20,20,15,.18)' }}
+        >
+          <LongTaskProgress active label={bulkTask.label} progress={bulkTask.total > 0 ? bulkTask.done / bulkTask.total : undefined} />
+        </div>,
+        document.body
       )}
 
       {/* ── Mobile Add Watch FAB ──────────────────────────────── */}

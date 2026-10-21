@@ -11,13 +11,16 @@ export default async function NewInvoicePage({
   const supabase = createClient()
   const dealId   = searchParams?.deal_id ?? null
 
-  // If deal_id provided, check for an existing invoice for this deal first
+  // If a non-draft invoice already exists for this deal, go straight to it.
+  // If a draft already exists, continue it rather than starting another.
   if (dealId) {
     const { data: existing } = await supabase
       .from('invoices')
       .select('id')
       .eq('deal_id', dealId)
       .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (existing) {
@@ -25,7 +28,7 @@ export default async function NewInvoicePage({
     }
   }
 
-  // Fetch full deal + watch + client data for pre-population
+  // Fetch deal + watch + client data to pre-populate the draft
   type DealRow = {
     watch_id:       string | null
     currency:       string
@@ -41,7 +44,7 @@ export default async function NewInvoicePage({
       set_details:   string | null
       photos:        string[] | null
     } | null
-    clients: { name: string; phone: string | null; address: string | null } | null
+    clients: { id: string; name: string; phone: string | null; address: string | null; email: string | null } | null
   }
   let deal: DealRow | null = null
 
@@ -55,63 +58,38 @@ export default async function NewInvoicePage({
         sales_manager,
         payment_method,
         watches(watch_name, reference, serial_number, date_on_card, condition, set_details, photos),
-        clients(name, phone, address)
+        clients(id, name, phone, address, email)
       `)
       .eq('id', dealId)
       .maybeSingle()
     deal = data as DealRow | null
   }
 
-  // Generate sequential invoice number for this year
-  const year   = new Date().getFullYear()
-  const prefix = `TWB-${year}-`
-  const { count } = await supabase
-    .from('invoices')
-    .select('*', { count: 'exact', head: true })
-    .like('invoice_number', `${prefix}%`)
-  const invoice_number = `${prefix}${String((count ?? 0) + 1).padStart(4, '0')}`
+  const { data: settingsRows } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['invoice_default_terms', 'invoice_default_bank_id'])
+  const settings = Object.fromEntries((settingsRows ?? []).map(r => [r.key, r.value])) as Record<string, string | null>
 
-  // Build line items from the watch + deal data
-  const w          = deal?.watches ?? null
-  const salePrice  = deal?.sale_price ?? 0
-  const watchYear  = w?.date_on_card
-    ? String(new Date(w.date_on_card).getFullYear())
-    : null
-
-  const lineItemsArray = w?.watch_name
-    ? [{
-        watch_id:      deal?.watch_id      ?? null,
-        watch_name:    w.watch_name,
-        reference:     w.reference         ?? null,
-        serial_number: w.serial_number     ?? null,
-        year:          watchYear,
-        condition:     w.condition         ?? null,
-        set_details:   w.set_details       ?? null,
-        photo_url:     w.photos?.[0]       ?? null,
-        quantity:      1,
-        amount:        salePrice,
-        amount_paid:   salePrice,
-        sort_order:    0,
-      }]
-    : []
-
-  // Create the invoice record with line_items, total, and subtotal
+  // Draft invoices carry no number — one is only assigned when issue_invoice()
+  // is called from the editor. Create the draft row, then its line item.
   const { data: inv, error } = await supabase
     .from('invoices')
     .insert({
-      invoice_number,
-      deal_id:        dealId,
-      type:           dealId ? 'sale' : 'general',
-      status:         'draft',
-      currency:       deal?.currency         ?? 'LKR',
-      sales_manager:  deal?.sales_manager    ?? null,
-      payment_method: deal?.payment_method   ?? null,
-      client_name:    deal?.clients?.name    ?? null,
-      client_phone:   deal?.clients?.phone   ?? null,
-      client_address: deal?.clients?.address ?? null,
-      line_items:     lineItemsArray,
-      subtotal:       salePrice,
-      total:          salePrice,
+      doc_type:      'invoice',
+      status:        'draft',
+      deal_id:       dealId,
+      type:          dealId ? 'sale' : 'general',
+      currency:      deal?.currency         ?? 'LKR',
+      sales_manager: deal?.sales_manager    ?? null,
+      payment_method: deal?.payment_method  ?? null,
+      client_id:      deal?.clients?.id     ?? null,
+      bill_to_name:   deal?.clients?.name   ?? null,
+      bill_to_phone:  deal?.clients?.phone  ?? null,
+      bill_to_address: deal?.clients?.address ?? null,
+      bill_to_email:  deal?.clients?.email  ?? null,
+      terms_and_conditions: settings.invoice_default_terms ?? null,
+      bank_id:              settings.invoice_default_bank_id ?? null,
     })
     .select('id')
     .single()
@@ -121,51 +99,31 @@ export default async function NewInvoicePage({
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-sm font-semibold text-red-500 mb-1">Failed to create invoice</p>
-          <p className="text-xs text-gray-400">
-            {error?.message ?? 'Unknown error — check that the invoices table has line_items, total, and subtotal columns'}
-          </p>
+          <p className="text-xs text-gray-400">{error?.message ?? 'Unknown error'}</p>
         </div>
       </div>
     )
   }
 
-  // Also write to invoice_items table for backward compatibility
-  if (lineItemsArray.length > 0 && w) {
-    const { error: itemError } = await supabase.from('invoice_items').insert({
+  const w = deal?.watches ?? null
+  if (w?.watch_name) {
+    const watchYear = w.date_on_card ? String(new Date(w.date_on_card).getFullYear()) : null
+    await supabase.from('invoice_items').insert({
       invoice_id:    inv.id,
       watch_id:      deal?.watch_id    ?? null,
-      watch_name:    w.watch_name,
+      description:   w.watch_name,
       reference:     w.reference       ?? null,
       serial_number: w.serial_number   ?? null,
       year:          watchYear,
       condition:     w.condition       ?? null,
+      set_details:   w.set_details     ?? null,
       photo_url:     w.photos?.[0]     ?? null,
-      amount:        deal?.sale_price  ?? null,
+      quantity:      1,
+      unit_price:    deal?.sale_price  ?? null,
+      line_total:    deal?.sale_price  ?? null,
       sort_order:    0,
     })
-
-    if (itemError) {
-      console.error('[invoice/new] invoice_items insert failed:', itemError.message)
-    }
   }
-
-  // Log invoice creation server-side (fire-and-forget)
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', user.id).single()
-      await supabase.from('activity_log').insert({
-        user_id:      user.id,
-        user_name:    profile?.full_name ?? user.email,
-        user_role:    profile?.role      ?? 'unknown',
-        action_type:  'invoice_created',
-        severity:     'standard',
-        entity_type:  'invoice',
-        entity_id:    inv.id,
-        entity_label: invoice_number,
-      })
-    }
-  } catch { /* non-blocking */ }
 
   redirect(`/dashboard/invoices/${inv.id}/edit`)
 }

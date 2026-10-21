@@ -7,13 +7,20 @@ import type { SavedBank, SalesManager, Brand, InvestorRecord } from '@/types'
 export default async function SettingsPage() {
   const supabase = createClient()
 
-  const [banksRes, logoRes, managersRes, brandsRes, investorsRes] = await Promise.all([
+  const [banksRes, logoRes, managersRes, brandsRes, investorsRes, invoiceSettingsRes] = await Promise.all([
     supabase.from('saved_banks').select('*').order('bank_name'),
     supabase.from('app_settings').select('value').eq('key', 'invoice_logo_url').maybeSingle(),
     supabase.from('sales_managers').select('*').order('name'),
     supabase.from('brands').select('*').order('name'),
     supabase.from('investor_names').select('*').order('created_at', { ascending: true }),
+    supabase.from('app_settings').select('key, value').in('key', [
+      'invoice_number_prefix', 'invoice_default_terms', 'invoice_default_bank_id',
+    ]),
   ])
+
+  const invoiceSettings = Object.fromEntries(
+    (invoiceSettingsRes.data ?? []).map(r => [r.key, r.value])
+  ) as Record<string, string | null>
 
   return (
     <div className="flex flex-col h-full">
@@ -31,6 +38,9 @@ export default async function SettingsPage() {
           salesManagers={(managersRes.data ?? []) as SalesManager[]}
           brands={(brandsRes.data ?? []) as Brand[]}
           investors={(investorsRes.data ?? []) as InvestorRecord[]}
+          invoiceNumberPrefix={invoiceSettings.invoice_number_prefix ?? 'TWB'}
+          invoiceDefaultTerms={invoiceSettings.invoice_default_terms ?? ''}
+          invoiceDefaultBankId={invoiceSettings.invoice_default_bank_id ?? ''}
         />
       </div>
     </div>

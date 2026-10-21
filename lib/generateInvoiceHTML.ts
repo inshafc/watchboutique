@@ -1,14 +1,19 @@
+import type { InvoiceDocType, InvoiceItemFieldVisibility } from '@/types'
+
 const TWB_LOGO_URL =
   'https://sdubtvglhylztrxukyep.supabase.co/storage/v1/object/sign/TWB%20Logo/The%20Watch%20Boutique%20Sri%20Lanka%20Logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zOWUzOWJmNC1lYmEzLTQ5ZWMtYmUzMy03YzQzMzAxNzUwYWEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUV0IgTG9nby9UaGUgV2F0Y2ggQm91dGlxdWUgU3JpIExhbmthIExvZ28ucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MTQ2MTQ0OSwiZXhwIjo3Mzk3NDYxNDQ5fQ.KCxDWOYjqZXZ-IFdYvW3I5EFlzA7Y-GTnZGUxITzLo8'
 
 export interface InvoiceHTMLItem {
-  watch_name:    string
-  reference:     string | null
-  serial_number: string | null
-  year:          string | null
-  condition:     string | null
-  photo_url:     string | null
-  amount:        number | null
+  description:      string
+  reference:        string | null
+  serial_number:    string | null
+  year:             string | null
+  condition:        string | null
+  set_details:      string | null
+  photo_url:        string | null
+  quantity:         number
+  line_total:       number | null
+  field_visibility?: InvoiceItemFieldVisibility
 }
 
 export interface InvoiceHTMLBank {
@@ -21,20 +26,21 @@ export interface InvoiceHTMLBank {
 }
 
 export interface InvoiceHTMLParams {
-  invoiceNumber:      string
+  invoiceNumber:      string | null
+  docType:            InvoiceDocType
   date:               string
   currency:           string
   type:               string
   status:             string
-  clientName:         string | null
-  clientPhone:        string | null
-  clientAddress:      string | null
+  billToName:         string | null
+  billToPhone:        string | null
+  billToAddress:      string | null
   salesManager:       string | null
   paymentMethod:      string | null
   showBankDetails:    boolean
   bank:               InvoiceHTMLBank | null
-  advancePaid:        number | null
-  amountPaid:         number | null
+  discount?:          number | null
+  paidTotal:          number | null
   notes:              string | null
   termsAndConditions: string | null
   logoUrl?:           string | null
@@ -81,11 +87,17 @@ function fmtDate(d: string): string {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string }> = {
-  paid_in_full:   { label: 'Paid in Full',   dot: '#10b981', text: '#047857' },
+  paid:           { label: 'Paid',           dot: '#10b981', text: '#047857' },
   partially_paid: { label: 'Partially Paid', dot: '#f59e0b', text: '#b45309' },
-  advance_paid:   { label: 'Advance Paid',   dot: '#f59e0b', text: '#b45309' },
-  overdue:        { label: 'Overdue',        dot: '#ef4444', text: '#b91c1c' },
+  issued:         { label: 'Issued',         dot: '#3f5f8a', text: '#3f5f8a' },
+  cancelled:      { label: 'Cancelled',      dot: '#9ca3af', text: '#6b7280' },
   draft:          { label: 'Draft',          dot: '#9ca3af', text: '#6b7280' },
+}
+
+const DOC_TYPE_LABEL: Record<InvoiceDocType, string> = {
+  proforma:    'PROFORMA INVOICE',
+  invoice:     'INVOICE',
+  credit_note: 'CREDIT NOTE',
 }
 
 // Prepended to every inline style= attribute to guarantee Poppins on all elements
@@ -95,27 +107,21 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
   const fv  = p.fieldVisibility
   const MIN_ROWS = 3
 
-  const items    = p.items.filter(it => it.watch_name?.trim())
-  const subtotal = items.reduce((s, it) => s + (it.amount ?? 0), 0)
+  const items    = p.items.filter(it => it.description?.trim())
+  const subtotal = items.reduce((s, it) => s + (it.line_total ?? 0), 0)
+  const total    = subtotal - (p.discount ?? 0)
 
-  // Derive display status from amounts
-  const effectiveStatusKey: string =
-    p.amountPaid != null && subtotal > 0 && p.amountPaid >= subtotal ? 'paid_in_full' :
-    p.amountPaid != null && p.amountPaid > 0 && p.amountPaid < subtotal ? 'partially_paid' :
-    p.status
+  const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.draft
 
-  const sc = STATUS_CONFIG[effectiveStatusKey] ?? STATUS_CONFIG.draft
-
-  const showAdvancePaid = p.advancePaid != null && p.advancePaid > 0
-  const showAmountPaid  = p.amountPaid  != null && p.amountPaid  > 0 && p.amountPaid < subtotal
-  const balanceDue      = showAmountPaid ? subtotal - p.amountPaid! : 0
-  const paidInFull      = p.amountPaid  != null && subtotal > 0 && p.amountPaid >= subtotal
+  const showPaid    = p.paidTotal != null && p.paidTotal > 0 && p.paidTotal < total
+  const balanceDue   = showPaid ? total - p.paidTotal! : 0
+  const paidInFull   = p.status === 'paid'
 
   const d0    = new Date(p.date + 'T00:00:00')
   const dd    = String(d0.getDate()).padStart(2, '0')
   const mm    = String(d0.getMonth() + 1).padStart(2, '0')
   const yy    = String(d0.getFullYear()).slice(2)
-  const title = `${p.invoiceNumber}-${dd}-${mm}-${yy}`
+  const title = `${p.invoiceNumber ?? 'DRAFT'}-${dd}-${mm}-${yy}`
 
   // ── LINE ITEM ROWS ─────────────────────────────────────────
   const displayCount = Math.max(items.length, MIN_ROWS)
@@ -138,11 +144,13 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
       ? `<img src="${esc(item.photo_url)}" alt="" style="width:48px;height:48px;border-radius:6px;object-fit:cover;margin-right:12px;vertical-align:middle;flex-shrink:0;">`
       : `<div style="width:48px;height:48px;border-radius:6px;background:#f3f4f6;margin-right:12px;flex-shrink:0;"></div>`
 
+    const fv = item.field_visibility
     const details = [
-      item.reference     ? `Ref: ${esc(item.reference)}`       : '',
-      item.serial_number ? `SN: ${esc(item.serial_number)}`    : '',
-      item.year          ? `Year: ${esc(item.year)}`           : '',
-      item.condition     ? `Cond: ${esc(item.condition)}`      : '',
+      item.reference     && (fv?.reference     ?? true) ? `Ref: ${esc(item.reference)}`         : '',
+      item.serial_number && (fv?.serial_number ?? true) ? `SN: ${esc(item.serial_number)}`       : '',
+      item.year          && (fv?.year          ?? true) ? `Year: ${esc(item.year)}`              : '',
+      item.condition                                     ? `Cond: ${esc(item.condition)}`         : '',
+      item.set_details   && (fv?.set_details   ?? true) ? `Set: ${esc(item.set_details)}`         : '',
     ].filter(Boolean).join(' &nbsp;·&nbsp; ')
 
     return `<tr>
@@ -150,19 +158,19 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
         <div style="display:flex;align-items:center;">
           ${thumb}
           <div style="min-width:0;">
-            <div style="${F}font-size:13px;font-weight:600;color:#111111;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(item.watch_name.toUpperCase()) || '—'}</div>
+            <div style="${F}font-size:13px;font-weight:600;color:#111111;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(item.description.toUpperCase()) || '—'}</div>
             ${details ? `<div style="${F}font-size:11px;color:#6b7280;margin-top:3px;">${details}</div>` : ''}
           </div>
         </div>
       </td>
-      <td style="${F}text-align:center;font-size:13px;color:#6b7280;vertical-align:middle;${border}">1</td>
-      <td style="${F}text-align:right;font-size:13px;font-weight:600;color:#111111;vertical-align:middle;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px;${border}">${fmt(item.amount, p.currency)}</td>
+      <td style="${F}text-align:center;font-size:13px;color:#6b7280;vertical-align:middle;${border}">${item.quantity}</td>
+      <td style="${F}text-align:right;font-size:13px;font-weight:600;color:#111111;vertical-align:middle;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px;${border}">${fmt(item.line_total, p.currency)}</td>
     </tr>`
   }).join('\n')
 
   // ── META ROWS (right column) ───────────────────────────────
   const metaRows = [
-    { label: 'Invoice #',    value: p.invoiceNumber },
+    { label: 'Invoice #',    value: p.invoiceNumber ?? 'Draft — not yet issued' },
     { label: 'Date',         value: fmtDate(p.date) },
     ...(fv.sales_manager && p.salesManager
       ? [{ label: 'Sales Manager', value: p.salesManager }]
@@ -210,7 +218,7 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
 
   <!-- HEADER -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:24px;">
-    <h1 style="${F}font-size:48px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#111111;line-height:1;">INVOICE</h1>
+    <h1 style="${F}font-size:${p.docType === 'proforma' ? '32px' : '48px'};font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#111111;line-height:1;">${DOC_TYPE_LABEL[p.docType]}</h1>
     <img src="${p.logoUrl || TWB_LOGO_URL}" alt="The Watch Boutique" style="max-height:70px;object-fit:contain;display:block;">
   </div>
 
@@ -223,11 +231,11 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
     <!-- Left: billing details -->
     <div>
       <div style="${F}font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Billing Details</div>
-      ${p.clientName
-        ? `<div style="${F}font-size:13px;font-weight:600;color:#111111;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">${esc(p.clientName)}</div>`
+      ${p.billToName
+        ? `<div style="${F}font-size:13px;font-weight:600;color:#111111;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">${esc(p.billToName)}</div>`
         : `<div style="${F}font-size:13px;color:#d1d5db;margin-bottom:4px;">—</div>`}
-      ${fv.phone   && p.clientPhone   ? `<div style="${F}font-size:12px;color:#374151;margin-top:2px;">${esc(p.clientPhone)}</div>`                              : ''}
-      ${fv.address && p.clientAddress ? `<div style="${F}font-size:12px;color:#374151;margin-top:2px;line-height:1.5;">${esc(p.clientAddress)}</div>` : ''}
+      ${fv.phone   && p.billToPhone   ? `<div style="${F}font-size:12px;color:#374151;margin-top:2px;">${esc(p.billToPhone)}</div>`                              : ''}
+      ${fv.address && p.billToAddress ? `<div style="${F}font-size:12px;color:#374151;margin-top:2px;line-height:1.5;">${esc(p.billToAddress)}</div>` : ''}
     </div>
 
     <!-- Right: invoice meta -->
@@ -264,24 +272,24 @@ export function generateInvoiceHTML(p: InvoiceHTMLParams): string {
     <span style="${F}font-size:12px;color:#6b7280;min-width:140px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
   </div>
 
-  <!-- ADVANCE PAID (sourcing, before total) -->
-  ${showAdvancePaid ? `
-  <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:8px;">
-    <span style="${F}font-size:12px;color:#6b7280;">Advance Paid</span>
-    <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.advancePaid, p.currency)}</span>
+  <!-- DISCOUNT -->
+  ${p.discount != null && p.discount > 0 ? `
+  <div style="display:flex;justify-content:flex-end;align-items:center;gap:24px;padding:6px 0;margin-bottom:8px;">
+    <span style="${F}font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Discount</span>
+    <span style="${F}font-size:12px;color:#6b7280;min-width:140px;text-align:right;font-variant-numeric:tabular-nums;">−${fmt(p.discount, p.currency)}</span>
   </div>` : ''}
 
   <!-- TOTAL BAR -->
   <div style="display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;padding:16px 20px;border-radius:8px;margin-bottom:6px;">
     <span style="${F}color:#fff;font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;">Total</span>
-    <span style="${F}color:#fff;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">${fmt(subtotal, p.currency)}</span>
+    <span style="${F}color:#fff;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">${fmt(total, p.currency)}</span>
   </div>
 
   <!-- AMOUNT PAID (partial payment) -->
-  ${showAmountPaid ? `
+  ${showPaid ? `
   <div style="display:flex;justify-content:space-between;padding:8px 16px;background:#f9fafb;border-radius:6px;margin-bottom:4px;">
     <span style="${F}font-size:12px;color:#6b7280;">Amount Paid</span>
-    <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.amountPaid, p.currency)}</span>
+    <span style="${F}font-size:13px;font-weight:600;color:#374151;font-variant-numeric:tabular-nums;">${fmt(p.paidTotal, p.currency)}</span>
   </div>` : ''}
 
   <!-- BALANCE DUE -->

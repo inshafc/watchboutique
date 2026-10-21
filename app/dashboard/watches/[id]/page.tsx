@@ -109,19 +109,20 @@ export default async function WatchDetailPage({ params }: { params: { id: string
 
   type WatchInvoice = {
     id: string
-    invoice_number: string
+    invoice_number: string | null
     date: string | null
-    client_name: string | null
-    amount_paid: number | null
+    bill_to_name: string | null
+    total: number | null
     status: string
     deal_id: string
   }
   let invoice: WatchInvoice | null = null
+  let invoicePaid: number | null = null
   if (deals.length > 0) {
     const dealIds = deals.map(d => d.id)
     const { data: invData } = await supabase
       .from('invoices')
-      .select('id, invoice_number, date, client_name, amount_paid, status, deal_id')
+      .select('id, invoice_number, date, bill_to_name, total, status, deal_id')
       .in('deal_id', dealIds)
       .is('deleted_at', null)
       .neq('status', 'draft')
@@ -129,6 +130,13 @@ export default async function WatchDetailPage({ params }: { params: { id: string
       .limit(1)
       .maybeSingle()
     invoice = invData as WatchInvoice | null
+    if (invoice) {
+      const { data: paymentsData } = await supabase
+        .from('invoice_payments')
+        .select('amount')
+        .eq('invoice_id', invoice.id)
+      invoicePaid = (paymentsData ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+    }
   }
 
   const deliveredDeal = deals.find(d => d.stage === 'Delivered' && d.sale_price != null)
@@ -431,20 +439,20 @@ export default async function WatchDetailPage({ params }: { params: { id: string
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="min-w-0">
                 <Link href={`/dashboard/invoices/${invoice.id}/edit`} className="text-sm font-semibold transition-colors" style={{ color: INK }}>
-                  {invoice.invoice_number}
+                  {invoice.invoice_number ?? 'Draft'}
                 </Link>
-                {invoice.client_name && <p className="text-xs mt-0.5" style={{ color: INK_45 }}>{invoice.client_name}</p>}
+                {invoice.bill_to_name && <p className="text-xs mt-0.5" style={{ color: INK_45 }}>{invoice.bill_to_name}</p>}
                 {invoice.date && <p className="text-xs mt-0.5" style={{ color: INK_45 }}>{new Date(invoice.date).toLocaleDateString('en-LK', { dateStyle: 'medium' })}</p>}
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                {invoice.amount_paid != null && (
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: INK }}>{formatLKR(invoice.amount_paid)}</span>
+                {invoicePaid != null && invoicePaid > 0 && (
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: INK }}>{formatLKR(invoicePaid)}</span>
                 )}
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  invoice.status === 'paid'    ? 'bg-emerald-50 text-emerald-700' :
-                  invoice.status === 'sent'    ? 'bg-sky-50 text-sky-700' :
-                  invoice.status === 'overdue' ? 'bg-red-50 text-red-600' :
-                                                 'bg-gray-100 text-gray-600'
+                  invoice.status === 'paid'           ? 'bg-emerald-50 text-emerald-700' :
+                  invoice.status === 'issued'         ? 'bg-sky-50 text-sky-700' :
+                  invoice.status === 'partially_paid' ? 'bg-amber-50 text-amber-700' :
+                                                         'bg-gray-100 text-gray-600'
                 }`}>
                   {invoice.status}
                 </span>

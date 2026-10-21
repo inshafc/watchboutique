@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import LogoUploadSection    from './LogoUploadSection'
+import InvoicingSettingsSection from './InvoicingSettingsSection'
 import BankAccountsSection  from './BankAccountsSection'
 import SalesManagersSection from './SalesManagersSection'
 import BrandsSection        from './BrandsSection'
@@ -30,12 +31,18 @@ export default function SettingsClient({
   salesManagers,
   brands,
   investors,
+  invoiceNumberPrefix,
+  invoiceDefaultTerms,
+  invoiceDefaultBankId,
 }: {
   logoUrl:       string | null
   banks:         SavedBank[]
   salesManagers: SalesManager[]
   brands:        Brand[]
   investors:     InvestorRecord[]
+  invoiceNumberPrefix:  string
+  invoiceDefaultTerms:  string
+  invoiceDefaultBankId: string
 }) {
   const [active, setActive] = useState<Section>('invoice')
 
@@ -88,7 +95,18 @@ export default function SettingsClient({
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-4 md:py-6 px-4 md:px-8">
           <div>
-            {active === 'invoice'  && <LogoUploadSection    initialLogoUrl={logoUrl} />}
+            {active === 'invoice'  && (
+              <div className="space-y-8">
+                <LogoUploadSection initialLogoUrl={logoUrl} />
+                <div className="h-px bg-gray-100" />
+                <InvoicingSettingsSection
+                  initialPrefix={invoiceNumberPrefix}
+                  initialTerms={invoiceDefaultTerms}
+                  initialBankId={invoiceDefaultBankId}
+                  banks={banks}
+                />
+              </div>
+            )}
             {active === 'banks'    && <BankAccountsSection  initialBanks={banks} />}
             {active === 'managers' && <SalesManagersSection initialManagers={salesManagers} />}
             {active === 'brands'   && <BrandsSection        initialBrands={brands} />}

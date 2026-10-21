@@ -8,9 +8,11 @@ import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
+import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import VoidSaleDialog from '@/components/watches/VoidSaleDialog'
 import { displayCondition } from '@/lib/watch-condition'
+import BusyButton from '@/components/ui/BusyButton'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -68,6 +70,10 @@ export default function EditWatchForm({
   const { profile } = useAuth()
   const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
+  // Only a save that actually uploads photos is a LONG task — a plain field
+  // edit is a single UPDATE and gets BusyButton alone.
+  const [uploaded, setUploaded] = useState(0)
+  const [uploadTotal, setUploadTotal] = useState(0)
   const [error, setError]     = useState<string | null>(null)
 
   // Sold -> Available void-sale guard
@@ -170,6 +176,9 @@ export default function EditWatchForm({
       }
 
       const urlMap = new Map<File, string>()
+      const fileCount = photoItems.filter(i => i.kind === 'file').length
+      setUploadTotal(fileCount)
+      setUploaded(0)
       for (const item of photoItems) {
         if (item.kind === 'file') {
           const ext = item.file.name.split('.').pop() ?? 'jpg'
@@ -181,6 +190,7 @@ export default function EditWatchForm({
             const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
             urlMap.set(item.file, data.publicUrl)
           }
+          setUploaded(n => n + 1)
         }
       }
       const photos = photoItems
@@ -564,16 +574,25 @@ export default function EditWatchForm({
           {error}
         </div>
       )}
+      {/* LONG only when photos are actually being uploaded; a field-only save
+          finishes in one round-trip and needs nothing beyond the busy button. */}
+      {loading && uploadTotal > 0 && (
+        <div style={{ maxWidth: 360 }}>
+          <LongTaskProgress active progress={uploaded / uploadTotal} />
+        </div>
+      )}
       <div className="flex items-center gap-2 pt-2 pb-1 flex-wrap">
-        <button
+        <BusyButton
           type="button"
           onClick={handlePublish}
-          disabled={loading || !!brandError}
+          pending={loading}
+          disabled={!!brandError}
+          pendingLabel="Saving…"
           className="flex items-center gap-1.5 bg-sidebar text-white text-[13px] font-medium px-5 py-2.5 rounded-lg hover:bg-[#333] transition-colors disabled:opacity-50"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          {loading ? 'Saving…' : 'Publish'}
-        </button>
+          Publish
+        </BusyButton>
         <button
           type="button"
           onClick={handleSaveDraft}

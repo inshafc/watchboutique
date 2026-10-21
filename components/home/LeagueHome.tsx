@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logActivity } from '@/lib/activityLog'
+import BusyButton from '@/components/ui/BusyButton'
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const INK   = '#14140f'
@@ -117,6 +118,9 @@ export default function LeagueHome() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [focus, setFocus]       = useState<'user' | 'pass' | null>(null)
+  // Stays true through the success path too — the component unmounts on
+  // navigation, so the button holds "Signing in…" until the route changes and
+  // the destination's loading.tsx skeleton takes over.
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const router = useRouter()
@@ -130,6 +134,7 @@ export default function LeagueHome() {
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: username, password })
 
     if (signInError) {
+      // Back to the form with the error shown and state reset.
       setError('Invalid email or password.')
       setLoading(false)
       void logActivity({ actionType: 'login_failed', entityLabel: username })
@@ -303,17 +308,19 @@ export default function LeagueHome() {
               <span className="text-center" style={{ fontSize: 12.5, color: RED }}>{error}</span>
             )}
 
-            <button
+            <BusyButton
               type="submit"
-              disabled={loading}
+              pending={loading}
+              pendingLabel="Signing in…"
+              spinnerColor="#fff"
               className="flex items-center justify-center gap-2.5 whitespace-nowrap border-0 font-sans cursor-pointer transition-colors disabled:opacity-50"
               style={{ height: 54, borderRadius: 999, background: INK, color: '#fff', fontSize: 15, fontWeight: 600 }}
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              Sign in
               {!loading && (
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"><path d="M6.5 3.5 11 8l-4.5 4.5" /></svg>
               )}
-            </button>
+            </BusyButton>
 
             <span className="text-center" style={{ fontSize: 12, color: 'rgba(20,20,15,.4)' }}>Not a member? Registration for Season 5 opens 1 October.</span>
           </form>

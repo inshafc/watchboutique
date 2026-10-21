@@ -13,6 +13,7 @@ import {
   targetForPeriod, fmtLKR, fmtCompact,
 } from '@/lib/analytics'
 import { PERIOD_RANGES as RANGES } from '@/components/ui/PeriodPicker'
+import BusyButton from '@/components/ui/BusyButton'
 
 
 
@@ -497,13 +498,14 @@ export default function AnalyticsView({
               ))}
             </div>
             <div className="flex items-center gap-3 pt-2">
-              <button
+              <BusyButton
                 type="submit"
-                disabled={saving}
-                className="bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                pending={saving}
+                pendingLabel="Saving…"
+                className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save Targets'}
-              </button>
+                Save Targets
+              </BusyButton>
               {saved && <span className="text-sm text-emerald-600 font-medium">Saved!</span>}
             </div>
           </form>

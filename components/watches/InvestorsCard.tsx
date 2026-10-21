@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BusyButton from '@/components/ui/BusyButton'
 
 export interface InvestorRow {
   investor_name: string
@@ -173,14 +174,15 @@ export default function InvestorsCard({
                       placeholder="Investor name"
                       className={inp}
                     />
-                    <button
+                    <BusyButton
                       type="button"
                       onClick={() => handleCreateInvestor(idx)}
-                      disabled={addSaving}
-                      className="shrink-0 bg-gray-900 text-white text-[13px] font-medium px-3.5 py-2.5 rounded-lg hover:bg-black disabled:opacity-50 transition-colors"
+                      pending={addSaving}
+                      pendingLabel="Saving…"
+                      className="shrink-0 inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-[13px] font-medium px-3.5 py-2.5 rounded-lg hover:bg-black disabled:opacity-50 transition-colors"
                     >
-                      {addSaving ? 'Saving…' : 'Save'}
-                    </button>
+                      Save
+                    </BusyButton>
                     <button
                       type="button"
                       onClick={cancelAdd}

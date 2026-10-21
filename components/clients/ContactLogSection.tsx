@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { ContactLog, ContactChannel } from '@/types'
 import { CONTACT_CHANNELS } from '@/types'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all'
 
@@ -103,12 +104,13 @@ export default function ContactLogSection({
           required
         />
 
-        <button
-          type="submit" disabled={loading || !note.trim()}
-          className="w-full bg-gray-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        <BusyButton
+          type="submit" pending={loading} disabled={!note.trim()}
+          pendingLabel="Logging…"
+          className="inline-flex items-center justify-center gap-2 w-full bg-gray-900 text-white text-xs font-semibold py-2.5 rounded-xl hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {loading ? 'Logging…' : 'Log Contact'}
-        </button>
+          Log Contact
+        </BusyButton>
       </form>
 
       {/* Timeline */}

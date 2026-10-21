@@ -9,6 +9,7 @@ import { logActivity } from '@/lib/activityLog'
 import PhotoUpload, { type PhotoItem } from '@/components/watches/PhotoUpload'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import { discountPercent, validateDiscountPrice } from '@/lib/watch-price'
+import LongTaskProgress from '@/components/ui/LongTaskProgress'
 import InvestorsCard, { type InvestorRow } from '@/components/watches/InvestorsCard'
 import { useAutosaveDraft } from '@/lib/hooks/useAutosaveDraft'
 import { useIdleLock } from '@/lib/hooks/useIdleLock'
@@ -16,6 +17,7 @@ import DraftBanner from '@/components/drafts/DraftBanner'
 import DraftSaveIndicator from '@/components/drafts/DraftSaveIndicator'
 import IdleLockOverlay from '@/components/drafts/IdleLockOverlay'
 import { INK, INK_45, INK_60, CARD_BG, GREEN, RED, AMBER, BLUE, GOLD, RADII, CARD_PADDING } from '@/lib/design-tokens'
+import BusyButton from '@/components/ui/BusyButton'
 import {
   WATCH_CONDITIONS,
   CONDITION_LABELS,
@@ -150,6 +152,10 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
   const { profile, setInactivityLogoutSuspended } = useAuth()
   const isClerk = profile?.role === 'inventory_clerk'
   const [loading, setLoading] = useState(false)
+  // Publish is a LONG task: insert, then one sequential upload per photo.
+  // Determinate once we know how many files there are.
+  const [uploaded, setUploaded] = useState(0)
+  const [uploadTotal, setUploadTotal] = useState(0)
   const [error, setError]     = useState<string | null>(null)
 
   const [watchId,   setWatchId]   = useState<string | null>(null)
@@ -347,6 +353,9 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
       }
 
       const photoUrls: string[] = []
+      const fileCount = photoItems.filter(i => i.kind === 'file').length
+      setUploadTotal(fileCount)
+      setUploaded(0)
       for (const item of photoItems) {
         if (item.kind === 'file') {
           const ext = item.file.name.split('.').pop() ?? 'jpg'
@@ -358,6 +367,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
             const { data } = supabase.storage.from('watch-photos').getPublicUrl(path)
             photoUrls.push(data.publicUrl)
           }
+          setUploaded(n => n + 1)
         }
       }
       if (photoUrls.length > 0) {
@@ -615,18 +625,29 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
+      {/* Publish is a LONG task — insert plus one sequential upload per photo.
+          Determinate once there is at least one file to count against. */}
+      {loading && (
+        <div style={{ maxWidth: 360 }}>
+          <LongTaskProgress active progress={uploadTotal > 0 ? uploaded / uploadTotal : undefined} />
+        </div>
+      )}
+
       {/* ── Action buttons ─────────────────────────────────── */}
       <div className="flex items-center gap-3 flex-wrap" style={{ padding: '4px 0 40px' }}>
-        <button
+        <BusyButton
           type="button"
           onClick={handlePublish}
-          disabled={loading || !!brandError}
+          pending={loading}
+          disabled={!!brandError}
+          pendingLabel="Saving…"
+          spinnerColor="#fff"
           className="flex items-center gap-2.5 font-semibold transition-colors disabled:opacity-50"
           style={{ height: FIELD_H, padding: '0 26px', border: 0, borderRadius: RADII.pill, background: INK, color: '#fff', fontSize: 14.5 }}
         >
           <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4.4 10.4 8.2 14l7.4-8"/></svg>
-          {loading ? 'Saving…' : 'Publish'}
-        </button>
+          Publish
+        </BusyButton>
         <button
           type="button"
           onClick={handleSaveDraft}

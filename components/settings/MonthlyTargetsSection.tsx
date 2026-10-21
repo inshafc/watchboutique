@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BusyButton from '@/components/ui/BusyButton'
 
 const inp = 'w-full bg-white border border-gray-200 text-gray-900 rounded-xl px-3.5 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all'
 const lbl = 'block text-xs font-medium text-gray-500 mb-1'
@@ -116,10 +117,10 @@ export default function MonthlyTargetsSection() {
       </div>
 
       {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
-      <button onClick={save} disabled={saving}
-        className="bg-gray-900 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
-        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Monthly Targets'}
-      </button>
+      <BusyButton onClick={save} pending={saving} pendingLabel="Saving…"
+        className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
+        {saved ? '✓ Saved' : 'Save Monthly Targets'}
+      </BusyButton>
     </div>
   )
 }

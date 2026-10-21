@@ -16,6 +16,7 @@ import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { InvestorStat } from '@/lib/investor-stats'
 import { useAuth } from '@/context/AuthContext'
 import PeriodPicker, { PERIOD_RANGES } from '@/components/ui/PeriodPicker'
+import BusyButton from '@/components/ui/BusyButton'
 
 // ── Palette (matches the Sales Dashboard design) ────────────────────────────
 const INK        = '#14140f'
@@ -472,15 +473,16 @@ export default function DashboardOverview({
                     </div>
                   </div>
                   <div className="h-px my-0.5" style={{ background: INK_08 }} />
-                  <button
+                  <BusyButton
                     type="button"
-                    disabled={avatarUploading}
+                    pending={avatarUploading}
+                    pendingLabel="Uploading…"
                     onClick={() => { avatarInputRef.current?.click() }}
-                    className="text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap disabled:opacity-50"
+                    className="inline-flex items-center gap-2 text-left text-[13px] font-medium px-3 py-2.5 rounded-xl whitespace-nowrap disabled:opacity-50"
                     style={{ color: INK }}
                   >
-                    {avatarUploading ? 'Uploading…' : 'Change profile photo'}
-                  </button>
+                    Change profile photo
+                  </BusyButton>
                   <Link
                     href="/dashboard/settings"
                     onClick={() => setProfileOpen(false)}

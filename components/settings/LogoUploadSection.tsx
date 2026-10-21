@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BusyButton from '@/components/ui/BusyButton'
 
 // Bucket names to check in priority order (first match wins)
 const LOGO_BUCKETS = ['TWB Logo', 'twb logo', 'twb-logo']
@@ -87,13 +88,14 @@ export default function LogoUploadSection({ initialLogoUrl }: { initialLogoUrl: 
               Remove
             </button>
           )}
-          <button
+          <BusyButton
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black disabled:opacity-50 transition-colors"
+            pending={uploading}
+            pendingLabel="Uploading…"
+            className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black disabled:opacity-50 transition-colors"
           >
-            {uploading ? 'Uploading…' : logoUrl ? 'Replace Logo' : 'Upload Logo'}
-          </button>
+            {logoUrl ? 'Replace Logo' : 'Upload Logo'}
+          </BusyButton>
           <input
             ref={inputRef}
             type="file"
