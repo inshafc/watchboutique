@@ -89,6 +89,7 @@ export default function EditWatchForm({
     condition:      displayCondition(watch.condition) as WatchCondition,
     set_details:    normaliseSetDetails(watch.set_details),
     inventory_type: (watch.inventory_type ?? 'twb') as InventoryType,
+    classification: (watch.watch_status === 'sourced' ? 'sourced' : 'inventory') as 'inventory' | 'sourced',
     consignee_name: watch.consignee_name ?? '',
     purchased_from: watch.purchased_from ?? '',
     date_acquired:  watch.date_acquired  ?? '',
@@ -217,7 +218,7 @@ export default function EditWatchForm({
           date_acquired:  form.date_acquired || null,
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           status:         form.status,
-          watch_status:   form.status,
+          watch_status:   form.inventory_type === 'twb' && form.classification === 'sourced' ? 'sourced' : form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
           discount_price: form.discount_price ? num(form.discount_price) : null,
           comments:       form.comments.trim()       || null,
@@ -489,6 +490,30 @@ export default function EditWatchForm({
               {INVENTORY_TYPES.map(t => <option key={t} value={t}>{INVENTORY_TYPE_LABELS[t]}</option>)}
             </select>
           </div>
+          {form.inventory_type === 'twb' && (
+            <div>
+              <label className={lbl}>Source</label>
+              <div className="flex gap-2">
+                {(['inventory', 'sourced'] as const).map(opt => {
+                  const active = form.classification === opt
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, classification: opt }))}
+                      className={`flex-1 h-11 rounded-xl text-sm font-semibold border transition-colors ${
+                        active
+                          ? opt === 'sourced' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-gray-900 border-gray-900 text-white'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      {opt === 'sourced' ? 'Sourced' : 'Inventory'}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {form.inventory_type === 'consign' && (
             <div>
               <label className={lbl}>Consignee Name *</label>

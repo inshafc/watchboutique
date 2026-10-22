@@ -145,6 +145,15 @@ export function getMonthBounds(month: string): [Date, Date] | null {
   return [new Date(year, monthIndex, 1), new Date(year, monthIndex + 1, 0)]
 }
 
+// 'YYYY-MM' → the previous calendar month, same format. Malformed input
+// passes through unchanged so getMonthBounds's own validation handles it.
+export function prevMonthString(month: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(month)
+  if (!m) return month
+  const d = new Date(Number(m[1]), Number(m[2]) - 1 - 1, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export function getPrevBounds(range: DateRange): [Date, Date] {
   const now = new Date()
   const y = now.getFullYear()

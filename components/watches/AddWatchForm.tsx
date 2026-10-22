@@ -191,6 +191,7 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
     condition:      'Unworn' as WatchCondition,
     set_details:    'Full Set' as WatchSetDetails,
     inventory_type: 'twb' as InventoryType,
+    classification: 'inventory' as 'inventory' | 'sourced',
     consignee_name: '',
     purchased_from: '',
     purchase_cost:  '',
@@ -334,7 +335,11 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
           purchase_cost:  form.purchase_cost  ? num(form.purchase_cost)  : null,
           currency:       'LKR',
           status:         form.status,
-          watch_status:   form.status,
+          // A Sourced watch keeps its chosen `status` (e.g. the default
+          // Available) but is bucketed separately via watch_status —
+          // matching the one existing path that creates these today
+          // (InvoiceEditorClient's "Add to Sourced Orders" flow).
+          watch_status:   form.inventory_type === 'twb' && form.classification === 'sourced' ? 'sourced' : form.status,
           selling_price:  form.selling_price ? num(form.selling_price) : null,
           discount_price: form.discount_price ? num(form.discount_price) : null,
           comments:       form.comments.trim()       || null,
@@ -517,6 +522,17 @@ export default function AddWatchForm({ brands = [] }: { brands?: Brand[] }) {
               tone={{ consign: { bg: 'rgba(63,95,138,.14)', fg: BLUE } }}
             />
           </Field>
+          {form.inventory_type === 'twb' && (
+            <Field label="Source">
+              <Segment
+                options={['inventory', 'sourced'] as const}
+                labels={{ inventory: 'Inventory', sourced: 'Sourced' }}
+                value={form.classification}
+                onChange={v => setField('classification', v)}
+                tone={{ sourced: { bg: 'rgba(181,118,26,.16)', fg: AMBER } }}
+              />
+            </Field>
+          )}
           {form.inventory_type === 'consign' ? (
             <Field label={<>Consignee name <span style={{ color: RED }}>*</span></>}>
               <input type="text" value={form.consignee_name} onChange={field('consignee_name')} placeholder="Who is this watch consigned from?" style={fieldStyle} />

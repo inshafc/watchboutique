@@ -14,7 +14,7 @@ const DashboardOverview = nextDynamic(
 export default async function DashboardPage() {
   const supabase = createClient()
 
-  const [dealsRes, stockRes, targetsRes, clientsRes, investorStats] = await Promise.all([
+  const [dealsRes, stockRes, sourcedRes, targetsRes, clientsRes, investorStats] = await Promise.all([
     supabase
       .from('deals')
       // closed_at + deal_expenses(amount) added for the Overview cards'
@@ -31,6 +31,14 @@ export default async function DashboardPage() {
       .is('deleted_at', null)
       .eq('is_draft', false)
       .eq('watch_status', 'Available'),
+    // Sourced watches — value of deposits/procurement in progress for a
+    // client, tracked separately from on-hand stock (Inventory vs Sourced
+    // split card). Not period-filtered, same as the stock-value query above.
+    supabase
+      .from('watches')
+      .select('id, purchase_cost')
+      .is('deleted_at', null)
+      .eq('watch_status', 'sourced'),
     supabase
       .from('targets')
       .select('*')
@@ -52,11 +60,17 @@ export default async function DashboardPage() {
   const stockValue = stockWatches.reduce((s, w) => s + (w.purchase_cost ?? 0), 0)
   const stockCount = stockWatches.length
 
+  const sourcedWatches = (sourcedRes.data ?? []) as { id: string; purchase_cost: number | null }[]
+  const sourcedValue = sourcedWatches.reduce((s, w) => s + (w.purchase_cost ?? 0), 0)
+  const sourcedCount = sourcedWatches.length
+
   return (
     <DashboardOverview
       deals={deals}
       stockValue={stockValue}
       stockCount={stockCount}
+      sourcedValue={sourcedValue}
+      sourcedCount={sourcedCount}
       targets={targets}
       clients={clients}
       investorStats={investorStats.investorStats}

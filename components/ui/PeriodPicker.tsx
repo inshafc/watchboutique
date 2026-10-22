@@ -10,14 +10,23 @@ import { INK, INK_08, INK_50, INK_60 } from '@/lib/design-tokens'
 // the options. Neither is a DateRange, so neither reaches getDateBounds().
 export type PeriodValue = DateRange | 'all' | 'custom'
 
-// The dashboard's five fixed ranges. Its cards always sit inside a real period,
-// so it offers neither "All Time" nor "Custom".
+// The dashboard's five fixed ranges. Its cards always sit inside a real
+// period, so this list on its own offers no "All Time".
 export const PERIOD_RANGES: { label: string; value: DateRange }[] = [
   { label: 'This Month',    value: 'this_month' },
   { label: 'Last Month',    value: 'last_month' },
   { label: 'Last 3 Months', value: 'last_3'     },
   { label: 'Last 6 Months', value: 'last_6'     },
   { label: 'This Year',     value: 'this_year'  },
+]
+
+// Same five ranges, plus a free month picker — for callers that want the
+// dashboard's fixed ranges but also need to land on one specific month.
+// No "All Time" here — unlike SALES_PERIOD_RANGES, the dashboard always
+// sits inside a real period.
+export const DASHBOARD_PERIOD_RANGES: { label: string; value: DateRange | 'custom' }[] = [
+  ...PERIOD_RANGES,
+  { label: 'Custom Period', value: 'custom' },
 ]
 
 // Sales: opens on "All Time" so the list starts unnarrowed, and swaps the
