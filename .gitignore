@@ -40,3 +40,4 @@ skills/
 
 # Supabase CLI local state (project link info)
 supabase/.temp/
+.env*

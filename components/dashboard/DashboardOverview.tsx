@@ -6,7 +6,7 @@ import LazyImage from '@/components/ui/LazyImage'
 import { createClient } from '@/lib/supabase/client'
 import {
   type DealRow, type Target, type DateRange,
-  filterDeals, getDateBounds, getPrevBounds,
+  filterDeals, getDateBounds, getPrevBounds, getMonthBounds, prevMonthString,
   overviewRevenue, computeGP, newCustomersInPeriod,
   salesByBrand, salesByManager, salesByReferral, salesByChannel,
   topClients, newVsExisting, targetForPeriod,
@@ -15,7 +15,7 @@ import {
 import { dealSalePriceLKR } from '@/lib/deal-currency'
 import type { InvestorStat } from '@/lib/investor-stats'
 import { useAuth } from '@/context/AuthContext'
-import PeriodPicker, { PERIOD_RANGES } from '@/components/ui/PeriodPicker'
+import PeriodPicker, { DASHBOARD_PERIOD_RANGES } from '@/components/ui/PeriodPicker'
 import BusyButton from '@/components/ui/BusyButton'
 
 // ── Palette (matches the Sales Dashboard design) ────────────────────────────
@@ -150,13 +150,15 @@ function DonutChart({
   )
 }
 
-type ChartMode = { manager: 'value' | 'count'; brand: 'value' | 'count'; channel: 'value' | 'count'; clients: 'value' | 'count' }
+type ChartMode = { manager: 'value' | 'count'; brand: 'value' | 'count'; channel: 'value' | 'count'; clients: 'value' | 'count'; stock: 'value' | 'count' }
 type InvestorSortKey = 'displayName' | 'capitalTiedUp' | 'totalSales' | 'netProfit' | 'roi'
 
 export default function DashboardOverview({
   deals,
   stockValue,
   stockCount,
+  sourcedValue,
+  sourcedCount,
   targets,
   clients,
   investorStats,
@@ -164,13 +166,19 @@ export default function DashboardOverview({
   deals: DealRow[]
   stockValue: number
   stockCount: number
+  sourcedValue: number
+  sourcedCount: number
   targets: Target[]
   clients: { id: string; created_at: string; lead_referral: string | null }[]
   investorStats: InvestorStat[]
 }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
-  const [range, setRange] = useState<DateRange>('this_month')
-  const [chartMode, setChartMode] = useState<ChartMode>({ manager: 'value', brand: 'value', channel: 'value', clients: 'value' })
+  // The dashboard never offers "All Time" — only the five fixed ranges plus
+  // a free month pick — so its range is narrower than the full PeriodValue
+  // PeriodPicker's generic type allows.
+  const [range, setRange] = useState<DateRange | 'custom'>('this_month')
+  const [customMonth, setCustomMonth] = useState('')
+  const [chartMode, setChartMode] = useState<ChartMode>({ manager: 'value', brand: 'value', channel: 'value', clients: 'value', stock: 'value' })
   const [sortKey, setSortKey] = useState<InvestorSortKey>('capitalTiedUp')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
   const [periodOpen, setPeriodOpen] = useState(false)
@@ -246,8 +254,18 @@ export default function DashboardOverview({
 
   const firstName = profile?.full_name?.split(' ')[0] ?? 'there'
 
-  const [start, end]         = getDateBounds(range)
-  const [prevStart, prevEnd] = getPrevBounds(range)
+  // 'custom' is a single picked month, not one of the five fixed ranges —
+  // its bounds come from getMonthBounds, and for formulas that only know
+  // the fixed DateRange (targetForPeriod), it's pro-rated the same as a
+  // single calendar month ('this_month'). "Previous period" for a custom
+  // month is simply the month before it.
+  const effectiveRange: DateRange = range === 'custom' ? 'this_month' : range
+  const [start, end] = range === 'custom'
+    ? (getMonthBounds(customMonth) ?? getDateBounds('this_month'))
+    : getDateBounds(range)
+  const [prevStart, prevEnd] = range === 'custom'
+    ? (getMonthBounds(prevMonthString(customMonth)) ?? getDateBounds('last_month'))
+    : getPrevBounds(range)
   const current = filterDeals(deals, start, end)
   const prev    = filterDeals(deals, prevStart, prevEnd)
 
@@ -269,11 +287,11 @@ export default function DashboardOverview({
   const newCustomersReferral = newCustomers.filter(c => c.lead_referral === 'Referral').length
 
   const getTarget = (metric: string) => targets.find(t => t.metric === metric)?.target_value ?? 0
-  const tSales    = targetForPeriod(getTarget('total_sales'), range)
+  const tSales    = targetForPeriod(getTarget('total_sales'), effectiveRange)
   const achieved  = tSales > 0 ? Math.round((revenue / tSales) * 100) : 0
-  const tGP       = targetForPeriod(getTarget('gross_profit'), range)
+  const tGP       = targetForPeriod(getTarget('gross_profit'), effectiveRange)
   const gpAchieved = tGP > 0 ? Math.round((grossProfit / tGP) * 100) : 0
-  const tWatches  = targetForPeriod(getTarget('watches_sold'), range)
+  const tWatches  = targetForPeriod(getTarget('watches_sold'), effectiveRange)
   const watchesAchieved = tWatches > 0 ? Math.round((watchesSold / tWatches) * 100) : 0
   const GP_PCT_TARGET = getTarget('gp_margin') || 30
   const gpMarginAchieved = GP_PCT_TARGET > 0 ? Math.round((gpMargin / GP_PCT_TARGET) * 100) : 0
@@ -398,10 +416,12 @@ export default function DashboardOverview({
           {/* Period picker */}
           <PeriodPicker
             value={range}
-            options={PERIOD_RANGES}
+            options={DASHBOARD_PERIOD_RANGES}
             onChange={setRange}
             open={periodOpen}
             onOpenChange={o => { setPeriodOpen(o); if (o) setAddOpen(false) }}
+            customMonth={customMonth}
+            onCustomMonthChange={setCustomMonth}
           />
 
           {/* Add new */}
@@ -759,6 +779,18 @@ export default function DashboardOverview({
           rows={nve.map(r => ({ label: r.type, totalSales: r.totalSales, count: r.sold }))}
           mode={chartMode.clients}
           onModeChange={m => setChartMode(s => ({ ...s, clients: m }))}
+        />
+        {/* Inventory vs Sourced — current on-hand stock vs. client-deposit
+            procurement in progress. Cost-basis snapshot, like "Value of
+            stock" above — never period-filtered. */}
+        <DonutChart
+          title="Inventory vs Sourced"
+          rows={[
+            { label: 'Inventory', totalSales: stockValue, count: stockCount },
+            { label: 'Sourced', totalSales: sourcedValue, count: sourcedCount },
+          ]}
+          mode={chartMode.stock}
+          onModeChange={m => setChartMode(s => ({ ...s, stock: m }))}
         />
       </div>
 
