@@ -468,8 +468,12 @@ export default function WatchInventory({
     return map
   }, [watches, statusFilter, conditionFilter, onSaleOnly])
 
+  // Available stock only — matches the Dashboard's "Value of stock" card.
+  // Previously summed selling_price across every non-draft, non-sourced
+  // watch regardless of status, so it kept counting watches already Sold
+  // or On Hold and inflated the figure well past what's actually on hand.
   const totalSellingValue = useMemo(
-    () => watches.filter(w => !w.is_draft && w.watch_status !== 'sourced').reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
+    () => watches.filter(w => !w.is_draft && w.watch_status === 'Available').reduce((sum, w) => sum + (w.selling_price ?? 0), 0),
     [watches]
   )
 
