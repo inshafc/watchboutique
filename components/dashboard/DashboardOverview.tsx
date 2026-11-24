@@ -17,6 +17,7 @@ import type { InvestorStat } from '@/lib/investor-stats'
 import { useAuth } from '@/context/AuthContext'
 import PeriodPicker, { DASHBOARD_PERIOD_RANGES } from '@/components/ui/PeriodPicker'
 import BusyButton from '@/components/ui/BusyButton'
+import InfoTooltip from '@/components/ui/InfoTooltip'
 
 // ── Palette (matches the Sales Dashboard design) ────────────────────────────
 const INK        = '#14140f'
@@ -330,12 +331,12 @@ export default function DashboardOverview({
     setSortKey(key)
   }
 
-  const investorCols: { key: InvestorSortKey; label: string; align: 'left' | 'right' }[] = [
+  const investorCols: { key: InvestorSortKey; label: string; align: 'left' | 'right'; tip?: string }[] = [
     { key: 'displayName',   label: 'Investor',        align: 'left' },
-    { key: 'capitalTiedUp', label: 'Capital employed', align: 'right' },
-    { key: 'totalSales',    label: 'Sales',            align: 'right' },
-    { key: 'netProfit',     label: 'Profit',           align: 'right' },
-    { key: 'roi',           label: 'ROI',              align: 'right' },
+    { key: 'capitalTiedUp', label: 'Capital employed', align: 'right', tip: "Purchase cost of this investor's watches that haven't sold yet. Not scaled by their profit-split %." },
+    { key: 'totalSales',    label: 'Sales',            align: 'right', tip: "This investor's % share of the sale price across all their watches sold to date, all-time." },
+    { key: 'netProfit',     label: 'Profit',           align: 'right', tip: "This investor's % share of profit (sale price minus cost, commission, and other costs) across all their watches sold to date, all-time." },
+    { key: 'roi',           label: 'ROI',              align: 'right', tip: 'Profit as a percentage of the capital invested in their watches that have sold to date, all-time.' },
   ]
 
   return (
@@ -537,7 +538,7 @@ export default function DashboardOverview({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             {/* Revenue */}
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Revenue</span>
+              <span className="text-[13.5px] font-medium inline-flex items-center gap-1.5" style={{ color: INK_60 }}>Revenue<InfoTooltip text="Sum of the sale price (converted to LKR) for every deal marked Closed or Delivered within the selected period." /></span>
               <div className="flex flex-col items-start gap-2">
                 <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(revenue)}</span>
                 <div className="flex items-center gap-2">
@@ -562,7 +563,7 @@ export default function DashboardOverview({
 
             {/* Gross profit */}
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>Gross profit</span>
+              <span className="text-[13.5px] font-medium inline-flex items-center gap-1.5" style={{ color: INK_60 }}>Gross profit<InfoTooltip text="Revenue minus cost of goods, commission, and other logged costs for deals in the selected period." /></span>
               <div className="flex flex-col items-start gap-2">
                 <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(grossProfit)}</span>
                 <div className="flex items-center gap-2">
@@ -587,7 +588,7 @@ export default function DashboardOverview({
 
             {/* GP Margin */}
             <div className="rounded-[20px] p-5 flex flex-col gap-3.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[13.5px] font-medium" style={{ color: INK_60 }}>GP margin</span>
+              <span className="text-[13.5px] font-medium inline-flex items-center gap-1.5" style={{ color: INK_60 }}>GP margin<InfoTooltip text="Gross profit as a percentage of revenue for the selected period." /></span>
               <div className="flex flex-col items-start gap-2">
                 <span className="text-[42px] font-semibold tracking-tight leading-none tabular-nums">{gpMargin.toFixed(1)}%</span>
                 <div className="flex items-center gap-2">
@@ -614,7 +615,7 @@ export default function DashboardOverview({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Watches sold */}
             <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>Watches sold</span>
+              <span className="text-[12.5px] whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: INK_50 }}>Watches sold<InfoTooltip text="Count of deals marked Closed or Delivered within the selected period." /></span>
               <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{watchesSold}</span>
               {tWatches > 0 && (
                 <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{watchesAchieved}% of {Math.round(tWatches)} target</span>
@@ -622,13 +623,13 @@ export default function DashboardOverview({
             </div>
             {/* Value of stock — current on-hand inventory, cost basis, never period-filtered */}
             <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>Value of stock</span>
+              <span className="text-[12.5px] whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: INK_50 }}>Value of stock<InfoTooltip text="Purchase cost of every watch currently marked Available — on hand, not sold, not a sourced order. Never affected by the date range above." /></span>
               <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">LKR {fmtCompact(stockValue)}</span>
               <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{stockCount} pieces on hand</span>
             </div>
             {/* New customers */}
             <div className="rounded-2xl p-3.5 flex flex-col gap-0.5" style={{ background: CARD_BG, border: `1px solid ${INK_08}` }}>
-              <span className="text-[12.5px] whitespace-nowrap" style={{ color: INK_50 }}>New customers</span>
+              <span className="text-[12.5px] whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: INK_50 }}>New customers<InfoTooltip text="Clients first added to the system within the selected period." /></span>
               <span className="text-[25px] font-semibold tracking-tight leading-none tabular-nums">{newCustomers.length}</span>
               <span className="text-[11px] mt-0.5" style={{ color: INK_45 }}>{newCustomersReferral} from referrals</span>
             </div>
@@ -717,6 +718,7 @@ export default function DashboardOverview({
                   style={{ textAlign: c.align, color: sortKey === c.key ? INK : INK_45 }}
                 >
                   {c.label}{sortKey === c.key ? (sortDir === -1 ? ' ↓' : ' ↑') : ''}
+                  {c.tip && <InfoTooltip text={c.tip} className="ml-1 normal-case tracking-normal" />}
                 </button>
               ))}
             </div>
@@ -840,21 +842,21 @@ export default function DashboardOverview({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3 px-4 py-4 rounded-2xl" style={{ background: INK }}>
               <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-[13px] font-semibold whitespace-nowrap" style={{ color: 'rgba(255,255,255,.72)' }}>Investor payout</span>
+                <span className="text-[13px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,.72)' }}>Investor payout<InfoTooltip text="Sum of every investor's share of net profit across all their watches sold to date, all-time. Not affected by the date range above." /></span>
                 <span className="text-[11px] whitespace-nowrap" style={{ color: 'rgba(255,255,255,.45)' }}>All-time, their share of net profit</span>
               </div>
               <span className="ml-auto text-[19px] font-semibold tabular-nums whitespace-nowrap" style={{ color: '#d8f24a' }}>LKR {fmtCompact(investorPayoutTotal)}</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-3" style={{ background: CARD_BG, borderRadius: 14 }}>
               <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: INK_60 }}>Commission payout</span>
+                <span className="text-[12.5px] font-medium whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: INK_60 }}>Commission payout<InfoTooltip text="Commission paid to sales managers across deals in the selected period. Already netted into Gross profit above — shown here for reference, not subtracted again." /></span>
                 <span className="text-[11px] whitespace-nowrap" style={{ color: INK_45 }}>Salesmen, this period</span>
               </div>
               <span className="ml-auto text-[14px] font-semibold tabular-nums whitespace-nowrap">LKR {fmtCompact(commissionTotal)}</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-3" style={{ background: CARD_BG, borderRadius: 14 }}>
               <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: INK_60 }}>Other costs</span>
+                <span className="text-[12.5px] font-medium whitespace-nowrap inline-flex items-center gap-1.5" style={{ color: INK_60 }}>Other costs<InfoTooltip text="Other costs logged against deals in the selected period. Already netted into Gross profit above — shown here for reference, not subtracted again." /></span>
                 <span className="text-[11px] whitespace-nowrap" style={{ color: INK_45 }}>Logged against deals, this period</span>
               </div>
               <span className="ml-auto text-[14px] font-semibold tabular-nums whitespace-nowrap">LKR {fmtCompact(otherCostsTotal)}</span>

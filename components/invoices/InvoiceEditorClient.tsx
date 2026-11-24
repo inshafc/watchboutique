@@ -490,11 +490,13 @@ export default function InvoiceEditorClient({
 
   const num = (s: string) => { const v = parseFloat(s.replace(/,/g, '')); return isNaN(v) ? null : v }
 
-  const handleSave = useCallback(async () => {
-    setSaving(true)
-    setError(null)
+  // Writes the current wizard state (form + items) to the invoices/invoice_items
+  // tables. Shared by Save draft and Issue — Issue used to skip this and just
+  // flip status via the RPC, so a draft that was filled in but never explicitly
+  // saved got issued with whatever (often nothing) was already in the DB,
+  // producing a fully blank invoice on export. Issue now always persists first.
+  const persistInvoice = useCallback(async (): Promise<string | null> => {
     const supabase = createClient()
-
     const validItems = items.filter(it => it.description.trim())
 
     const { error: invErr } = await supabase
@@ -521,14 +523,14 @@ export default function InvoiceEditorClient({
       })
       .eq('id', invoice.id)
 
-    if (invErr) { setError(invErr.message); setSaving(false); return }
+    if (invErr) return invErr.message
 
     // Line items are relational — replace the set on every save, same
     // delete+reinsert pattern this editor already used for the old mirror
     // table. RLS only allows this while the invoice is still 'draft'.
     await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
     if (validItems.length > 0) {
-      await supabase.from('invoice_items').insert(
+      const { error: itemsErr } = await supabase.from('invoice_items').insert(
         validItems.map((it, i) => ({
           invoice_id:    invoice.id,
           watch_id:      it.watch_id || null,
@@ -546,7 +548,18 @@ export default function InvoiceEditorClient({
           field_visibility: it.field_visibility,
         }))
       )
+      if (itemsErr) return itemsErr.message
     }
+
+    return null
+  }, [form, items, invoice.id, showBankPicker, fieldVisibility])
+
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+
+    const persistErr = await persistInvoice()
+    if (persistErr) { setError(persistErr); setSaving(false); return }
 
     void logActivity({ actionType: 'invoice_updated', entityType: 'invoice', entityId: invoice.id, entityLabel: invoice.invoice_number ?? 'Draft' })
     await draft.clearDraft()
@@ -559,7 +572,7 @@ export default function InvoiceEditorClient({
       setSourcingPromptOpen(true)
     }
     router.refresh()
-  }, [form, items, invoice.id, invoice.invoice_number, showBankPicker, fieldVisibility, draft, router])
+  }, [persistInvoice, form.type, invoice.id, invoice.invoice_number, draft, router])
 
   const handleAddToSourcedOrders = useCallback(async () => {
     setSourcingAdding(true)
@@ -592,6 +605,10 @@ export default function InvoiceEditorClient({
 
   const handleIssue = useCallback(async () => {
     setIssuing(true)
+
+    const persistErr = await persistInvoice()
+    if (persistErr) { setIssuing(false); toast.error(persistErr); return }
+
     const supabase = createClient()
     const { data, error: issueErr } = await supabase.rpc('issue_invoice', { p_invoice_id: invoice.id })
     if (issueErr) { setIssuing(false); toast.error(issueErr.message); return }
@@ -618,7 +635,7 @@ export default function InvoiceEditorClient({
     setIssuedNumber(data as string)
     setJustIssued(true)
     router.refresh()
-  }, [invoice.id, initialPaymentAmount, form.currency, form.exchange_rate, form.payment_method, router, toast])
+  }, [persistInvoice, invoice.id, initialPaymentAmount, form.currency, form.exchange_rate, form.payment_method, router, toast])
 
   const handleRecordPayment = useCallback(async () => {
     setRecordingPayment(true)
